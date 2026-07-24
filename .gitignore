@@ -1,2 +1,27 @@
+# AURIX build output directories.
 /build_host/
 /Debug/
+/Release/
+/External GCC - Debug/
+/External GCC - Release/
+/build/
+/out/
+
+# Generated compiler and flashing artifacts.
+*.o
+*.d
+*.elf
+*.hex
+*.bin
+*.map
+*.lst
+*.srec
+*.mot
+*.log
+
+# Temporary files created by editors and operating systems.
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
