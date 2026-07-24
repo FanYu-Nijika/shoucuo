@@ -24,6 +24,7 @@ int16 car_right_command = 0;
 float steering_kp = 2.0f;
 float steering_kd = 4.0f;
 
+static uint8 had_valid_track = 0;
 static int16 last_error = 0;
 static int16 last_valid_error = 0;
 
@@ -84,6 +85,7 @@ void car_set_running(uint8 running)
     if (running && car_camera_ready) {
         car_running = 1;
         car_lost_count = 0;
+        had_valid_track = 0;
         last_error = 0;
         last_valid_error = 0;
     } else {
@@ -100,6 +102,7 @@ void car_stop(void)
 {
     car_running = 0;
     car_lost_count = 0;
+    had_valid_track = 0;
     last_error = 0;
     last_valid_error = 0;
     car_set_motor(0, 0);
@@ -128,6 +131,12 @@ void car_track_update(int16 error, uint8 valid)
             return;
         }
 
+        if (!had_valid_track) {
+            car_set_motor(0, 0);
+            car_set_servo(servo_center_duty);
+            return;
+        }
+
         steering = steering_kp * last_valid_error;
         if (servo_reverse) steering = -steering;
         servo_command = servo_center_duty + steering;
@@ -141,6 +150,7 @@ void car_track_update(int16 error, uint8 valid)
     }
 
     car_lost_count = 0;
+    had_valid_track = 1;
     last_valid_error = error;
     steering = steering_kp * error + steering_kd * (error - last_error);
     last_error = error;
