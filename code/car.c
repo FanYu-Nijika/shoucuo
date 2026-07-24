@@ -128,6 +128,13 @@ void car_track_update(int16 error, uint8 valid)
             return;
         }
 
+        steering = steering_kp * last_valid_error;
+        if (servo_reverse) steering = -steering;
+        servo_command = servo_center_duty + steering;
+        if (servo_command < servo_min_duty) servo_command = servo_min_duty;
+        if (servo_command > servo_max_duty) servo_command = servo_max_duty;
+        car_set_servo(servo_command);
+
         speed = motor_base_duty / 2;
         car_set_motor(speed, speed);
         return;
