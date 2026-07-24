@@ -35,26 +35,46 @@
 
 #include "zf_common_headfile.h"
 #include "isr_config.h"
+#include "image.h"
 
 #include <string.h>
 
 #include "board_pins.h"
 #include "car.h"
-#include "image.h"
 #include "menu.h"
 
 #pragma section all "cpu0_dsram"
+// 将本语句与#pragma section all restore语句之间的全局变量都放在CPU0的RAM中
+
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
+
+#define PIT_NUM                 (CCU60_CH0 )
+
+// uint16 delay_time = 0;
+// uint8 led_state = 0;
 
 volatile uint32 car_time_ms = 0;
 
+// **************************** 代码区域 ****************************
 int core0_main(void)
 {
     uint32 menu_time_ms = 0;
     uint32 display_time_ms = 0;
     uint8 camera_init_error;
 
-    clock_init();
-    debug_init();
+    clock_init();                   // 获取时钟频率<务必保留>
+    debug_init();                   // 初始化默认调试串口
+    // 此处编写用户代码 例如外设初始化代码等
+
+//    // 板载 LED 为低电平点亮，初始化为高电平可以避免上电误亮。
+//    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+//    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+//    gpio_init(BOARD_KEY1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+//    gpio_init(BOARD_KEY2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+//    gpio_init(BOARD_SWITCH1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+//    gpio_init(BOARD_SWITCH2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
     gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
@@ -66,18 +86,39 @@ int core0_main(void)
     car_init();
     menu_init();
 
+    // 使用逐飞官方MT9V03X驱动初始化摄像头，返回0表示初始化成功。
     camera_init_error = mt9v03x_init();
     car_set_camera_ready(camera_init_error == 0);
     gpio_set_level(BOARD_LED1_PIN, camera_init_error == 0 ? GPIO_LOW : GPIO_HIGH);
     gpio_set_level(BOARD_LED2_PIN, GPIO_HIGH);
 
-    pit_ms_init(CCU60_CH0, 5);
-    cpu_wait_event_ready();
+    pit_ms_init(PIT_NUM, 5);
 
+    // 此处编写用户代码 例如外设初始化代码等
+    cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE) {
+        // 此处编写需要循环执行的代码
+//
+//        delay_time = 300;
+//        if(!gpio_get_level(BOARD_SWITCH1_PIN)) delay_time /= 2;
+//        if(!gpio_get_level(BOARD_SWITCH2_PIN)) delay_time /= 2;
+//        if(!gpio_get_level(BOARD_KEY1_PIN) || !gpio_get_level(BOARD_KEY2_PIN))
+//        {
+//            gpio_set_level(BOARD_LED1_PIN, led_state);
+//            gpio_set_level(BOARD_LED2_PIN, led_state);
+//        }
+//        else
+//        {
+//            gpio_set_level(BOARD_LED1_PIN, led_state);
+//            gpio_set_level(BOARD_LED2_PIN, !led_state);
+//        }
+//        led_state = !led_state;
+//        system_delay_ms(delay_time);
+
         if (mt9v03x_finish_flag) {
             mt9v03x_finish_flag = 0;
 
+            // CPU1空闲时复制完整灰度帧，避免DMA采集下一帧时覆盖CPU1正在处理的数据。
             if (!cpu0_done && !cpu1_done) {
                 memcpy(image_buffer[0], mt9v03x_image[0], MT9V03X_IMAGE_SIZE);
                 __dsync();
@@ -86,6 +127,7 @@ int core0_main(void)
             }
         }
 
+        // CPU1处理完成后，CPU0读取偏差并更新舵机和两个后轮电机。
         if (cpu1_done) {
             __dsync();
             car_track_update(track_error, track_valid);
@@ -93,6 +135,7 @@ int core0_main(void)
             __dsync();
         }
 
+        // 菜单按键每20ms扫描一次，屏幕每100ms刷新一次。
         if (car_time_ms - menu_time_ms >= 20) {
             menu_time_ms = car_time_ms;
             menu_task();
@@ -102,14 +145,17 @@ int core0_main(void)
             display_time_ms = car_time_ms;
             menu_display();
         }
+
+        // 此处编写需要循环执行的代码
     }
 }
 
 IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 {
-    interrupt_global_enable(0);
+    interrupt_global_enable(0);                     // 开启中断嵌套
     pit_clear_flag(CCU60_CH0);
     car_time_ms += 5;
 }
 
 #pragma section all restore
+// **************************** 代码区域 ****************************
