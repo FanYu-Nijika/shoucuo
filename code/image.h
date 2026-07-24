@@ -7,17 +7,17 @@ extern volatile uint8 cpu0_done;
 extern volatile uint8 cpu1_done;
 
 extern uint8 image_buffer[MT9V03X_H][MT9V03X_W];
-extern uint8 image_auto_threshold;
-extern uint8 threshold;
-extern uint8 track_valid;
-extern uint16 best_col;
-extern uint16 best_row;
-extern int16 track_error;
+extern volatile uint8 image_auto_threshold;
+extern volatile uint8 threshold;
+extern volatile uint8 track_valid;
+extern volatile uint16 best_col;
+extern volatile uint16 best_row;
+extern volatile int16 track_error;
 
-extern uint16 image_scan_start_col;
-extern uint16 image_scan_end_col;
-extern uint16 image_check_row;
-extern uint16 image_search_start_row;
+extern volatile uint16 image_scan_start_col;
+extern volatile uint16 image_scan_end_col;
+extern volatile uint16 image_check_row;
+extern volatile uint16 image_search_start_row;
 
 uint8 image_binary(uint8 *image);
 void image_find_longest_white_line(uint8 *image);
