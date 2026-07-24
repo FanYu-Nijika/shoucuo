@@ -7,8 +7,8 @@
  * Camera4 board pin map.
  * Use this file as the only source of board-level pin assignments.
  */
-#ifndef CC_BOARD_PINS_H
-#define CC_BOARD_PINS_H
+#ifndef CODE_BOARD_PINS_H_
+#define CODE_BOARD_PINS_H_
 
 // LED1、LED2 的阳极由 3.3V 供电，MCU 输出低电平时点亮。
 #define BOARD_LED1_PIN                     (P02_4)
@@ -35,12 +35,13 @@
 // P13.0 经 R12 驱动 Q1，输出高电平时导通蜂鸣器驱动级。
 #define BOARD_BUZZER_PIN                   (P13_0)
 
-// 五路信号均先经过 74LV245 缓冲，再送往舵机和电机驱动插座。
+// 五路信号均先经过 74LV245 缓冲，再送往舵机插座。
+// 当前四路P21.2-P21.5用于两个后轮电机正反转PWM，P21.6用于前轮舵机PWM。
 #define BOARD_SERVO1_GPIO_PIN              (P21_2)
 #define BOARD_SERVO2_GPIO_PIN              (P21_3)
 #define BOARD_SERVO3_GPIO_PIN              (P21_4)
 #define BOARD_SERVO4_GPIO_PIN              (P21_5)
-#define BOARD_SERVO_AUX_GPIO_PIN            (P21_6)
+#define BOARD_SERVO_AUX_GPIO_PIN           (P21_6)
 #define BOARD_SERVO1_PWM_PIN               (ATOM0_CH0_P21_2)
 #define BOARD_SERVO2_PWM_PIN               (ATOM0_CH1_P21_3)
 #define BOARD_SERVO3_PWM_PIN               (ATOM0_CH2_P21_4)
@@ -98,4 +99,4 @@
 
 #define BOARD_ANALOG_AN0_PIN               (ADC0_CH0_A0)
 
-#endif
+#endif /* CODE_BOARD_PINS_H_ */
