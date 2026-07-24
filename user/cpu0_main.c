@@ -1,109 +1,115 @@
 /*********************************************************************************************************************
-* TC264 Opensourec Library ¼´£¨TC264 ¿ªÔ´¿â£©ÊÇÒ»¸ö»ùÓÚ¹Ù·½ SDK ½Ó¿ÚµÄµÚÈý·½¿ªÔ´¿â
-* Copyright (c) 2022 SEEKFREE Öð·É¿Æ¼¼
+* TC264 Opensourec Library å³ï¼ˆTC264 å¼€æºåº“ï¼‰æ˜¯ä¸€ä¸ªåŸºäºŽå®˜æ–¹ SDK æŽ¥å£çš„ç¬¬ä¸‰æ–¹å¼€æºåº“
+* Copyright (c) 2022 SEEKFREE é€é£žç§‘æŠ€
 *
-* ±¾ÎÄ¼þÊÇ TC264 ¿ªÔ´¿âµÄÒ»²¿·Ö
+* æœ¬æ–‡ä»¶æ˜¯ TC264 å¼€æºåº“çš„ä¸€éƒ¨åˆ†
 *
-* TC264 ¿ªÔ´¿â ÊÇÃâ·ÑÈí¼þ
-* Äú¿ÉÒÔ¸ù¾Ý×ÔÓÉÈí¼þ»ù½ð»á·¢²¼µÄ GPL£¨GNU General Public License£¬¼´ GNUÍ¨ÓÃ¹«¹²Ðí¿ÉÖ¤£©µÄÌõ¿î
-* ¼´ GPL µÄµÚ3°æ£¨¼´ GPL3.0£©»ò£¨ÄúÑ¡ÔñµÄ£©ÈÎºÎºóÀ´µÄ°æ±¾£¬ÖØÐÂ·¢²¼ºÍ/»òÐÞ¸ÄËü
+* TC264 å¼€æºåº“ æ˜¯å…è´¹è½¯ä»¶
+* æ‚¨å¯ä»¥æ ¹æ®è‡ªç”±è½¯ä»¶åŸºé‡‘ä¼šå‘å¸ƒçš„ GPLï¼ˆGNU General Public Licenseï¼Œå³ GNUé€šç”¨å…¬å…±è®¸å¯è¯ï¼‰çš„æ¡æ¬¾
+* å³ GPL çš„ç¬¬3ç‰ˆï¼ˆå³ GPL3.0ï¼‰æˆ–ï¼ˆæ‚¨é€‰æ‹©çš„ï¼‰ä»»ä½•åŽæ¥çš„ç‰ˆæœ¬ï¼Œé‡æ–°å‘å¸ƒå’Œ/æˆ–ä¿®æ”¹å®ƒ
 *
-* ±¾¿ªÔ´¿âµÄ·¢²¼ÊÇÏ£ÍûËüÄÜ·¢»Ó×÷ÓÃ£¬µ«²¢Î´¶ÔÆä×÷ÈÎºÎµÄ±£Ö¤
-* ÉõÖÁÃ»ÓÐÒþº¬µÄÊÊÏúÐÔ»òÊÊºÏÌØ¶¨ÓÃÍ¾µÄ±£Ö¤
-* ¸ü¶àÏ¸½ÚÇë²Î¼û GPL
+* æœ¬å¼€æºåº“çš„å‘å¸ƒæ˜¯å¸Œæœ›å®ƒèƒ½å‘æŒ¥ä½œç”¨ï¼Œä½†å¹¶æœªå¯¹å…¶ä½œä»»ä½•çš„ä¿è¯
+* ç”šè‡³æ²¡æœ‰éšå«çš„é€‚é”€æ€§æˆ–é€‚åˆç‰¹å®šç”¨é€”çš„ä¿è¯
+* æ›´å¤šç»†èŠ‚è¯·å‚è§ GPL
 *
-* ÄúÓ¦¸ÃÔÚÊÕµ½±¾¿ªÔ´¿âµÄÍ¬Ê±ÊÕµ½Ò»·Ý GPL µÄ¸±±¾
-* Èç¹ûÃ»ÓÐ£¬Çë²ÎÔÄ<https://www.gnu.org/licenses/>
+* æ‚¨åº”è¯¥åœ¨æ”¶åˆ°æœ¬å¼€æºåº“çš„åŒæ—¶æ”¶åˆ°ä¸€ä»½ GPL çš„å‰¯æœ¬
+* å¦‚æžœæ²¡æœ‰ï¼Œè¯·å‚é˜…<https://www.gnu.org/licenses/>
 *
-* ¶îÍâ×¢Ã÷£º
-* ±¾¿ªÔ´¿âÊ¹ÓÃ GPL3.0 ¿ªÔ´Ðí¿ÉÖ¤Ð­Òé ÒÔÉÏÐí¿ÉÉêÃ÷ÎªÒëÎÄ°æ±¾
-* Ðí¿ÉÉêÃ÷Ó¢ÎÄ°æÔÚ libraries/doc ÎÄ¼þ¼ÐÏÂµÄ GPL3_permission_statement.txt ÎÄ¼þÖÐ
-* Ðí¿ÉÖ¤¸±±¾ÔÚ libraries ÎÄ¼þ¼ÐÏÂ ¼´¸ÃÎÄ¼þ¼ÐÏÂµÄ LICENSE ÎÄ¼þ
-* »¶Ó­¸÷Î»Ê¹ÓÃ²¢´«²¥±¾³ÌÐò µ«ÐÞ¸ÄÄÚÈÝÊ±±ØÐë±£ÁôÖð·É¿Æ¼¼µÄ°æÈ¨ÉùÃ÷£¨¼´±¾ÉùÃ÷£©
+* é¢å¤–æ³¨æ˜Žï¼š
+* æœ¬å¼€æºåº“ä½¿ç”¨ GPL3.0 å¼€æºè®¸å¯è¯åè®® ä»¥ä¸Šè®¸å¯ç”³æ˜Žä¸ºè¯‘æ–‡ç‰ˆæœ¬
+* è®¸å¯ç”³æ˜Žè‹±æ–‡ç‰ˆåœ¨ libraries/doc æ–‡ä»¶å¤¹ä¸‹çš„ GPL3_permission_statement.txt æ–‡ä»¶ä¸­
+* è®¸å¯è¯å‰¯æœ¬åœ¨ libraries æ–‡ä»¶å¤¹ä¸‹ å³è¯¥æ–‡ä»¶å¤¹ä¸‹çš„ LICENSE æ–‡ä»¶
+* æ¬¢è¿Žå„ä½ä½¿ç”¨å¹¶ä¼ æ’­æœ¬ç¨‹åº ä½†ä¿®æ”¹å†…å®¹æ—¶å¿…é¡»ä¿ç•™é€é£žç§‘æŠ€çš„ç‰ˆæƒå£°æ˜Žï¼ˆå³æœ¬å£°æ˜Žï¼‰
 *
-* ÎÄ¼þÃû³Æ          cpu0_main
-* ¹«Ë¾Ãû³Æ          ³É¶¼Öð·É¿Æ¼¼ÓÐÏÞ¹«Ë¾
-* °æ±¾ÐÅÏ¢          ²é¿´ libraries/doc ÎÄ¼þ¼ÐÄÚ version ÎÄ¼þ °æ±¾ËµÃ÷
-* ¿ª·¢»·¾³          ADS v1.10.2
-* ÊÊÓÃÆ½Ì¨          TC264D
-* µêÆÌÁ´½Ó          https://seekfree.taobao.com/
+* æ–‡ä»¶åç§°          cpu0_main
+* å…¬å¸åç§°          æˆéƒ½é€é£žç§‘æŠ€æœ‰é™å…¬å¸
+* ç‰ˆæœ¬ä¿¡æ¯          æŸ¥çœ‹ libraries/doc æ–‡ä»¶å¤¹å†… version æ–‡ä»¶ ç‰ˆæœ¬è¯´æ˜Ž
+* å¼€å‘çŽ¯å¢ƒ          ADS v1.10.2
+* é€‚ç”¨å¹³å°          TC264D
+* åº—é“ºé“¾æŽ¥          https://seekfree.taobao.com/
 *
-* ÐÞ¸Ä¼ÇÂ¼
-* ÈÕÆÚ              ×÷Õß                ±¸×¢
+* ä¿®æ”¹è®°å½•
+* æ—¥æœŸ              ä½œè€…                å¤‡æ³¨
 * 2022-09-15       pudding            first version
 ********************************************************************************************************************/
+
 #include "zf_common_headfile.h"
 #include "isr_config.h"
+
+#include <string.h>
+
+#include "board_pins.h"
+#include "car.h"
 #include "image.h"
+#include "menu.h"
+
 #pragma section all "cpu0_dsram"
-// ½«±¾Óï¾äÓë#pragma section all restoreÓï¾äÖ®¼äµÄÈ«¾Ö±äÁ¿¶¼·ÅÔÚCPU0µÄRAMÖÐ
 
-// ±¾Àý³ÌÊÇ¿ªÔ´¿â¿Õ¹¤³Ì ¿ÉÓÃ×÷ÒÆÖ²»òÕß²âÊÔ¸÷ÀàÄÚÍâÉè
-// ±¾Àý³ÌÊÇ¿ªÔ´¿â¿Õ¹¤³Ì ¿ÉÓÃ×÷ÒÆÖ²»òÕß²âÊÔ¸÷ÀàÄÚÍâÉè
-// ±¾Àý³ÌÊÇ¿ªÔ´¿â¿Õ¹¤³Ì ¿ÉÓÃ×÷ÒÆÖ²»òÕß²âÊÔ¸÷ÀàÄÚÍâÉè
+volatile uint32 car_time_ms = 0;
 
-#define PIT_NUM                 (CCU60_CH0 )
-
-// uint16 delay_time = 0;
-// uint8 led_state = 0;
-
-// **************************** ´úÂëÇøÓò ****************************
 int core0_main(void)
 {
-    clock_init();                   // »ñÈ¡Ê±ÖÓÆµÂÊ<Îñ±Ø±£Áô>
-    debug_init();                   // ³õÊ¼»¯Ä¬ÈÏµ÷ÊÔ´®¿Ú
-    // ´Ë´¦±àÐ´ÓÃ»§´úÂë ÀýÈçÍâÉè³õÊ¼»¯´úÂëµÈ
+    uint32 menu_time_ms = 0;
+    uint32 display_time_ms = 0;
+    uint8 camera_init_error;
 
-//    // °åÔØ LED ÎªµÍµçÆ½µãÁÁ£¬³õÊ¼»¯Îª¸ßµçÆ½¿ÉÒÔ±ÜÃâÉÏµçÎóÁÁ¡£
-//    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-//    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-//    gpio_init(BOARD_KEY1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_KEY2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_SWITCH1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_SWITCH2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    clock_init();
+    debug_init();
+
+    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
+
     ips200_set_dir(IPS200_CROSSWISE);
     ips200_init(IPS200_TYPE_SPI);
-    pit_ms_init(PIT_NUM, 5);
 
-    // ´Ë´¦±àÐ´ÓÃ»§´úÂë ÀýÈçÍâÉè³õÊ¼»¯´úÂëµÈ
-    cpu_wait_event_ready();         // µÈ´ýËùÓÐºËÐÄ³õÊ¼»¯Íê±Ï
-    while (TRUE)
-    {
-        // ´Ë´¦±àÐ´ÐèÒªÑ­»·Ö´ÐÐµÄ´úÂë
-//
-//        delay_time = 300;
-//        if(!gpio_get_level(BOARD_SWITCH1_PIN)) delay_time /= 2;
-//        if(!gpio_get_level(BOARD_SWITCH2_PIN)) delay_time /= 2;
-//        if(!gpio_get_level(BOARD_KEY1_PIN) || !gpio_get_level(BOARD_KEY2_PIN))
-//        {
-//            gpio_set_level(BOARD_LED1_PIN, led_state);
-//            gpio_set_level(BOARD_LED2_PIN, led_state);
-//        }
-//        else
-//        {
-//            gpio_set_level(BOARD_LED1_PIN, led_state);
-//            gpio_set_level(BOARD_LED2_PIN, !led_state);
-//        }
-//        led_state = !led_state;
-//        system_delay_ms(delay_time);
+    car_init();
+    menu_init();
+
+    camera_init_error = mt9v03x_init();
+    car_set_camera_ready(camera_init_error == 0);
+    gpio_set_level(BOARD_LED1_PIN, camera_init_error == 0 ? GPIO_LOW : GPIO_HIGH);
+    gpio_set_level(BOARD_LED2_PIN, GPIO_HIGH);
+
+    pit_ms_init(CCU60_CH0, 5);
+    cpu_wait_event_ready();
+
+    while (TRUE) {
         if (mt9v03x_finish_flag) {
+            mt9v03x_finish_flag = 0;
 
+            if (!cpu0_done && !cpu1_done) {
+                memcpy(image_buffer[0], mt9v03x_image[0], MT9V03X_IMAGE_SIZE);
+                __dsync();
+                cpu0_done = 1;
+                __dsync();
+            }
         }
 
-        // ´Ë´¦±àÐ´ÐèÒªÑ­»·Ö´ÐÐµÄ´úÂë
+        if (cpu1_done) {
+            __dsync();
+            car_track_update(track_error, track_valid);
+            cpu1_done = 0;
+            __dsync();
+        }
+
+        if (car_time_ms - menu_time_ms >= 20) {
+            menu_time_ms = car_time_ms;
+            menu_task();
+        }
+
+        if (car_time_ms - display_time_ms >= 100) {
+            display_time_ms = car_time_ms;
+            menu_display();
+        }
     }
 }
 
 IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 {
-    interrupt_global_enable(0);                     // ¿ªÆôÖÐ¶ÏÇ¶Ì×
+    interrupt_global_enable(0);
     pit_clear_flag(CCU60_CH0);
-
-
-
+    car_time_ms += 5;
 }
 
-
-
 #pragma section all restore
-// **************************** ´úÂëÇøÓò ****************************
