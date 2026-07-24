@@ -1,5 +1,5 @@
 #include "image.h"
-
+#include "math_utils.h"
 #include <string.h>
 
 cc_image_u8_t cc_image_u8_make(uint8 *data, uint16 width, uint16 height, uint16 stride)
@@ -8,7 +8,8 @@ cc_image_u8_t cc_image_u8_make(uint8 *data, uint16 width, uint16 height, uint16 
     image.data = data;
     image.width = width;
     image.height = height;
-    image.stride = stride < width ? width : stride;
+    // image.stride = stride < width ? width : stride;
+    image.stride = cc_i16_max(stride, width);
     return image;
 }
 
@@ -172,7 +173,7 @@ uint8 image_binary(uint8 *image)
         }
     }
 
-    // 本帧阈值异常时继续使用上一帧阈值
+    // 鏈抚闃堝�煎紓甯告椂缁х画浣跨敤涓婁竴甯ч槇鍊�
     if (result_threshold > 40 && result_threshold < 200) {
         last_threshold = result_threshold;
     } else {
@@ -206,14 +207,14 @@ void image_find_longest_white_line(uint8 *image)
 
         if (candidate_row < 0) continue;
 
-        // 图像行号越小，表示白色区域延伸得越高
+        // 鍥惧儚琛屽彿瓒婂皬锛岃〃绀虹櫧鑹插尯鍩熷欢浼稿緱瓒婇珮
         if (!track_valid || candidate_row < best_row) {
             best_row = candidate_row;
             best_col_sum = col;
             best_col_count = 1;
             track_valid = 1;
         } else if (candidate_row == best_row) {
-            // 多列同样高时取平均，避免best_col在相邻扫描列之间抖动。
+            // 澶氬垪鍚屾牱楂樻椂鍙栧钩鍧囷紝閬垮厤best_col鍦ㄧ浉閭绘壂鎻忓垪涔嬮棿鎶栧姩銆�
             best_col_sum += col;
             best_col_count++;
         }
