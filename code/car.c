@@ -30,8 +30,8 @@ static int16 last_valid_error = 0;
 
 static void car_set_servo(uint16 duty)
 {
-    if (duty < servo_min_duty) duty = servo_min_duty;
-    if (duty > servo_max_duty) duty = servo_max_duty;
+    duty = cc_i16_max(duty, servo_min_duty);
+    duty = cc_i16_min(duty, servo_max_duty);
     car_servo_duty = duty;
     pwm_set_duty(BOARD_SERVO_PWM_PIN, car_servo_duty);
 }
@@ -39,8 +39,10 @@ static void car_set_servo(uint16 duty)
 static void car_set_one_motor(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int16 command, uint8 reverse)
 {
     if (reverse) command = -command;
-    if (command > motor_limit) command = motor_limit;
-    if (command < -motor_limit) command = -motor_limit;
+    // if (command > motor_limit) command = motor_limit;
+    // if (command < -motor_limit) command = -motor_limit;
+    command = cc_i16_max(command, -motor_limit);
+    command = cc_i16_min(command, motor_limit);
 
     if (command >= 0) {
         pwm_set_duty(forward_pin, command);
@@ -77,7 +79,7 @@ void car_init(void)
 void car_set_camera_ready(uint8 ready)
 {
     car_camera_ready = ready;
-    if (!car_camera_ready) car_stop();
+    if (!ready) car_stop();
 }
 
 void car_set_running(uint8 running)
@@ -140,8 +142,8 @@ void car_track_update(int16 error, uint8 valid)
         steering = steering_kp * last_valid_error;
         if (servo_reverse) steering = -steering;
         servo_command = servo_center_duty + steering;
-        if (servo_command < servo_min_duty) servo_command = servo_min_duty;
-        if (servo_command > servo_max_duty) servo_command = servo_max_duty;
+        servo_command = cc_f64_max(servo_command, servo_min_duty);
+        servo_command = cc_f64_min(servo_command, servo_max_duty);
         car_set_servo(servo_command);
 
         speed = motor_base_duty / 2;
@@ -157,7 +159,8 @@ void car_track_update(int16 error, uint8 valid)
     if (servo_reverse) steering = -steering;
 
     servo_command = servo_center_duty + steering;
-    if (servo_command < servo_min_duty) servo_command = servo_min_duty;
+    servo_command = cc_f64_max(servo_command, servo_min_duty);
+    servo_command = cc_f64_min(servo_command, servo_max_duty);
     if (servo_command > servo_max_duty) servo_command = servo_max_duty;
     car_set_servo(servo_command);
 

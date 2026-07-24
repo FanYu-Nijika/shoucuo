@@ -86,9 +86,8 @@ int core0_main(void)
     car_init();
     menu_init();
 
-    // 使用逐飞官方MT9V03X驱动初始化摄像头，返回0表示初始化成功。
     camera_init_error = mt9v03x_init();
-    car_set_camera_ready(camera_init_error == 0);
+    car_set_camera_ready(!camera_init_error);
     gpio_set_level(BOARD_LED1_PIN, camera_init_error == 0 ? GPIO_LOW : GPIO_HIGH);
     gpio_set_level(BOARD_LED2_PIN, GPIO_HIGH);
 
@@ -135,12 +134,10 @@ int core0_main(void)
             __dsync();
         }
 
-        // 菜单按键每20ms扫描一次，屏幕每100ms刷新一次。
         if (car_time_ms - menu_time_ms >= 20) {
             menu_time_ms = car_time_ms;
             menu_task();
         }
-
         if (car_time_ms - display_time_ms >= 100) {
             display_time_ms = car_time_ms;
             menu_display();
