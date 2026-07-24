@@ -6,17 +6,17 @@ volatile uint8 cpu0_done = 0;
 volatile uint8 cpu1_done = 0;
 
 uint8 image_buffer[MT9V03X_H][MT9V03X_W];
-uint8 image_auto_threshold = 1;
-uint8 threshold = 100;
-uint8 track_valid = 0;
-uint16 best_col = MT9V03X_W / 2;
-uint16 best_row = MT9V03X_H - 1;
-int16 track_error = 0;
+volatile uint8 image_auto_threshold = 1;
+volatile uint8 threshold = 100;
+volatile uint8 track_valid = 0;
+volatile uint16 best_col = MT9V03X_W / 2;
+volatile uint16 best_row = MT9V03X_H - 1;
+volatile int16 track_error = 0;
 
-uint16 image_scan_start_col = 64;
-uint16 image_scan_end_col = 124;
-uint16 image_check_row = 80;
-uint16 image_search_start_row = 85;
+volatile uint16 image_scan_start_col = 64;
+volatile uint16 image_scan_end_col = 124;
+volatile uint16 image_check_row = 80;
+volatile uint16 image_search_start_row = 85;
 
 static uint8 last_threshold = 100;
 static uint32 PixelCount[256];
