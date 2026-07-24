@@ -2,6 +2,7 @@
 #define CC_CAR_H
 
 #include "zf_common_headfile.h"
+#include "car_params.h"
 
 extern uint8 car_running;
 extern uint8 car_camera_ready;
@@ -31,5 +32,6 @@ void car_set_running(uint8 running);
 void car_toggle_running(void);
 void car_stop(void);
 void car_track_update(int16 error, uint8 valid);
+void car_apply_menu_params(const volatile car_params_t *params);
 
 #endif

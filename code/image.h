@@ -3,6 +3,22 @@
 
 #include "zf_common_headfile.h"
 
+typedef struct {
+    uint8 *data;
+    uint16 width;
+    uint16 height;
+    uint16 stride;
+} cc_image_u8_t;
+
+cc_image_u8_t cc_image_u8_make(uint8 *data, uint16 width, uint16 height, uint16 stride);
+uint8 cc_image_u8_is_valid(const cc_image_u8_t *image);
+uint8 cc_image_u8_otsu_threshold(const cc_image_u8_t *image, uint16 roi_top,
+                                 uint16 roi_bottom, uint8 row_step,
+                                 uint8 column_step, uint8 fallback);
+uint8 cc_image_u8_row_span(const cc_image_u8_t *image, uint16 row,
+                           uint8 threshold, uint8 dark_is_line,
+                           uint16 *left, uint16 *right, uint16 *pixel_count);
+
 extern volatile uint8 cpu0_done;
 extern volatile uint8 cpu1_done;
 extern uint8 image_buffer[MT9V03X_H][MT9V03X_W];

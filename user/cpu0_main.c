@@ -40,8 +40,7 @@
 #include <string.h>
 
 #include "board_pins.h"
-#include "car.h"
-#include "menu.h"
+#include "car_menu.h"
 
 #pragma section all "cpu0_dsram"
 // 将本语句与#pragma section all restore语句之间的全局变量都放在CPU0的RAM中
@@ -60,9 +59,6 @@ volatile uint32 car_time_ms = 0;
 // **************************** 代码区域 ****************************
 int core0_main(void)
 {
-    uint32 menu_time_ms = 0;
-    uint32 display_time_ms = 0;
-    uint8 camera_init_error;
 
     clock_init();                   // 获取时钟频率<务必保留>
     debug_init();                   // 初始化默认调试串口
@@ -76,20 +72,7 @@ int core0_main(void)
 //    gpio_init(BOARD_SWITCH1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 //    gpio_init(BOARD_SWITCH2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
-    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-    gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
-
-    ips200_set_dir(IPS200_CROSSWISE);
-    ips200_init(IPS200_TYPE_SPI);
-
-    car_init();
-    menu_init();
-
-    camera_init_error = mt9v03x_init();
-    car_set_camera_ready(!camera_init_error);
-    gpio_set_level(BOARD_LED1_PIN, camera_init_error == 0 ? GPIO_LOW : GPIO_HIGH);
-    gpio_set_level(BOARD_LED2_PIN, GPIO_HIGH);
+    car_menu_init();
 
     pit_ms_init(PIT_NUM, 5);
 
@@ -114,6 +97,8 @@ int core0_main(void)
 //        led_state = !led_state;
 //        system_delay_ms(delay_time);
 
+        car_menu_task();
+
         if (mt9v03x_finish_flag) {
             mt9v03x_finish_flag = 0;
 
@@ -134,14 +119,6 @@ int core0_main(void)
             __dsync();
         }
 
-        if (car_time_ms - menu_time_ms >= 20) {
-            menu_time_ms = car_time_ms;
-            menu_task();
-        }
-        if (car_time_ms - display_time_ms >= 100) {
-            display_time_ms = car_time_ms;
-            menu_display();
-        }
 
         // 此处编写需要循环执行的代码
     }

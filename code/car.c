@@ -1,6 +1,8 @@
 #include "car.h"
 
 #include "board_pins.h"
+#include "image.h"
+#include "math_utils.h"
 
 uint8 car_running = 0;
 uint8 car_camera_ready = 0;
@@ -27,6 +29,38 @@ float steering_kd = 4.0f;
 static uint8 had_valid_track = 0;
 static int16 last_error = 0;
 static int16 last_valid_error = 0;
+
+void car_apply_menu_params(const volatile car_params_t *params)
+{
+    uint32 center_duty;
+    int32 minimum_duty;
+    int32 maximum_duty;
+
+    if (params == 0) return;
+
+    motor_base_duty = params->base_speed;
+    motor_limit = params->pwm_limit;
+    curve_slowdown = params->curve_slowdown;
+    lost_stop_frames = params->lost_stop_frames;
+    steering_kp = params->steering_kp;
+    steering_kd = params->steering_kd;
+    servo_reverse = params->servo_reverse;
+    left_motor_reverse = params->left_direction < 0 ? 1U : 0U;
+    right_motor_reverse = params->right_direction < 0 ? 1U : 0U;
+
+    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000U / 20000U;
+    minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / 20000;
+    maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / 20000;
+    servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, 0, 10000);
+    servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, 0, 10000);
+    servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, 0, 10000);
+
+    image_auto_threshold = params->automatic_threshold;
+    threshold = params->threshold;
+    image_scan_start_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 - params->search_window : 0;
+    image_scan_end_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 + params->search_window : MT9V03X_W;
+    image_search_start_row = params->roi_bottom != 0U && params->roi_bottom < MT9V03X_H ? params->roi_bottom : MT9V03X_H - 1U;
+}
 
 static void car_set_servo(uint16 duty)
 {

@@ -15,5 +15,6 @@
 #include "track_repair.h"
 #include "track_state.h"
 #include "vehicle.h"
+#include "car_menu.h"
 
 #endif

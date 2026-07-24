@@ -2,6 +2,116 @@
 
 #include <string.h>
 
+cc_image_u8_t cc_image_u8_make(uint8 *data, uint16 width, uint16 height, uint16 stride)
+{
+    cc_image_u8_t image;
+    image.data = data;
+    image.width = width;
+    image.height = height;
+    image.stride = stride < width ? width : stride;
+    return image;
+}
+
+uint8 cc_image_u8_is_valid(const cc_image_u8_t *image)
+{
+    return image != 0 && image->data != 0 && image->width != 0 &&
+           image->height != 0 && image->stride >= image->width;
+}
+
+uint8 cc_image_u8_otsu_threshold(const cc_image_u8_t *image, uint16 roi_top,
+                                  uint16 roi_bottom, uint8 row_step,
+                                  uint8 column_step, uint8 fallback)
+{
+    uint32 histogram[256] = {0};
+    uint32 sample_count = 0;
+    uint64 total_sum = 0;
+    uint64 class_sum = 0;
+    uint32 class_count = 0;
+    uint32 row;
+    uint32 column;
+    uint16 value;
+    uint8 best = fallback;
+    float best_variance = -1.0f;
+
+    if (!cc_image_u8_is_valid(image)) return fallback;
+    if (row_step == 0U) row_step = 1U;
+    if (column_step == 0U) column_step = 1U;
+    if (roi_bottom == 0U || roi_bottom > image->height) roi_bottom = image->height;
+    if (roi_top >= roi_bottom) return fallback;
+
+    for (row = roi_top; row < roi_bottom; row += row_step) {
+        for (column = 0U; column < image->width; column += column_step) {
+            uint8 pixel = image->data[row * image->stride + column];
+            histogram[pixel]++;
+            total_sum += pixel;
+            sample_count++;
+        }
+    }
+    if (sample_count == 0U) return fallback;
+
+    for (value = 0U; value < 255U; value++) {
+        uint32 class1_count;
+        float class0_mean;
+        float class1_mean;
+        float difference;
+        float variance;
+
+        class_count += histogram[value];
+        class_sum += (uint64)value * histogram[value];
+        class1_count = sample_count - class_count;
+        if (class_count == 0U || class1_count == 0U) continue;
+        class0_mean = (float)class_sum / (float)class_count;
+        class1_mean = (float)(total_sum - class_sum) / (float)class1_count;
+        difference = class0_mean - class1_mean;
+        variance = (float)class_count * (float)class1_count * difference * difference;
+        if (variance > best_variance) {
+            best_variance = variance;
+            best = (uint8)value;
+        }
+    }
+    return best;
+}
+
+uint8 cc_image_u8_row_span(const cc_image_u8_t *image, uint16 row,
+                            uint8 threshold_value, uint8 dark_is_line,
+                            uint16 *left, uint16 *right, uint16 *pixel_count)
+{
+    uint16 column;
+    uint16 current_start = 0U;
+    uint16 current_count = 0U;
+    uint16 best_start = 0U;
+    uint16 best_count = 0U;
+
+    if (left != 0) *left = 0U;
+    if (right != 0) *right = 0U;
+    if (pixel_count != 0) *pixel_count = 0U;
+    if (!cc_image_u8_is_valid(image) || row >= image->height) return 0U;
+
+    for (column = 0U; column < image->width; column++) {
+        uint8 pixel = image->data[row * image->stride + column];
+        uint8 is_line = dark_is_line != 0U ? pixel < threshold_value : pixel >= threshold_value;
+        if (is_line != 0U) {
+            if (current_count == 0U) current_start = column;
+            current_count++;
+        } else {
+            if (current_count > best_count) {
+                best_start = current_start;
+                best_count = current_count;
+            }
+            current_count = 0U;
+        }
+    }
+    if (current_count > best_count) {
+        best_start = current_start;
+        best_count = current_count;
+    }
+    if (best_count == 0U) return 0U;
+    if (left != 0) *left = best_start;
+    if (right != 0) *right = best_start + best_count - 1U;
+    if (pixel_count != 0) *pixel_count = best_count;
+    return 1U;
+}
+
 volatile uint8 cpu0_done = 0;
 volatile uint8 cpu1_done = 0;
 
