@@ -1,0 +1,17 @@
+{
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.autocomplete": "default",
+    "C_Cpp.errorSquiggles": "enabled",
+    "cmake.configureOnOpen": false,
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
+    "[c]": {
+        "files.encoding": "gb2312"
+    },
+    "[cpp]": {
+        "files.encoding": "gb2312"
+    },
+    "files.associations": {
+        "*.h": "c"
+    }
+}

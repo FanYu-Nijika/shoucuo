@@ -1,0 +1,40 @@
+{
+    "configurations": [
+        {
+            "name": "TC264 ADS / Host GCC",
+            "includePath": [
+                "${workspaceFolder}/code",
+                "${workspaceFolder}/user",
+                "${workspaceFolder}/libraries/**"
+            ],
+            "defines": [
+                "__CPU__=tc26xb",
+                "__TASKING__=1",
+                "IFX_USE_SW_MANAGED_INT=1",
+                "__fract=float",
+                "__sfract=float",
+                "__laccum=double",
+                "__sfrbit16=short",
+                "__sfrbit32=int",
+                "__far=",
+                "__near=",
+                "__a0=",
+                "__a1=",
+                "__a8=",
+                "__a9="
+            ],
+            "compilerPath": "D:/mingw64/bin/gcc.exe",
+            "cStandard": "c11",
+            "intelliSenseMode": "windows-gcc-x64",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}/code",
+                    "${workspaceFolder}/user",
+                    "${workspaceFolder}/libraries"
+                ],
+                "limitSymbolsToIncludedHeaders": false
+            }
+        }
+    ],
+    "version": 4
+}
