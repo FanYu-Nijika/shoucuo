@@ -35,20 +35,30 @@
 
 #include "zf_common_headfile.h"
 #include "image.h"
-
 #pragma section all "cpu1_dsram"
+// 将本语句与#pragma section all restore语句之间的全局变量都放在CPU1的RAM中
+
+// **************************** 代码区域 ****************************
+
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
+// 本例程是开源库空工程 可用作移植或者测试各类内外设
 
 void core1_main(void)
 {
-    disable_Watchdog();
-    interrupt_global_enable(0);
+    disable_Watchdog();                     // 关闭看门狗
+    interrupt_global_enable(0);             // 打开全局中断
+    // 此处编写用户代码 例如外设初始化代码等
 
-    cpu_wait_event_ready();
-
+    // 此处编写用户代码 例如外设初始化代码等
+    cpu_wait_event_ready();                 // 等待所有核心初始化完毕
     while (TRUE) {
+        // 此处编写需要循环执行的代码
         if (cpu0_done && !cpu1_done) {
             __dsync();
+            // car_control_process_frame(car_frame_time);
 
+            // CPU1只计算图像，不操作屏幕、舵机和电机。
             if (image_auto_threshold) image_binary(image_buffer[0]);
             image_find_longest_white_line(image_buffer[0]);
             image_get_error();
@@ -58,7 +68,9 @@ void core1_main(void)
             cpu0_done = 0;
             __dsync();
         }
+
+        // 此处编写需要循环执行的代码
     }
 }
-
 #pragma section all restore
+// **************************** 代码区域 ****************************
