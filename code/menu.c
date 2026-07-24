@@ -10,11 +10,15 @@ enum {
     MENU_STEERING,
     MENU_VISION,
     MENU_MOTOR,
+    MENU_TELEMETRY,
+    MENU_DIAGNOSTICS,
     MENU_CAMERA
 };
 
 static uint8 menu_page = MENU_HOME;
 static uint8 menu_item = 0;
+static uint8 diagnostic_led_on = 0;
+static uint8 diagnostic_buzzer_on = 0;
 
 static uint8 key_up_last = 0;
 static uint8 key_down_last = 0;
@@ -35,13 +39,43 @@ static uint8 menu_key_pressed(gpio_pin_enum pin, uint8 *last)
 static uint8 menu_item_count(void)
 {
     switch (menu_page) {
-        case MENU_HOME: return 5;
+        case MENU_HOME: return 7;
         case MENU_DRIVE: return 6;
         case MENU_STEERING: return 7;
         case MENU_VISION: return 6;
         case MENU_MOTOR: return 5;
+        case MENU_DIAGNOSTICS: return 4;
         default: return 0;
     }
+}
+
+static void menu_reset_defaults(void)
+{
+    car_stop();
+
+    servo_center_duty = 830;
+    servo_min_duty = 700;
+    servo_max_duty = 1000;
+    car_servo_duty = servo_center_duty;
+    steering_kp = 2.0f;
+    steering_kd = 4.0f;
+    servo_reverse = 0;
+
+    motor_base_duty = 1800;
+    motor_limit = 5000;
+    curve_slowdown = 20;
+    left_motor_reverse = 0;
+    right_motor_reverse = 0;
+    lost_stop_frames = 5;
+
+    image_auto_threshold = 1;
+    threshold = 100;
+    image_scan_start_col = 64;
+    image_scan_end_col = 124;
+    image_check_row = 80;
+    image_search_start_row = 85;
+
+    pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_center_duty);
 }
 
 static void menu_change_value(int8 direction)
@@ -69,7 +103,10 @@ static void menu_change_value(int8 direction)
             if (value < servo_min_duty) value = servo_min_duty;
             if (value > servo_max_duty) value = servo_max_duty;
             servo_center_duty = value;
-            if (!car_running) pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_center_duty);
+            if (!car_running) {
+                car_servo_duty = servo_center_duty;
+                pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_center_duty);
+            }
         } else if (menu_item == 1) {
             value = servo_min_duty + direction * 5;
             if (value < 500) value = 500;
@@ -132,6 +169,14 @@ static void menu_change_value(int8 direction)
         } else if (menu_item == 2) {
             right_motor_reverse = !right_motor_reverse;
         }
+    } else if (menu_page == MENU_DIAGNOSTICS) {
+        if (menu_item == 1) {
+            diagnostic_led_on = !diagnostic_led_on;
+            gpio_set_level(BOARD_LED2_PIN, diagnostic_led_on ? GPIO_LOW : GPIO_HIGH);
+        } else if (menu_item == 2) {
+            diagnostic_buzzer_on = !diagnostic_buzzer_on;
+            gpio_set_level(BOARD_BUZZER_PIN, diagnostic_buzzer_on ? GPIO_HIGH : GPIO_LOW);
+        }
     }
 }
 
@@ -141,6 +186,7 @@ static void menu_show_header(const char *title)
     ips200_set_font(IPS200_8X16_FONT);
     ips200_set_color(RGB565_WHITE, RGB565_BLACK);
     ips200_show_string(8, 8, title);
+    ips200_show_string(144, 8, car_camera_ready ? "CAM OK " : "CAM ERR");
     ips200_show_string(248, 8, car_running ? "RUN " : "STOP");
 }
 
@@ -156,24 +202,16 @@ static void menu_show_bool(uint16 x, uint16 y, uint8 value)
 
 static void menu_display_home(void)
 {
-    menu_show_header("CAMERA4 DASHBOARD");
+    menu_show_header("CAMERA4");
 
-    menu_show_selector(0);
+    for (uint8 row = 0; row < 7; row++) menu_show_selector(row);
     ips200_show_string(24, 48, "Drive");
-    menu_show_selector(1);
     ips200_show_string(24, 72, "Steering");
-    menu_show_selector(2);
     ips200_show_string(24, 96, "Vision");
-    menu_show_selector(3);
-    ips200_show_string(24, 120, "Motor");
-    menu_show_selector(4);
-    ips200_show_string(24, 144, "Camera view");
-
-    ips200_show_string(8, 184, "CAM");
-    ips200_show_string(56, 184, car_camera_ready ? "READY" : "ERROR");
-    ips200_show_string(128, 184, "ERR");
-    ips200_show_int(176, 184, track_error, 4);
-    ips200_show_string(232, 184, track_valid ? "VALID" : "LOST");
+    ips200_show_string(24, 120, "Rear motor");
+    ips200_show_string(24, 144, "Telemetry");
+    ips200_show_string(24, 168, "Diagnostics");
+    ips200_show_string(24, 192, "Camera view");
     ips200_show_string(8, 216, "CENTER ENTER  AUX1 BACK  AUX2 RUN/STOP");
 }
 
@@ -257,6 +295,48 @@ static void menu_display_motor(void)
     ips200_show_string(8, 216, "CENTER/LEFT/RIGHT CHANGE  AUX1 BACK");
 }
 
+static void menu_display_telemetry(void)
+{
+    menu_show_header("TELEMETRY");
+
+    ips200_show_string(24, 48, "Track state");
+    ips200_show_string(232, 48, track_valid ? "OK  " : "LOST");
+    ips200_show_string(24, 72, "Threshold");
+    ips200_show_uint(232, 72, threshold, 3);
+    ips200_show_string(24, 96, "Best col");
+    ips200_show_uint(232, 96, best_col, 3);
+    ips200_show_string(24, 120, "Best row");
+    ips200_show_uint(232, 120, best_row, 3);
+    ips200_show_string(24, 144, "Track error");
+    ips200_show_int(232, 144, track_error, 4);
+    ips200_show_string(24, 168, "Servo duty");
+    ips200_show_uint(232, 168, car_servo_duty, 4);
+    ips200_show_string(24, 192, "Motor L/R");
+    ips200_show_int(208, 192, car_left_command, 5);
+    ips200_show_int(264, 192, car_right_command, 5);
+    ips200_show_string(8, 216, "AUX1 BACK  AUX2 RUN/STOP");
+}
+
+static void menu_display_diagnostics(void)
+{
+    menu_show_header("DIAGNOSTICS");
+
+    for (uint8 row = 0; row < 4; row++) menu_show_selector(row);
+    ips200_show_string(24, 48, "Emergency stop");
+    ips200_show_string(232, 48, "ENTER");
+    ips200_show_string(24, 72, "LED test");
+    menu_show_bool(232, 72, diagnostic_led_on);
+    ips200_show_string(24, 96, "Buzzer test");
+    menu_show_bool(232, 96, diagnostic_buzzer_on);
+    ips200_show_string(24, 120, "Reset defaults");
+    ips200_show_string(232, 120, "ENTER");
+    ips200_show_string(24, 160, "CPU0 frame");
+    menu_show_bool(232, 160, cpu0_done);
+    ips200_show_string(24, 184, "CPU1 result");
+    menu_show_bool(232, 184, cpu1_done);
+    ips200_show_string(8, 216, "CENTER ACTION  AUX1 BACK");
+}
+
 void menu_init(void)
 {
     gpio_init(BOARD_KEY_UP_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
@@ -294,12 +374,17 @@ void menu_task(void)
     if (aux2) car_toggle_running();
 
     if (aux1) {
+        diagnostic_led_on = 0;
+        diagnostic_buzzer_on = 0;
+        gpio_set_level(BOARD_LED1_PIN, car_camera_ready ? GPIO_LOW : GPIO_HIGH);
+        gpio_set_level(BOARD_LED2_PIN, GPIO_HIGH);
+        gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
         menu_page = MENU_HOME;
         menu_item = 0;
         return;
     }
 
-    if (menu_page == MENU_CAMERA) return;
+    if (menu_page == MENU_CAMERA || menu_page == MENU_TELEMETRY) return;
 
     if (up && count) {
         if (menu_item == 0) menu_item = count - 1;
@@ -325,6 +410,14 @@ void menu_task(void)
             left_motor_reverse = !left_motor_reverse;
         } else if (menu_page == MENU_MOTOR && menu_item == 2) {
             right_motor_reverse = !right_motor_reverse;
+        } else if (menu_page == MENU_DIAGNOSTICS && menu_item == 0) {
+            car_stop();
+        } else if (menu_page == MENU_DIAGNOSTICS && menu_item == 1) {
+            menu_change_value(1);
+        } else if (menu_page == MENU_DIAGNOSTICS && menu_item == 2) {
+            menu_change_value(1);
+        } else if (menu_page == MENU_DIAGNOSTICS && menu_item == 3) {
+            menu_reset_defaults();
         }
     }
 
@@ -346,5 +439,9 @@ void menu_display(void)
         menu_display_vision();
     } else if (menu_page == MENU_MOTOR) {
         menu_display_motor();
+    } else if (menu_page == MENU_TELEMETRY) {
+        menu_display_telemetry();
+    } else if (menu_page == MENU_DIAGNOSTICS) {
+        menu_display_diagnostics();
     }
 }
