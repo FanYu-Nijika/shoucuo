@@ -7,7 +7,7 @@
 
 static uint16 width;
 static uint16 height;
-uint8* todone_image;
+uint8* binary_image;
 int16 os_threshold;
 int16 lost_line_cnt;
 uint8 already_line_lost;
@@ -23,7 +23,7 @@ int16 Left_Line[height], Right_Line[height];
 uint8 dire_left,dire_right;                                 //记录上一个点的相对位置
 uint8 L_search_amount = 140, R_search_amount = 140;  //左右边界搜点时最多允许的点
 
-int16 left_down_line = -1, right_down_line = -1, left_up_line = -1, right_up_line = -1;
+//int16 left_down_line = -1, right_down_line = -1, left_up_line = -1, right_up_line = -1;
 // uint8 left_corner[4], right[4];
 // uint8 left_corner_index = 0, right_corner_index = 0;
 
@@ -43,7 +43,7 @@ void image_init() {
 }
 
 void image_deal(uint8 start_y, uint8 end_y) {
-    memcpy(todone_image, mt9v03x_image, sizeof(mt9v03x_image));
+    memcpy(binary_image, mt9v03x_image, sizeof(mt9v03x_image));
     if (ostu_deal_threshold()) {
         if (--lost_line_cnt <= 0) {
             already_line_lost = 1;
@@ -54,7 +54,7 @@ void image_deal(uint8 start_y, uint8 end_y) {
         lost_line_cnt= LOST_LINE;
     }
     threshold_update();
-    image_draw_rectan(todone_image);
+    image_draw_rectan(binary_image);
     search_neighborhood();
     edge_real_update();
     shizibuxian();
@@ -195,8 +195,8 @@ int Find_Right_Up_Point(int start,int end)//找左下角点，返回值是角点
 {
     int i,t;
     int right_up_line=0;
-    if(Left_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
-       return right_up_line;
+//    if(Left_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
+//       return right_up_line;
     if(start<end)//--访问，要保证start>end
     {
         t=start;
@@ -235,90 +235,6 @@ int Find_Right_Up_Point(int start,int end)//找左下角点，返回值是角点
             }
     }
     return right_up_line;
-}
-
-
-/*-------------------------------------------------------------------------------------------------------------------
-  @brief     左补线
-  @param     补线的起点，终点
-  @return    null
-  Sample     Left_Add_Line(int x1,int y1,int x2,int y2);
-  @note      补的直接是边界，点最好是可信度高的,不要乱补
--------------------------------------------------------------------------------------------------------------------*/
-void Left_Add_Line(int x1,int y1,int x2,int y2)//左补线,补的是边界
-{
-    int i,max,a1,a2;
-    int hx;
-    if(x1>=MT9V03X_W-1)//起始点位置校正，排除数组越界的可能
-       x1=MT9V03X_W-1;
-    else if(x1<=0)
-        x1=0;
-     if(y1>=MT9V03X_H-1)
-        y1=MT9V03X_H-1;
-     else if(y1<=0)
-        y1=0;
-     if(x2>=MT9V03X_W-1)
-        x2=MT9V03X_W-1;
-     else if(x2<=0)
-             x2=0;
-     if(y2>=MT9V03X_H-1)
-        y2=MT9V03X_H-1;
-     else if(y2<=0)
-             y2=0;
-    a1=y1;
-    a2=y2;
- 
-//这里有bug，下方循环++循环，只进行y的互换，但是没有进行x的互换
-//建议进行判断，根据a1和a2的大小关系，决定++或者--访问
-//这里修改各位自行操作
-    if(a1>a2)//坐标互换，这里建议修改，x坐标，y坐标一起交换，单纯换y坐标可能会导致bug
-    {
-        max=a1;
-        a1=a2;
-        a2=max;
-
-        max = x1;
-        x1 = x2;
-        x2 = max;
-    }
-    for(i=a1;i<=a2;i++)//根据斜率补线即可
-    {
-        hx=(i-y1)*(x2-x1)/(y2-y1)+x1;
-        if(hx>=MT9V03X_W)
-            hx=MT9V03X_W;
-        else if(hx<=0)
-            hx=0;
-        Left_Line[i]=hx;
-    }
-}
-void Right_Add_Line(int x1,int y1,int x2,int y2)
-{
-    int i;
-    int hx;
-
-    if(y1>y2)
-    {
-        int temp=y1;
-        y1=y2;
-        y2=temp;
-
-        temp=x1;
-        x1=x2;
-        x2=temp;
-    }
-
-    for(i=y1;i<=y2;i++)
-    {
-        hx=(i-y1)*(x2-x1)/(y2-y1)+x1;
-
-        if(hx>=MT9V03X_W)
-            hx=MT9V03X_W-1;
-
-        if(hx<0)
-            hx=0;
-
-        Right_Line[i]=hx;
-    }
 }
 
 
@@ -396,6 +312,7 @@ void search_neighborhood(void)
         {
             ////越界退出 行越界和列越界（向上向下向左向右）
             if(curr_row+1 < Boundary_search_end || curr_row>IMAGE_H-1)  break;
+            if (curr_col-1 <= 0 && curr_col+1 < IMAGE_W) break;
             //搜线过程
             if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==BLACK&&image_use[curr_row-1][curr_col]==WHITE)   //左上黑，2，右边白
             {
@@ -585,7 +502,7 @@ uint8 ostu_deal_threshold() {
     uint32 Graysum = 0;
     for (int i = 0; i < height; i += 2) {
         for (int j = 0; j < width; j += 2) {
-            int GrayCur = todone_image[i*width + j];
+            int GrayCur = binary_image[i*width + j];
             if (GrayCur > 200) {
                 ++black_cnt;
             }
@@ -595,7 +512,7 @@ uint8 ostu_deal_threshold() {
             PixelMin = cc_int16_min(PixelMin, GrayCur);
         }
     }
-    for (int i = PixelMax; i < PixelMax; ++i) {
+    for (int i = PixelMin; i < PixelMax; ++i) {
         PixelPro[i] = PixelCnt[i]/PixelSum;
     }
 //    float w0, w1, u0temp, u1temp, deltatemp, deltamax;
@@ -636,11 +553,11 @@ uint8 ostu_deal_threshold() {
 void threshold_update() {
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
-            if (todone_image[i*width+j] > os_threshold) {
-                todone_image[i*width+j] = 0;
+            if (binary_image[i*width+j] > os_threshold) {
+                binary_image[i*width+j] = 0;
             }
             else {
-                todone_image[i*width+j] = 1;
+                binary_image[i*width+j] = 1;
             }
         }
     }
