@@ -35,6 +35,9 @@
 
 #include "zf_common_headfile.h"
 #include "image.h"
+#include <string.h>
+
+#include "car_shared.h"
 #pragma section all "cpu1_dsram"
 // 将本语句与#pragma section all restore语句之间的全局变量都放在CPU1的RAM中
 
@@ -54,18 +57,22 @@ void core1_main(void)
     cpu_wait_event_ready();                 // 等待所有核心初始化完毕
     while (TRUE) {
         // 此处编写需要循环执行的代码
-        if (cpu0_done && !cpu1_done) {
+        if (car_frame_ready != 0U && car_result_ready == 0U) {
+            uint32 start_ms = system_getval_ms();
             __dsync();
             // car_control_process_frame(car_frame_time);
 
-            // CPU1只计算图像，不操作屏幕、舵机和电机。
-            if (image_auto_threshold) image_binary(image_buffer[0]);
+            // CPU1只计算图像
+            memcpy(&image_buffer[0][0], &car_gray_frame[0][0], sizeof(image_buffer));
+            if (image_auto_threshold != 0U) image_binary(image_buffer[0]);
             image_find_longest_white_line(image_buffer[0]);
             image_get_error();
 
-            cpu1_done = 1;
+
             __dsync();
-            cpu0_done = 0;
+            car_result_ready = 1U;
+            __dsync();
+            car_frame_ready = 0U;
             __dsync();
         }
 

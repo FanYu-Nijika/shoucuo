@@ -62,6 +62,11 @@ void car_apply_menu_params(const volatile car_params_t *params)
     image_search_start_row = params->roi_bottom != 0U && params->roi_bottom < MT9V03X_H ? params->roi_bottom : MT9V03X_H - 1U;
 }
 
+
+
+
+
+
 static void car_set_servo(uint16 duty)
 {
     duty = cc_i16_max(duty, servo_min_duty);
@@ -73,8 +78,8 @@ static void car_set_servo(uint16 duty)
 static void car_set_one_motor(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int16 command, uint8 reverse)
 {
     if (reverse) command = -command;
-    // if (command > motor_limit) command = motor_limit;
-    // if (command < -motor_limit) command = -motor_limit;
+    if (command > motor_limit) command = motor_limit;
+    if (command < -motor_limit) command = -motor_limit;
     command = cc_i16_max(command, -motor_limit);
     command = cc_i16_min(command, motor_limit);
 

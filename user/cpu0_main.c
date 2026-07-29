@@ -35,12 +35,11 @@
 
 #include "zf_common_headfile.h"
 #include "isr_config.h"
-#include "image.h"
-
 #include <string.h>
 
-#include "board_pins.h"
 #include "car_menu.h"
+#include "car_shared.h"
+#include "image.h"
 
 #pragma section all "cpu0_dsram"
 // 将本语句与#pragma section all restore语句之间的全局变量都放在CPU0的RAM中
@@ -51,75 +50,58 @@
 
 #define PIT_NUM                 (CCU60_CH0 )
 
-// uint16 delay_time = 0;
-// uint8 led_state = 0;
 
 volatile uint32 car_time_ms = 0;
 
 // **************************** 代码区域 ****************************
 int core0_main(void)
 {
+    uint32 last_frame_ms = 0U;
 
     clock_init();                   // 获取时钟频率<务必保留>
     debug_init();                   // 初始化默认调试串口
     // 此处编写用户代码 例如外设初始化代码等
 
-//    // 板载 LED 为低电平点亮，初始化为高电平可以避免上电误亮。
-//    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-//    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-//    gpio_init(BOARD_KEY1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_KEY2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_SWITCH1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-//    gpio_init(BOARD_SWITCH2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-
     car_menu_init();
-
+    car_init();
     pit_ms_init(PIT_NUM, 5);
 
     // 此处编写用户代码 例如外设初始化代码等
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE) {
         // 此处编写需要循环执行的代码
-//
-//        delay_time = 300;
-//        if(!gpio_get_level(BOARD_SWITCH1_PIN)) delay_time /= 2;
-//        if(!gpio_get_level(BOARD_SWITCH2_PIN)) delay_time /= 2;
-//        if(!gpio_get_level(BOARD_KEY1_PIN) || !gpio_get_level(BOARD_KEY2_PIN))
-//        {
-//            gpio_set_level(BOARD_LED1_PIN, led_state);
-//            gpio_set_level(BOARD_LED2_PIN, led_state);
-//        }
-//        else
-//        {
-//            gpio_set_level(BOARD_LED1_PIN, led_state);
-//            gpio_set_level(BOARD_LED2_PIN, !led_state);
-//        }
-//        led_state = !led_state;
-//        system_delay_ms(delay_time);
 
-        car_menu_task();
+        if (mt9v03x_finish_flag != 0U && car_frame_ready == 0U && car_result_ready == 0U) {
+            uint32 now_ms = system_getval_ms();
+            uint32 frame_period_ms = last_frame_ms == 0U ? 20U : now_ms - last_frame_ms;
 
-        if (mt9v03x_finish_flag) {
-            mt9v03x_finish_flag = 0;
+            if (frame_period_ms == 0U || frame_period_ms > 250U) frame_period_ms = 20U;
+            last_frame_ms = now_ms;
 
             // CPU1空闲时复制完整灰度帧，避免DMA采集下一帧时覆盖CPU1正在处理的数据。
-            if (!cpu0_done && !cpu1_done) {
-                memcpy(image_buffer[0], mt9v03x_image[0], MT9V03X_IMAGE_SIZE);
-                __dsync();
-                cpu0_done = 1;
-                __dsync();
-            }
+            memcpy(&car_gray_frame[0][0], &mt9v03x_image[0][0], sizeof(car_gray_frame));
+            car_frame_period_ms = frame_period_ms;
+            car_frame_sequence++;
+            __dsync();
+            car_frame_ready = 1U;
+            __dsync();
+            mt9v03x_finish_flag = 0U;
+            car_menu_frame_accepted(frame_period_ms);
         }
 
         // CPU1处理完成后，CPU0读取偏差并更新舵机和两个后轮电机。
-        if (cpu1_done) {
+        if (car_result_ready != 0U) {
+            car_result_t result;
+
             __dsync();
-            car_track_update(track_error, track_valid);
-            cpu1_done = 0;
+            result = car_result;
+            car_result_ready = 0U;
             __dsync();
+            car_track_update((int16)result.error_pixels, result.line_valid);
+            car_menu_result_accepted();
         }
 
-
+        car_menu_task();
         // 此处编写需要循环执行的代码
     }
 }

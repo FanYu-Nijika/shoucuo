@@ -42,6 +42,27 @@ static const uint16 CC_UI_BLACK = 0x0000U;
 
 static void cc_ui_back(cc_car_menu_ui_t *ui, cc_car_menu_app_t *app);
 
+static void cc_ui_fill_rect(uint16 x, uint16 y, uint16 width, uint16 height, uint16 color)
+{
+    uint16 row;
+
+    if (width == 0U || height == 0U) return;
+    for (row = 0U; row < height; row++) {
+        ips200_draw_line(x, y + row, x + width - 1U, y + row, color);
+    }
+}
+
+static void cc_ui_draw_rect(uint16 x, uint16 y, uint16 width, uint16 height, uint16 color)
+{
+    if (width == 0U || height == 0U) return;
+    ips200_draw_line(x, y, x + width - 1U, y, color);
+    if (height > 1U) ips200_draw_line(x, y + height - 1U, x + width - 1U, y + height - 1U, color);
+    if (height > 2U) {
+        ips200_draw_line(x, y + 1U, x, y + height - 2U, color);
+        if (width > 1U) ips200_draw_line(x + width - 1U, y + 1U, x + width - 1U, y + height - 2U, color);
+    }
+}
+
 static void cc_ui_text(uint16 x, uint16 y, const char *text, uint8_t max_chars, uint16 color, uint16 background)
 {
     char buffer[41];
@@ -59,22 +80,22 @@ static void cc_ui_text(uint16 x, uint16 y, const char *text, uint8_t max_chars, 
 
 static void cc_ui_draw_icon(uint16 x, uint16 y, uint8_t icon, uint16 color, uint16 background)
 {
-    ips200_fill_rect(x, y, 12U, 12U, background);
+    cc_ui_fill_rect(x, y, 12U, 12U, background);
     if (icon == 0U) {
-        ips200_draw_rect(x + 1U, y + 2U, 10U, 8U, color);
-        ips200_fill_rect(x + 4U, y + 5U, 4U, 2U, color);
+        cc_ui_draw_rect(x + 1U, y + 2U, 10U, 8U, color);
+        cc_ui_fill_rect(x + 4U, y + 5U, 4U, 2U, color);
     } else if (icon == 1U) {
-        ips200_draw_rect(x + 1U, y + 3U, 10U, 6U, color);
-        ips200_fill_rect(x + 3U, y + 1U, 6U, 2U, color);
+        cc_ui_draw_rect(x + 1U, y + 3U, 10U, 6U, color);
+        cc_ui_fill_rect(x + 3U, y + 1U, 6U, 2U, color);
     } else if (icon == 2U) {
         ips200_draw_line(x + 1U, y + 10U, x + 5U, y + 2U, color);
         ips200_draw_line(x + 5U, y + 2U, x + 10U, y + 10U, color);
     } else if (icon == 3U) {
-        ips200_draw_rect(x + 1U, y + 1U, 10U, 10U, color);
+        cc_ui_draw_rect(x + 1U, y + 1U, 10U, 10U, color);
         ips200_draw_line(x + 1U, y + 6U, x + 10U, y + 6U, color);
     } else {
-        ips200_draw_rect(x + 2U, y + 2U, 8U, 8U, color);
-        ips200_fill_rect(x + 5U, y, 2U, 12U, color);
+        cc_ui_draw_rect(x + 2U, y + 2U, 8U, 8U, color);
+        cc_ui_fill_rect(x + 5U, y, 2U, 12U, color);
     }
 }
 
@@ -161,7 +182,7 @@ static void cc_ui_draw_header(const cc_car_menu_ui_t *ui, const cc_car_menu_app_
     const cc_menu_node_t *page = cc_menu_find(&app->menu, ui->current_page);
     uint16 status_color = CC_UI_YELLOW;
 
-    ips200_fill_rect(0U, 0U, 320U, 24U, CC_UI_PANEL);
+    cc_ui_fill_rect(0U, 0U, 320U, 24U, CC_UI_PANEL);
     cc_ui_text(8U, 4U, page != 0 ? page->label : "Camera Car", 20U, CC_UI_TEXT, CC_UI_PANEL);
     if (app->safety_state == CC_CAR_SAFE_RUNNING) status_color = CC_UI_GREEN;
     else if (app->safety_state == CC_CAR_SAFE_FAULT) status_color = CC_UI_RED;
@@ -172,7 +193,7 @@ static void cc_ui_draw_header(const cc_car_menu_ui_t *ui, const cc_car_menu_app_
 
 static void cc_ui_draw_footer(const cc_car_menu_ui_t *ui, const cc_car_menu_app_t *app)
 {
-    ips200_fill_rect(0U, 216U, 320U, 24U, CC_UI_PANEL);
+    cc_ui_fill_rect(0U, 216U, 320U, 24U, CC_UI_PANEL);
     if (ui->current_page == CC_CAR_PAGE_DASHBOARD) {
         if (app->safety_state == CC_CAR_SAFE_ARMING || app->safety_state == CC_CAR_SAFE_RUNNING) {
             cc_ui_text(8U, 220U, "UART LOCKED WHILE RUNNING", 38U, CC_UI_YELLOW, CC_UI_PANEL);
@@ -200,7 +221,7 @@ static void cc_ui_draw_list(cc_car_menu_ui_t *ui, const cc_car_menu_app_t *app)
     uint16 foreground;
 
     cc_ui_keep_selected_visible(ui, &app->menu);
-    ips200_fill_rect(0U, 24U, 320U, 192U, CC_UI_BG);
+    cc_ui_fill_rect(0U, 24U, 320U, 192U, CC_UI_BG);
     current = ui->scroll_item;
     for (row = 0U; row < CC_UI_VISIBLE_ROWS && current != CC_MENU_ID_NONE; row++) {
         node = cc_menu_find(&app->menu, current);
@@ -208,7 +229,7 @@ static void cc_ui_draw_list(cc_car_menu_ui_t *ui, const cc_car_menu_app_t *app)
         y = 26U + row * 23U;
         background = current == ui->selected_item ? CC_UI_CYAN : (row & 1U) != 0U ? CC_UI_PANEL_ALT : CC_UI_BG;
         foreground = current == ui->selected_item ? CC_UI_BLACK : CC_UI_TEXT;
-        ips200_fill_rect(4U, y, 312U, 21U, background);
+        cc_ui_fill_rect(4U, y, 312U, 21U, background);
         cc_ui_draw_icon(10U, y + 4U, node->type, foreground, background);
         cc_ui_text(28U, y + 3U, node->label, 23U, foreground, background);
         if (node->type == CC_MENU_ITEM_PAGE) {
@@ -240,7 +261,7 @@ static void cc_ui_draw_dashboard_images(const cc_car_menu_app_t *app, const cc_i
     if (gray_valid != 0U) {
         ips200_show_gray_image(6U, 46U, gray_frame->data, gray_frame->width, gray_frame->height, 148U, 94U, 0U);
     } else {
-        ips200_fill_rect(6U, 46U, 148U, 94U, CC_UI_BLACK);
+        cc_ui_fill_rect(6U, 46U, 148U, 94U, CC_UI_BLACK);
         cc_ui_text(42U, 84U, "NO RAW FRAME", 14U, CC_UI_RED, CC_UI_BLACK);
     }
 
@@ -250,7 +271,7 @@ static void cc_ui_draw_dashboard_images(const cc_car_menu_app_t *app, const cc_i
         ips200_show_gray_image(166U, 46U, gray_frame->data, gray_frame->width, gray_frame->height,
                                148U, 94U, cc_ui_dashboard_threshold(app));
     } else {
-        ips200_fill_rect(166U, 46U, 148U, 94U, CC_UI_BLACK);
+        cc_ui_fill_rect(166U, 46U, 148U, 94U, CC_UI_BLACK);
         cc_ui_text(202U, 84U, "NO BIN FRAME", 14U, CC_UI_RED, CC_UI_BLACK);
     }
 }
@@ -261,7 +282,7 @@ static void cc_ui_draw_dashboard_metrics(const cc_car_menu_app_t *app, uint8_t d
     const cc_menu_data_t *data;
 
     if (draw_static != 0U) {
-        ips200_fill_rect(4U, 148U, 312U, 64U, CC_UI_PANEL);
+        cc_ui_fill_rect(4U, 148U, 312U, 64U, CC_UI_PANEL);
         cc_ui_text(10U, 154U, "THR", 4U, CC_UI_MUTED, CC_UI_PANEL);
         cc_ui_text(94U, 154U, "ERR", 4U, CC_UI_MUTED, CC_UI_PANEL);
         cc_ui_text(198U, 154U, "FPS", 4U, CC_UI_MUTED, CC_UI_PANEL);
@@ -269,25 +290,25 @@ static void cc_ui_draw_dashboard_metrics(const cc_car_menu_app_t *app, uint8_t d
         cc_ui_text(200U, 182U, "Servo", 6U, CC_UI_MUTED, CC_UI_PANEL);
     }
 
-    ips200_fill_rect(42U, 152U, 44U, 18U, CC_UI_PANEL);
+    cc_ui_fill_rect(42U, 152U, 44U, 18U, CC_UI_PANEL);
     snprintf(value, sizeof(value), "%u", (unsigned int)cc_ui_dashboard_threshold(app));
     cc_ui_text(42U, 154U, value, 5U, CC_UI_TEXT, CC_UI_PANEL);
 
-    ips200_fill_rect(126U, 152U, 64U, 18U, CC_UI_PANEL);
+    cc_ui_fill_rect(126U, 152U, 64U, 18U, CC_UI_PANEL);
     data = cc_menu_data_find(&app->menu, CC_CAR_DATA_LINE_ERROR);
     cc_ui_format_data(data, value, sizeof(value));
     cc_ui_text(126U, 154U, value, 7U, CC_UI_TEXT, CC_UI_PANEL);
 
-    ips200_fill_rect(230U, 152U, 54U, 18U, CC_UI_PANEL);
+    cc_ui_fill_rect(230U, 152U, 54U, 18U, CC_UI_PANEL);
     data = cc_menu_data_find(&app->menu, CC_CAR_DATA_FRAME_RATE);
     cc_ui_format_data(data, value, sizeof(value));
     cc_ui_text(230U, 154U, value, 6U, CC_UI_TEXT, CC_UI_PANEL);
 
-    ips200_fill_rect(66U, 180U, 126U, 18U, CC_UI_PANEL);
+    cc_ui_fill_rect(66U, 180U, 126U, 18U, CC_UI_PANEL);
     cc_ui_text(66U, 182U, cc_car_menu_error_text(app), 15U,
                app->last_error == CC_CAR_ERROR_NONE ? CC_UI_GREEN : CC_UI_YELLOW, CC_UI_PANEL);
 
-    ips200_fill_rect(248U, 180U, 62U, 18U, CC_UI_PANEL);
+    cc_ui_fill_rect(248U, 180U, 62U, 18U, CC_UI_PANEL);
     data = cc_menu_data_find(&app->menu, CC_CAR_DATA_SERVO_COMMAND_US);
     cc_ui_format_data(data, value, sizeof(value));
     cc_ui_text(248U, 182U, value, 7U, CC_UI_TEXT, CC_UI_PANEL);
@@ -296,11 +317,11 @@ static void cc_ui_draw_dashboard_metrics(const cc_car_menu_app_t *app, uint8_t d
 static void cc_ui_draw_dashboard(const cc_car_menu_app_t *app, const cc_image_u8_t *gray_frame,
                                  const cc_image_u8_t *binary_frame)
 {
-    ips200_fill_rect(0U, 24U, 320U, 192U, CC_UI_BG);
+    cc_ui_fill_rect(0U, 24U, 320U, 192U, CC_UI_BG);
     cc_ui_text(8U, 27U, "GRAY 0-255", 12U, CC_UI_CYAN, CC_UI_BG);
     cc_ui_text(168U, 27U, "BINARY 0/1", 12U, CC_UI_CYAN, CC_UI_BG);
-    ips200_draw_rect(4U, 44U, 152U, 98U, CC_UI_PANEL_ALT);
-    ips200_draw_rect(164U, 44U, 152U, 98U, CC_UI_PANEL_ALT);
+    cc_ui_draw_rect(4U, 44U, 152U, 98U, CC_UI_PANEL_ALT);
+    cc_ui_draw_rect(164U, 44U, 152U, 98U, CC_UI_PANEL_ALT);
     cc_ui_draw_dashboard_images(app, gray_frame, binary_frame);
     cc_ui_draw_dashboard_metrics(app, 1U);
 }
@@ -322,20 +343,20 @@ static void cc_ui_draw_edit(const cc_car_menu_ui_t *ui, const cc_car_menu_app_t 
     display = *data;
     display.value = ui->editing_value;
     cc_ui_format_data(&display, value, sizeof(value));
-    ips200_fill_rect(36U, 66U, 248U, 108U, CC_UI_PANEL);
-    ips200_draw_rect(36U, 66U, 248U, 108U, CC_UI_CYAN);
+    cc_ui_fill_rect(36U, 66U, 248U, 108U, CC_UI_PANEL);
+    cc_ui_draw_rect(36U, 66U, 248U, 108U, CC_UI_CYAN);
     cc_ui_text(52U, 82U, "EDIT VALUE", 16U, CC_UI_CYAN, CC_UI_PANEL);
-    ips200_fill_rect(52U, 112U, 216U, 36U, CC_UI_PANEL_ALT);
+    cc_ui_fill_rect(52U, 112U, 216U, 36U, CC_UI_PANEL_ALT);
     cc_ui_text(116U, 122U, value, 12U, CC_UI_TEXT, CC_UI_PANEL_ALT);
 }
 
 static void cc_ui_draw_color_test(void)
 {
-    ips200_fill_rect(0U, 0U, 64U, 240U, 0xF800U);
-    ips200_fill_rect(64U, 0U, 64U, 240U, 0x07E0U);
-    ips200_fill_rect(128U, 0U, 64U, 240U, 0x001FU);
-    ips200_fill_rect(192U, 0U, 64U, 240U, 0xFFFFU);
-    ips200_fill_rect(256U, 0U, 64U, 240U, 0x0000U);
+    cc_ui_fill_rect(0U, 0U, 64U, 240U, 0xF800U);
+    cc_ui_fill_rect(64U, 0U, 64U, 240U, 0x07E0U);
+    cc_ui_fill_rect(128U, 0U, 64U, 240U, 0x001FU);
+    cc_ui_fill_rect(192U, 0U, 64U, 240U, 0xFFFFU);
+    cc_ui_fill_rect(256U, 0U, 64U, 240U, 0x0000U);
     cc_ui_text(92U, 108U, "LCD COLOR TEST", 18U, CC_UI_BLACK, 0x07E0U);
 }
 

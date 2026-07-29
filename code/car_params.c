@@ -37,8 +37,8 @@ const car_params_t car_default_params = {
      * right 820 -> 1640 us, center 890 -> 1780 us, left 940 -> 1880 us.
      * Positive image error means track is right, so servo output is reversed.
      */
-    .servo_center_us = 1660,
-    .servo_travel_us = 260,
+    .servo_center_us = 1400,
+    .servo_travel_us = 160,
     .servo_reverse = 0U,
 
     .automatic_threshold = 1U,
