@@ -570,6 +570,18 @@ void Set_Binary_Point(int x,int y)
     binary_image[y*MT9V03X_W+x-1]=1;
     binary_image[y*MT9V03X_W+x+1]=1;
 }
+
+static uint8 cross_pair_slope_ok(int row1,int x1,int row2,int x2)
+{
+    int dx = abs(x2 - x1);
+    int dy = abs(row2 - row1);
+
+    /* The straight-entry samples are below 0.83. A limit of 2 keeps margin
+     * for pixel noise while rejecting a nearly horizontal false connection. */
+    if (dy <= 0) return 0;
+    return dx <= 2*dy;
+}
+
 void shizibuxian(void)
 {
     int left_up;
@@ -595,10 +607,18 @@ void shizibuxian(void)
 
     Cross_Flag = 1;
     Cross_Count = 3;
-    if (left_down > 0) Add_Left_Line(left_up, left_down);
-    else Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
-    if (right_down > 0) Add_Right_Line(right_up, right_down);
-    else Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
+    if (left_down > 0) {
+        if (cross_pair_slope_ok(left_up, Left_Line[left_up], left_down, Left_Line[left_down]))
+            Add_Left_Line(left_up, left_down);
+    } else {
+        Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
+    }
+    if (right_down > 0) {
+        if (cross_pair_slope_ok(right_up, Right_Line[right_up], right_down, Right_Line[right_down]))
+            Add_Right_Line(right_up, right_down);
+    } else {
+        Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
+    }
 }
 
 // void edge_real_update() {
