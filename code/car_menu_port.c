@@ -5,14 +5,13 @@
 #include "zf_common_headfile.h"
 
 #define CC_MOTOR_PWM_FREQUENCY_HZ   (17000)
-#define CC_MOTOR_MAX_COMMAND        (500)
 #define CC_SERVO_PWM_FREQUENCY_HZ   (50)
 #define CC_SERVO_PERIOD_US          (20000)
 
-/* Servo calibration for PWM_DUTY_MAX=10000:
- * 820 -> right limit -> 1640 us
- * 890 -> center      -> 1780 us
- * 940 -> left limit  -> 1880 us
+/* Servo calibration for PWM_DUTY_MAX=10000 at 50 Hz:
+ * 600 -> lower limit -> 1200 us
+ * 700 -> center      -> 1400 us
+ * 800 -> upper limit -> 1600 us
  */
 #define CC_SERVO_MIN_DUTY           (600)
 #define CC_SERVO_CENTER_DUTY        (700)
@@ -29,7 +28,7 @@ static uint32_t servo_duty(int16_t pulse_us)
 
 static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int16_t command)
 {
-    int32_t value = cc_math_clamp_i32(command, -CC_MOTOR_MAX_COMMAND, CC_MOTOR_MAX_COMMAND);
+    int32_t value = cc_math_clamp_i32(command, -PWM_DUTY_MAX, PWM_DUTY_MAX);
     uint32_t duty;
 
     /* Disable both H-bridge inputs before changing direction. */
@@ -37,8 +36,7 @@ static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reve
     pwm_set_duty(reverse_pin, 0U);
     if (value == 0) return;
 
-    duty = (uint32_t)(value > 0 ? value : -value) * PWM_DUTY_MAX / 1000U;
-    if (duty > PWM_DUTY_MAX / 2U) duty = PWM_DUTY_MAX / 2U;
+    duty = (uint32_t)(value > 0 ? value : -value);
 
     if (value > 0) pwm_set_duty(forward_pin, duty);
     else pwm_set_duty(reverse_pin, duty);

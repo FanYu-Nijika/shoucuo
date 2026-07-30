@@ -2,12 +2,6 @@
 
 #include "math_utils.h"
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_init 功能实现
-// 返回类型          void
-// 使用示例          cc_pid_init(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 void cc_pid_init(cc_pid_t *pid, float kp, float ki, float kd,
                  float output_min, float output_max)
 {
@@ -22,12 +16,6 @@ void cc_pid_init(cc_pid_t *pid, float kp, float ki, float kd,
     cc_pid_reset(pid);
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_set_integral_limits 功能实现
-// 返回类型          void
-// 使用示例          cc_pid_set_integral_limits(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 void cc_pid_set_integral_limits(cc_pid_t *pid, float integral_min, float integral_max)
 {
     if (pid == 0) return;
@@ -36,12 +24,6 @@ void cc_pid_set_integral_limits(cc_pid_t *pid, float integral_min, float integra
     pid->integral = cc_math_clamp_f32(pid->integral, integral_min, integral_max);
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_reset 功能实现
-// 返回类型          void
-// 使用示例          cc_pid_reset(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 void cc_pid_reset(cc_pid_t *pid)
 {
     if (pid == 0) return;
@@ -51,23 +33,11 @@ void cc_pid_reset(cc_pid_t *pid)
     pid->initialized = 0;
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_update 功能实现
-// 返回类型          float
-// 使用示例          cc_pid_update(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 float cc_pid_update(cc_pid_t *pid, float setpoint, float measurement, float dt)
 {
     return cc_pid_update_error(pid, setpoint - measurement, dt);
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_update_error 功能实现
-// 返回类型          float
-// 使用示例          cc_pid_update_error(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 float cc_pid_update_error(cc_pid_t *pid, float error, float dt)
 {
     float derivative = 0.0f;
@@ -85,12 +55,6 @@ float cc_pid_update_error(cc_pid_t *pid, float error, float dt)
     return output;
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介          cc_pid_output 功能实现
-// 返回类型          float
-// 使用示例          cc_pid_output(...);
-// 备注信息          参数含义请参考同名头文件声明。
-//-------------------------------------------------------------------------------------------------------------------
 float cc_pid_output(const cc_pid_t *pid)
 {
     return pid == 0 ? 0.0f : pid->last_output;

@@ -1,5 +1,7 @@
 #include "image.h"
+#include "car_shared.h"
 #include "longest_white.h"
+#include "car_params.h"
 #include "algorithm.h"
 #include "math_utils.h"
 #include "zf_common_font.h"
@@ -15,9 +17,13 @@ uint8 already_line_lost;
 uint8 left_edge[MT9V03X_H], left_index;
 uint8 right_edge[MT9V03X_H], right_index;
 uint16 Search_Stop_Line;
+int16 Center_Line[MT9V03X_H];
 int a;
+uint8 Cross_Flag;
+uint8 Cross_Count;
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
+float Calculate_Error(void);
 
 // struct LEFT_EDGE  L_edge[140];
 // struct RIGHT_EDGE R_edge[140];
@@ -30,9 +36,10 @@ uint8 L_search_amount = 140, R_search_amount = 140;  //左右边界搜点时最�
 // uint8 left_corner[4], right[4];
 // uint8 left_corner_index = 0, right_corner_index = 0;
 
-void image_init() {
+void image_init(void) {
     width = MT9V03X_W;
     height = MT9V03X_H;
+    binary_image = 0;
     os_threshold = -1;
     lost_line_cnt = LOST_LINE;
     already_line_lost = 0;
@@ -41,29 +48,107 @@ void image_init() {
         Left_Line[i] = -1;
         Right_Line[i] = 0x3f3f3f;
     }
+    Cross_Flag = 0;
+    Cross_Count = 0;
     left_index = right_index = 0;
     // Search_Stop_Line = 0;
 }
 
-void image_deal(uint8 start_y, uint8 end_y) {
-    memcpy(binary_image, mt9v03x_image, sizeof(mt9v03x_image));
-    if (ostu_deal_threshold() || Longest_White_Column_Left[0]<10) {
+void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *binary_frame, car_result_t *result)
+{
+    uint16 row = car_params.control_row_near;
+    uint16 valid_rows = 0;
+    uint16 index;
+    int16 left;
+    int16 right;
+    float image_center = (width - 1) * 0.5;
+
+    if (gray_frame == 0 || binary_frame == 0 || result == 0) return;
+    memset(result, 0, sizeof(*result));
+    binary_image = binary_frame;
+    (void)start_y;
+    (void)end_y;
+    memcpy(binary_image, gray_frame, MT9V03X_IMAGE_SIZE);
+    if (car_params.automatic_threshold != 0 && ostu_deal_threshold() != 0) {
         if (--lost_line_cnt <= 0) {
             already_line_lost = 1;
             return;
         }
-    }
-    else {
+    } else {
         lost_line_cnt= LOST_LINE;
+        already_line_lost = 0;
     }
+    if (car_params.automatic_threshold == 0) os_threshold = car_params.threshold;
     threshold_update();
     Longest_White_Column();
+    if(Longest_White_Column_Left[0]<10) {
+        already_line_lost=1;
+        return;
+    }
     // get_highest();
     // image_draw_rectan(binary_image);
     // search_neighborhood();
     // edge_real_update();
+    shizibuxian();
+    Center_Line_Calculate();
 
-    // shizibuxian();
+    if (row >= height) row = height - 1;
+    for (index = 0; index < height; index++) {
+        if (Left_Lost_Flag[index] == 0 && Right_Lost_Flag[index] == 0) valid_rows++;
+    }
+    result->valid_rows = valid_rows;
+    result->lost_count = Both_Lost_Time < 0 ? 0 : Both_Lost_Time;
+    result->threshold_used = os_threshold < 0 ? 0 : os_threshold > 255 ? 255 : os_threshold;
+    result->threshold_far = result->threshold_used;
+    result->threshold_middle = result->threshold_used;
+    result->threshold_near = result->threshold_used;
+    result->strength = (float)valid_rows / height;
+
+    left = Left_Line[row];
+    right = Right_Line[row];
+    if (left < 0) left = 0;
+    if (right < 0) right = 0;
+    if (left >= width) left = width - 1;
+    if (right >= width) right = width - 1;
+    if (right < left) right = left;
+    result->left_edge = left;
+    result->right_edge = right;
+    result->line_width = right - left;
+    if (already_line_lost != 0 || Left_Lost_Flag[row] != 0 || Right_Lost_Flag[row] != 0 ||
+        Longest_White_Column_Left[0] < car_params.minimum_line_pixels) return;
+
+    result->line_valid = 1U;
+    result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
+    result->center_x = image_center + result->error_pixels;
+    result->error_normalized = result->error_pixels / (width * 0.5f);
+    result->near_error_cm = result->error_pixels * 40.0f / (result->line_width > 0 ? result->line_width : 1U);
+}
+
+float Calculate_Error(void)
+{
+    int i;
+    float sum = 0;
+    float weight_sum = 0;
+
+    for(i = 30; i <= 90; i += 5)
+    {
+        float weight = i - 20;
+
+        sum += Center_Line[i] * weight;
+        weight_sum += weight;
+    }
+
+    if(weight_sum == 0) return 0;
+
+    return sum / weight_sum - MT9V03X_W * 0.5f;
+}
+
+void Center_Line_Calculate(void)
+{
+    int i;
+    for(i=0;i<MT9V03X_H;i++) {
+        Center_Line[i]=(Left_Line[i]+Right_Line[i])/2;
+    }
 }
 
 // // Legacy edge-following helpers are disabled until their removed interfaces are restored.
@@ -96,7 +181,7 @@ int Find_Left_Down_Point(int start,int end)//找左下角点，返回值是角�
     {
         if(left_down_line==0&&//只找第一个符合条件的点
            abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-           abs(Left_Line[i+1]-Left_Line[i+2])<=5&&  
+           abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
            abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
               (Left_Line[i]-Left_Line[i-2])>=5&&
               (Left_Line[i]-Left_Line[i-3])>=10&&
@@ -130,7 +215,7 @@ int Find_Right_Down_Point(int start,int end)//找左下角点，返回值是角�
     {
         // if(right_down_line==0&&//只找第一个符合条件的点
         //    abs(Right_Line[i]-Right_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Right_Line[i+1]-Right_Line[i+2])<=5&&  
+        //    abs(Right_Line[i+1]-Right_Line[i+2])<=5&&
         //    abs(Right_Line[i+2]-Right_Line[i+3])<=5&&
         //       (Right_Line[i]-Right_Line[i-2])>=5&&
         //       (Right_Line[i]-Right_Line[i-3])>=10&&
@@ -175,7 +260,7 @@ int Find_Left_Up_Point(int start,int end)//找左下角点，返回值是角点�
     {
         // if(left_up_line==0&&//只找第一个符合条件的点
         //    abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&  
+        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
         //    abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
         //       (Left_Line[i]-Left_Line[i-2])>=5&&
         //       (Left_Line[i]-Left_Line[i-3])>=10&&
@@ -220,7 +305,7 @@ int Find_Right_Up_Point(int start,int end)//找左下角点，返回值是角点
     {
         // if(right_up_line==0&&//只找第一个符合条件的点
         //    abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&  
+        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
         //    abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
         //       (Left_Line[i]-Left_Line[i-2])>=5&&
         //       (Left_Line[i]-Left_Line[i-3])>=10&&
@@ -251,28 +336,224 @@ int Find_Right_Up_Point(int start,int end)//找左下角点，返回值是角点
 //     int right_down_line = Find_Right_Down_Point(0, height);
 //     int right_up_line = Find_Right_Up_Point(0, height);
 // }
-void shizibuxian()
+void Draw_Line(int x1, int y1, int x2, int y2)
 {
-    int left_up=Find_Left_Up_Point(height-6,10);
-    int right_up=Find_Right_Up_Point(height-6,10);
-    //左右同时检测到，认为十字
-    if(left_up>0&&right_up>0)
-    {
-        Left_Add_Line(
-            Left_Line[left_up],
-            left_up,
-            Left_Line[left_up],
-            height-1
-        );
+    int dx = abs(x2 - x1);
+    int dy = abs(y2 - y1);
+    int sx = x1 < x2 ? 1 : -1;
+    int sy = y1 < y2 ? 1 : -1;
+    int error = dx - dy;
 
-
-        Right_Add_Line(
-            Right_Line[right_up],
-            right_up,
-            Right_Line[right_up],
-            height-1
-        );
+    while (1) {
+        Set_Binary_Point(x1, y1);
+        if (x1 == x2 && y1 == y2) break;
+        if (2 * error > -dy) {
+            error -= dy;
+            x1 += sx;
+        }
+        if (2 * error < dx) {
+            error += dx;
+            y1 += sy;
+        }
     }
+}
+void Draw_Left_Line(int start,int end)
+{
+    Draw_Line(Left_Line[start],start,Left_Line[end],end);
+}
+void Draw_Right_Line(int start,int end)
+{
+    Draw_Line(Right_Line[start],start,Right_Line[end],end);
+}
+// void Extend_Left_Line(int start,int end)
+// {
+//     int x;
+//     int dx;
+
+//     if(start<4) {
+//         Draw_Left_Line(start,end);
+//         return;
+//     }
+//     x=Left_Line[start];
+//     dx=Left_Line[start]-Left_Line[start-4];
+//     for(int y=start;y<=end;y++)
+//     {
+//         x+=dx/4;
+//         if(x<0) x=0;
+//         if(x>=MT9V03X_W) x=MT9V03X_W-1;
+//         Set_Binary_Point(x,y);
+//     }
+// }
+// void Extend_Right_Line(int start,int end)
+// {
+//     int x;
+//     int dx;
+
+//     if(start<4) {
+//         Draw_Right_Line(start,end);
+//         return;
+//     }
+
+//     x=Right_Line[start];
+//     dx=Right_Line[start]-Right_Line[start-4];
+//     for(int y=start;y<=end;y++) {
+//         x+=dx/4;
+//         if(x<0) x=0;
+//         if(x>=MT9V03X_W) x=MT9V03X_W-1;
+//         Set_Binary_Point(x,y);
+//     }
+// }
+void Add_Left_Line(int start,int end)
+{
+    int i;
+    int x1=Left_Line[start];
+    int x2=Left_Line[end];
+
+    if(start>end)
+    {
+        int t=start;
+        start=end;
+        end=t;
+
+        x1=Left_Line[start];
+        x2=Left_Line[end];
+    }
+
+    for(i=start;i<=end;i++)
+    {
+        Left_Line[i]=x1+(x2-x1)*(i-start)/(end-start);
+
+        binary_image[i*MT9V03X_W+Left_Line[i]]=1;
+    }
+}
+
+
+void Add_Right_Line(int start,int end)
+{
+    int i;
+    int x1=Right_Line[start];
+    int x2=Right_Line[end];
+
+    if(start>end)
+    {
+        int t=start;
+        start=end;
+        end=t;
+
+        x1=Right_Line[start];
+        x2=Right_Line[end];
+    }
+
+    for(i=start;i<=end;i++)
+    {
+        Right_Line[i]=x1+(x2-x1)*(i-start)/(end-start);
+
+        binary_image[i*MT9V03X_W+Right_Line[i]]=1;
+    }
+}
+void Lengthen_Left_Boundry(int start,int end)
+{
+    int i;
+    float k;
+
+    if(start<5)
+    {
+        Add_Left_Line(start,end);
+        return;
+    }
+
+    k=(float)(Left_Line[start]-Left_Line[start-4])/4.0f;
+
+    for(i=start;i<=end;i++)
+    {
+        Left_Line[i]=(int)((i-start)*k+Left_Line[start]);
+
+        if(Left_Line[i]<0)
+            Left_Line[i]=0;
+
+        if(Left_Line[i]>=MT9V03X_W)
+            Left_Line[i]=MT9V03X_W-1;
+
+        binary_image[i*MT9V03X_W+Left_Line[i]]=1;
+    }
+}
+
+
+
+void Lengthen_Right_Boundry(int start,int end)
+{
+    int i;
+    float k;
+
+    if(start<5)
+    {
+        Add_Right_Line(start,end);
+        return;
+    }
+
+    k=(float)(Right_Line[start]-Right_Line[start-4])/4.0f;
+
+    for(i=start;i<=end;i++)
+    {
+        Right_Line[i]=(int)((i-start)*k+Right_Line[start]);
+
+        if(Right_Line[i]<0)
+            Right_Line[i]=0;
+
+        if(Right_Line[i]>=MT9V03X_W)
+            Right_Line[i]=MT9V03X_W-1;
+
+        binary_image[i*MT9V03X_W+Right_Line[i]]=1;
+    }
+}
+void Set_Binary_Point(int x,int y)
+{
+    if(x<=1||x>=MT9V03X_W-2||y<0||y>=MT9V03X_H)
+        return;
+
+    binary_image[y*MT9V03X_W+x]=1;
+    binary_image[y*MT9V03X_W+x-1]=1;
+    binary_image[y*MT9V03X_W+x+1]=1;
+}
+void shizibuxian(void)
+{
+    int left_up=Find_Left_Up_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
+    int right_up=Find_Right_Up_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
+    int left_down=Find_Left_Down_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
+    int right_down=Find_Right_Down_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
+
+    int count=0;
+
+    if(left_up>0)
+        count++;
+
+    if(right_up>0)
+        count++;
+
+    if(left_down>0)
+        count++;
+
+    if(right_down>0)
+        count++;
+
+    if(count<=1)
+        return;
+
+
+    Cross_Flag=1;
+    Cross_Count=3;
+
+
+    if(left_up>0&&left_down>0)
+        Add_Left_Line(left_up,left_down);
+    else if(left_up>0)
+        Lengthen_Left_Boundry(left_up,MT9V03X_H-1);
+
+
+    if(right_up>0&&right_down>0)
+        Add_Right_Line(right_up,right_down);
+    else if(right_up>0)
+        Lengthen_Right_Boundry(right_up,MT9V03X_H-1);
 }
 
 // void edge_real_update() {
@@ -516,8 +797,8 @@ uint8 ostu_deal_threshold() { //懒得写注释，反正大津感觉就是套公
             }
             Graysum += GrayCur;
             ++PixelCnt[GrayCur];
-            PixelMax = cc_int16_max(PixelMax, GrayCur);
-            PixelMin = cc_int16_min(PixelMin, GrayCur);
+            if (GrayCur > PixelMax) PixelMax = GrayCur;
+            if (GrayCur < PixelMin) PixelMin = GrayCur;
         }
     }
     for (int i = PixelMin; i < PixelMax; ++i) {

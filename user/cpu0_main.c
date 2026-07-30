@@ -53,10 +53,37 @@
 
 volatile uint32 car_time_ms = 0;
 
+static int8_t find_free_frame_slot(uint8_t preferred_slot)
+{
+    uint8_t offset;
+
+    for (offset = 0U; offset < CAR_FRAME_SLOT_COUNT; offset++) {
+        uint8_t slot = (uint8_t)((preferred_slot + offset) % CAR_FRAME_SLOT_COUNT);
+
+        if (car_frame_state[slot] == CAR_FRAME_FREE) return (int8_t)slot;
+    }
+    return -1;
+}
+
+static void update_display_slot(uint8_t slot)
+{
+    uint8_t old_slot = car_display_slot;
+
+    if (old_slot != CAR_FRAME_SLOT_NONE && old_slot != slot && old_slot < CAR_FRAME_SLOT_COUNT) {
+        if (car_frame_state[old_slot] == CAR_FRAME_DISPLAY_READY) {
+            car_frame_state[old_slot] = CAR_FRAME_FREE;
+            car_display_drop_count++;
+        }
+    }
+    car_display_slot = slot;
+    __dsync();
+}
+
 // **************************** 代码区域 ****************************
 int core0_main(void)
 {
     uint32 last_frame_ms = 0U;
+    uint8 next_frame_slot = 0U;
 
     clock_init();                   // 获取时钟频率<务必保留>
     debug_init();                   // 初始化默认调试串口
@@ -71,22 +98,30 @@ int core0_main(void)
     while (TRUE) {
         // 此处编写需要循环执行的代码
 
-        if (mt9v03x_finish_flag != 0U && car_frame_ready == 0U && car_result_ready == 0U) {
+        if (mt9v03x_finish_flag != 0U) {
             uint32 now_ms = system_getval_ms();
             uint32 frame_period_ms = last_frame_ms == 0U ? 20U : now_ms - last_frame_ms;
+            int8_t slot;
 
             if (frame_period_ms == 0U || frame_period_ms > 250U) frame_period_ms = 20U;
             last_frame_ms = now_ms;
 
-            // CPU1空闲时复制完整灰度帧，避免DMA采集下一帧时覆盖CPU1正在处理的数据。
-            memcpy(&car_gray_frame[0][0], &mt9v03x_image[0][0], sizeof(car_gray_frame));
-            car_frame_period_ms = frame_period_ms;
-            car_frame_sequence++;
-            __dsync();
-            car_frame_ready = 1U;
-            __dsync();
+            slot = find_free_frame_slot(next_frame_slot);
+            if (slot >= 0) {
+                memcpy(&car_gray_frames[(uint8_t)slot][0][0], &mt9v03x_image[0][0], sizeof(car_gray_frames[0]));
+                car_frame_sequence++;
+                car_frame_period_ms = frame_period_ms;
+                car_frame_slot_sequence[(uint8_t)slot] = car_frame_sequence;
+                car_frame_slot_period_ms[(uint8_t)slot] = frame_period_ms;
+                __dsync();
+                car_frame_state[(uint8_t)slot] = CAR_FRAME_READY;
+                __dsync();
+                next_frame_slot = (uint8_t)(((uint8_t)slot + 1U) % CAR_FRAME_SLOT_COUNT);
+                car_menu_frame_accepted(frame_period_ms);
+            } else {
+                car_capture_drop_count++;
+            }
             mt9v03x_finish_flag = 0U;
-            car_menu_frame_accepted(frame_period_ms);
         }
 
         // CPU1处理完成后，CPU0读取偏差并更新舵机和两个后轮电机。
@@ -97,11 +132,13 @@ int core0_main(void)
             result = car_result;
             car_result_ready = 0U;
             __dsync();
+            if (result.frame_slot < CAR_FRAME_SLOT_COUNT) update_display_slot(result.frame_slot);
             car_track_update((int16)result.error_pixels, result.line_valid);
             car_menu_result_accepted();
         }
 
         car_menu_task();
+
         // 此处编写需要循环执行的代码
     }
 }

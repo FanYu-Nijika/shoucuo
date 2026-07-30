@@ -12,9 +12,6 @@
 #include "longest_white.h"
 #include "zf_common_headfile.h"
 
-/* image.c owns this buffer. The menu only displays it after the frame channel is idle. */
-extern uint8 *binary_image;
-
 enum {
     CAR_MENU_ROOT = 0U,
     CAR_MENU_PAGE_RUN = 1U,
@@ -116,8 +113,8 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_STEERING, "STEERING KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kp, 0, 50, 0.1f, 1, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "STEERING KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kd, 0, 100, 0.1f, 1, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_STEERING, "SERVO CENTER", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_center_us, 1000, 3000, 5, 0, CAR_MENU_APPLY_SERVO_CENTER, 0},
-    {0, CAR_MENU_PAGE_STEERING, "SERVO TRAVEL", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_travel_us, 0, 800, 5, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "SERVO CENTER", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_center_us, 1200, 1600, 5, 0, CAR_MENU_APPLY_SERVO_CENTER, 0},
+    {0, CAR_MENU_PAGE_STEERING, "SERVO TRAVEL", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_travel_us, 0, 200, 5, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "SERVO REVERSE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &car_params.servo_reverse, 0, 1, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "SERVO COMMAND", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.servo_command_us, 0, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
@@ -146,6 +143,11 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_TELEMETRY, "WHITE LEFT COL", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &Longest_White_Column_Left[1], 0, 188, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "WHITE RIGHT LEN", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &Longest_White_Column_Right[0], 0, 120, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "WHITE RIGHT COL", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &Longest_White_Column_Right[1], 0, 188, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "CAPTURE DROP", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &car_capture_drop_count, 0, 4294967295.0f, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "PROCESS DROP", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &car_processing_drop_count, 0, 4294967295.0f, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "DISPLAY DROP", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &car_display_drop_count, 0, 4294967295.0f, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "RESULT DROP", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &car_result_drop_count, 0, 4294967295.0f, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "VISION MAX US", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &car_vision_max_us, 0, 4294967295.0f, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "CAMERA", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_camera_ready, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_TOOLS, "LCD TEST", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_LCD_TEST},
@@ -154,7 +156,6 @@ static const car_menu_item_t car_menu_items[] = {
 };
 
 static uint8_t car_menu_ready;
-static uint8_t car_menu_gray_valid;
 static uint8_t car_menu_new_frame;
 static uint8_t car_menu_image_pending;
 static uint8_t car_menu_dirty;
@@ -617,18 +618,17 @@ static void car_menu_draw_list(void)
 
 static void car_menu_draw_image(void)
 {
+    uint8_t slot = car_display_slot;
+
     ips200_full(RGB565_BLACK);
     car_menu_draw_header();
     car_menu_text(4U, 27U, "RAW", RGB565_WHITE, RGB565_BLACK);
     car_menu_text(168U, 27U, "BINARY", RGB565_WHITE, RGB565_BLACK);
-    if (car_menu_gray_valid != 0U) {
-        ips200_show_gray_image(4U, 44U, &car_gray_frame[0][0], CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148U, 94U, 0U);
+    if (slot < CAR_FRAME_SLOT_COUNT && car_frame_state[slot] == CAR_FRAME_DISPLAY_READY) {
+        ips200_show_gray_image(4U, 44U, &car_gray_frames[slot][0][0], CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148U, 94U, 0U);
+        ips200_show_binary_image(168U, 44U, &car_binary_frames[slot][0][0], CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148U, 94U);
     } else {
         car_menu_text(32U, 84U, "NO RAW FRAME", RGB565_WHITE, RGB565_BLACK);
-    }
-    if (binary_image != 0) {
-        ips200_show_binary_image(168U, 44U, binary_image, CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148U, 94U);
-    } else {
         car_menu_text(194U, 84U, "NO BINARY", RGB565_WHITE, RGB565_BLACK);
     }
     car_menu_text(4U, 146U, "GRAY/BINARY FRAME", RGB565_WHITE, RGB565_BLACK);
@@ -673,7 +673,6 @@ void car_menu_init(void)
     car_menu_page = CAR_MENU_ROOT;
     car_menu_selected = 0U;
     car_menu_first_visible = 0U;
-    car_menu_gray_valid = 0U;
     car_menu_new_frame = 0U;
     car_menu_image_pending = 0U;
     car_menu_editing = 0U;
@@ -700,8 +699,6 @@ void car_menu_init(void)
 void car_menu_frame_accepted(uint32_t frame_period_ms)
 {
     (void)frame_period_ms;
-    if (car_menu_ready == 0U) return;
-    car_menu_gray_valid = 1U;
 }
 
 void car_menu_result_accepted(void)
@@ -728,8 +725,9 @@ void car_menu_task(void)
         car_menu_error = CAR_MENU_ERROR_LINE_LOST;
         car_menu_dirty = 1U;
     }
-    if (car_menu_new_frame != 0U && car_menu_lcd_test_until_ms == 0U && car_frame_ready == 0U && car_result_ready == 0U) {
-        if (car_uart_stream_is_enabled() != 0U) car_uart_stream_send_frame(&car_gray_frame[0][0]);
+    if (car_menu_new_frame != 0U && car_menu_lcd_test_until_ms == 0U && car_result_ready == 0U &&
+        car_display_slot < CAR_FRAME_SLOT_COUNT && car_frame_state[car_display_slot] == CAR_FRAME_DISPLAY_READY) {
+        if (car_uart_stream_is_enabled() != 0U) car_uart_stream_send_frame(&car_gray_frames[car_display_slot][0][0]);
         car_menu_new_frame = 0U;
     }
     car_menu_display();
@@ -740,7 +738,6 @@ void car_menu_display(void)
     uint32_t now;
 
     if (car_menu_ready == 0U) return;
-    if (car_frame_ready != 0U || car_result_ready != 0U) return;
     now = system_getval_ms();
     if (car_menu_lcd_test_until_ms != 0U) {
         if (car_menu_lcd_test_drawn == 0U) {

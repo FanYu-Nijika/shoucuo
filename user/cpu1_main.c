@@ -35,13 +35,27 @@
 
 #include "zf_common_headfile.h"
 #include "image.h"
-#include <string.h>
-
 #include "car_shared.h"
 #pragma section all "cpu1_dsram"
 // 将本语句与#pragma section all restore语句之间的全局变量都放在CPU1的RAM中
 
 // **************************** 代码区域 ****************************
+
+static int8_t newest_ready_slot(void)
+{
+    int8_t selected = -1;
+    uint32_t selected_sequence = 0U;
+    uint8_t slot;
+
+    for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+        if (car_frame_state[slot] == CAR_FRAME_READY &&
+            (selected < 0 || car_frame_slot_sequence[slot] > selected_sequence)) {
+            selected = (int8_t)slot;
+            selected_sequence = car_frame_slot_sequence[slot];
+        }
+    }
+    return selected;
+}
 
 // 本例程是开源库空工程 可用作移植或者测试各类内外设
 // 本例程是开源库空工程 可用作移植或者测试各类内外设
@@ -52,31 +66,50 @@ void core1_main(void)
     disable_Watchdog();                     // 关闭看门狗
     interrupt_global_enable(0);             // 打开全局中断
     // 此处编写用户代码 例如外设初始化代码等
-
     // 此处编写用户代码 例如外设初始化代码等
     cpu_wait_event_ready();                 // 等待所有核心初始化完毕
+    image_init();
     while (TRUE) {
-        // 此处编写需要循环执行的代码
-        if (car_frame_ready != 0U && car_result_ready == 0U) {
-            uint32 start_ms = system_getval_ms();
-            __dsync();
-            // car_control_process_frame(car_frame_time);
+        int8_t selected = newest_ready_slot();
 
-            // CPU1只计算图像
-            memcpy(&image_buffer[0][0], &car_gray_frame[0][0], sizeof(image_buffer));
-            if (image_auto_threshold != 0U) image_binary(image_buffer[0]);
-            image_find_longest_white_line(image_buffer[0]);
-            image_get_error();
+        if (selected >= 0) {
+            uint8_t slot;
+            uint32_t start_us = system_getval_us();
+            uint32_t processing_us;
+            uint32_t frame_sequence;
+            car_result_t result;
 
+            for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+                if (slot != (uint8_t)selected && car_frame_state[slot] == CAR_FRAME_READY) {
+                    car_frame_state[slot] = CAR_FRAME_FREE;
+                    car_processing_drop_count++;
+                }
+            }
+            car_frame_state[(uint8_t)selected] = CAR_FRAME_READING;
+            __dsync();
 
-            __dsync();
-            car_result_ready = 1U;
-            __dsync();
-            car_frame_ready = 0U;
-            __dsync();
+            frame_sequence = car_frame_slot_sequence[(uint8_t)selected];
+            image_deal(0U, CAR_IMAGE_HEIGHT, &car_gray_frames[(uint8_t)selected][0][0],
+                       &car_binary_frames[(uint8_t)selected][0][0], &result);
+            processing_us = system_getval_us() - start_us;
+            result.frame_slot = (uint8_t)selected;
+            result.frame_sequence = frame_sequence;
+            result.processing_time_us = processing_us;
+
+            if (processing_us > car_vision_max_us) car_vision_max_us = processing_us;
+            if (car_result_ready != 0U) {
+                car_result_drop_count++;
+                car_frame_state[(uint8_t)selected] = CAR_FRAME_FREE;
+            } else {
+                car_result = result;
+                __dsync();
+                car_frame_state[(uint8_t)selected] = CAR_FRAME_DISPLAY_READY;
+                __dsync();
+                car_result_ready = 1U;
+                __dsync();
+            }
+
         }
-
-        // 此处编写需要循环执行的代码
     }
 }
 #pragma section all restore

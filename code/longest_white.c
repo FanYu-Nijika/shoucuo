@@ -72,7 +72,7 @@ void Longest_White_Column(void)//最长白列巡线
     {
         for (i = MT9V03X_H - 1; i >= 0; i--)
         {
-            if(binary_image[i*width+j]== 0)
+            if(binary_image[i * MT9V03X_W + j] == 0)
                 break;
             else
                 White_Column[j]++;
@@ -111,7 +111,8 @@ void Longest_White_Column(void)//最长白列巡线
     {
         for (j = Longest_White_Column_Right[1]; j <= MT9V03X_W - 1 - 2; j++)
         {
-            if (binary_image[i][j] ==1 && binary_image[i][j + 1] == 0 && binary_image[i][j + 2] == 0)//白黑黑，找到右边界
+            if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j + 1] == 0 &&
+                binary_image[i * MT9V03X_W + j + 2] == 0)//白黑黑，找到右边界
             {
                 right_border = j;
                 Right_Lost_Flag[i] = 0; //右丢线数组，丢线置1，不丢线置0
@@ -126,7 +127,8 @@ void Longest_White_Column(void)//最长白列巡线
         }
         for (j = Longest_White_Column_Left[1]; j >= 0 + 2; j--)//往左边扫描
         {
-            if (binary_image[i][j] ==1 && binary_image[i][j - 1] == 0 && binary_image[i][j - 2] == 0)//黑黑白认为到达左边界
+            if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j - 1] == 0 &&
+                binary_image[i * MT9V03X_W + j - 2] == 0)//黑黑白认为到达左边界
             {
                 left_border = j;
                 Left_Lost_Flag[i] = 0; //左丢线数组，丢线置1，不丢线置0

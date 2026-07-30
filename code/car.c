@@ -4,27 +4,31 @@
 #include "image.h"
 #include "math_utils.h"
 
+#define CAR_SERVO_MIN_DUTY (600U)
+#define CAR_SERVO_CENTER_DUTY (700U)
+#define CAR_SERVO_MAX_DUTY (800U)
+
 uint8 car_running = 0;
 uint8 car_camera_ready = 0;
 uint8 servo_reverse = 0;
 uint8 left_motor_reverse = 0;
 uint8 right_motor_reverse = 0;
 
-uint16 servo_center_duty = 830;
-uint16 servo_min_duty = 700;
-uint16 servo_max_duty = 1000;
-uint16 car_servo_duty = 830;
-uint16 lost_stop_frames = 5;
+uint16 servo_center_duty = CAR_SERVO_CENTER_DUTY;
+uint16 servo_min_duty = CAR_SERVO_MIN_DUTY;
+uint16 servo_max_duty = CAR_SERVO_MAX_DUTY;
+uint16 car_servo_duty = CAR_SERVO_CENTER_DUTY;
+uint16 lost_stop_frames = CAR_LOST_STOP_FRAMES;
 uint16 car_lost_count = 0;
 
-int16 motor_base_duty = 1800;
+int16 motor_base_duty = 2800;
 int16 motor_limit = 5000;
-int16 curve_slowdown = 20;
+int16 curve_slowdown = 0;
 int16 car_left_command = 0;
 int16 car_right_command = 0;
 
-float steering_kp = 2.0f;
-float steering_kd = 4.0f;
+float steering_kp = CAR_STEERING_KP_DEFAULT;
+float steering_kd = CAR_STEERING_KD_DEFAULT;
 
 static uint8 had_valid_track = 0;
 static int16 last_error = 0;
@@ -51,15 +55,12 @@ void car_apply_menu_params(const volatile car_params_t *params)
     center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000U / 20000U;
     minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / 20000;
     maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / 20000;
-    servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, 0, 10000);
-    servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, 0, 10000);
-    servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, 0, 10000);
+    servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
+    servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
+    servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
+    if (servo_min_duty > servo_center_duty) servo_min_duty = servo_center_duty;
+    if (servo_max_duty < servo_center_duty) servo_max_duty = servo_center_duty;
 
-//    image_auto_threshold = params->automatic_threshold;
-//    threshold = params->threshold;
-//    image_scan_start_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 - params->search_window : 0;
-//    image_scan_end_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 + params->search_window : MT9V03X_W;
-//    image_search_start_row = params->roi_bottom != 0U && params->roi_bottom < MT9V03X_H ? params->roi_bottom : MT9V03X_H - 1U;
 }
 
 

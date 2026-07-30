@@ -3,29 +3,37 @@
 
 #include <stdint.h>
 
-#define CAR_PATH_WEIGHT_FAR       (0.25f)
+#define CAR_PATH_WEIGHT_FAR       (0.30f)
 #define CAR_PATH_WEIGHT_MIDDLE    (1.00f)
 #define CAR_PATH_WEIGHT_NEAR      (1.50f)
-#define CAR_STEERING_KP_DEFAULT   (3.00f)
-#define CAR_STEERING_KD_DEFAULT   (0.00f)
-#define CAR_CURVE_STEERING_KP_DEFAULT         (10.50f)
-#define CAR_CURVE_STEERING_KD_DEFAULT         (0.00f)
+#define CAR_STEERING_KP_DEFAULT   (2.75f)
+#define CAR_STEERING_KD_DEFAULT   (18.88f)
+#define CAR_CURVE_STEERING_KP_DEFAULT         (5.50f)
+#define CAR_CURVE_STEERING_KD_DEFAULT         (680.00f)
 #define CAR_CURVE_VARIANCE_DEFAULT             (8.00f)
-#define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.15f)
-#define CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT    (0.50f)
+#define CAR_CURVE_BLEND_THRESHOLD1_DEFAULT    (0.15f)
+#define CAR_CURVE_BLEND_THRESHOLD2_DEFAULT    (0.45f)
+#define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.35f)
+#define CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT    (0.10f)
 #define CAR_CURVE_PREVIEW_BASE_DEFAULT_CM     (8.0f)
 #define CAR_CURVE_PREVIEW_SPEED_DEFAULT_CM    (4.0f)
 #define CAR_WHEEL_ANGLE_MAX_DEG   (40.0f)
-#define CAR_MAXIMUM_STEERING_US    (200)
-#define CAR_LOST_STOP_FRAMES       (300)
+#define CAR_MAXIMUM_STEERING_US    (280)
+#define CAR_LOST_STOP_FRAMES       (600)
 #define CAR_CONTROL_ROW_FAR_DEFAULT  (56)
 #define CAR_CONTROL_ROW_NEAR_DEFAULT (84)
 
-/* Flat runtime parameters: CPU0 edits them and CPU1 copies them once per frame. */
+/* Flat runtime parameters: CPU0 edits them and CPU1 reads the shared values directly. */
 typedef struct {
     int16_t base_speed;
     int16_t minimum_speed;
     int16_t curve_slowdown;
+    int16_t cruise_speed;
+    int16_t straight_speed;
+    int16_t curve_speed;
+    uint8_t speed_rise_step;
+    uint8_t speed_fall_step;
+    uint8_t straight_confirm_frames;
     int16_t maximum_steering;
     int16_t lost_search_steering;
     int16_t lost_speed;
@@ -36,6 +44,8 @@ typedef struct {
     float steering_ki;
     float steering_kd;
     float curve_variance_threshold;
+    float curve_blend_threshold1;
+    float curve_blend_threshold2;
 
     /* The bend uses separate PD values so straight tuning stays independent. */
     float curve_steering_kp;
@@ -44,6 +54,11 @@ typedef struct {
     float curve_feedforward_gain;
     float curve_preview_base_cm;
     float curve_preview_speed_gain_cm;
+    float perception_preview_cm;
+    float steering_preview_straight_cm;
+    float steering_preview_curve_cm;
+    float differential_gain;
+    int16_t differential_limit;
     float wheelbase_cm;
     float wheel_angle_deg;
     float path_weight_far;
@@ -60,6 +75,7 @@ typedef struct {
     uint8_t servo_reverse;
 
     uint8_t automatic_threshold;
+    uint8_t cross_enabled;
     uint8_t threshold;
     uint8_t dark_is_line;
     uint8_t minimum_line_pixels;
@@ -89,4 +105,3 @@ extern volatile car_params_t car_params;
 void car_params_reset(void);
 
 #endif
-
