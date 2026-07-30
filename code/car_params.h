@@ -96,6 +96,7 @@ typedef struct {
     uint8_t edge_gradient;
     uint16_t track_width_far;
     uint16_t track_width_near;
+    uint16_t lookhead;
 
     uint16_t exposure;
     uint8_t gain;
@@ -110,5 +111,8 @@ extern const car_params_t car_default_params;
 extern volatile car_params_t car_params;
 
 void car_params_reset(void);
+uint8_t car_params_flash_load(void);
+void car_params_flash_switch(uint8_t gear);
+void car_params_flash_save(uint8_t gear);
 
 #endif

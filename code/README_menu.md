@@ -167,3 +167,21 @@ CPU1 发布的结果包含线有效标志、中心、误差、左右边界、线
 上角点确定后，以下角点搜索范围的上限使用两个上角点中更靠下的行号加 2。四个角点存在时两侧分别直线补线；缺少一侧下角点时，该侧使用 `Lengthen_Left_Boundry()` 或 `Lengthen_Right_Boundry()` 按上角点附近边界斜率向下延长；两个下角点都缺失时两侧都延长。补线同时写入当前帧的逐像素二值缓冲，因此 TFT 二值图会显示补线结果，不会增加第三份图像缓存。
 
 补线的斜率取上角点起始行与向上 4 行边界的差值，按文章实现使用 `/5.0` 换算；所有数组访问、行号、横坐标和起止行都做边界保护。二值缓冲在补线前已经由 `threshold_update()` 归一化为 `0` 或 `1`，补线只写入 `1`。
+
+## 11. 简单 DFLASH 档位参数
+
+参数 Flash 直接参考 `Camera/E08_eeprom_demo`，只使用 DFLASH 的 `sector = 0`、`page = 8` 和官方 `flash_union_buffer`，不增加参数缓存、版本表或校验表。
+
+第 0 个 Flash 数据单元保存当前档位，后面连续保存 4 个完整的 `car_params_t`：
+
+```text
+flash_union_buffer[0]                              当前档位
+flash_union_buffer[1]                              第 1 档开始
+flash_union_buffer[1 + PROFILE_WORDS]              第 2 档开始
+flash_union_buffer[1 + PROFILE_WORDS * 2]          第 3 档开始
+flash_union_buffer[1 + PROFILE_WORDS * 3]          第 4 档开始
+```
+
+`RUN CONTROL` 中的 `SWITCH GEAR` 会从对应 Flash 区域读取整套参数，直接覆盖当前 `car_params`，并立即更新控制、摄像头和舵机参数，不需要重启。`SAVE FLASH` 会先读取整页，只覆盖当前档位的结构体区域，再把整页写回，因此不会覆盖其他档位。
+
+第一次使用某个空档位时，如果该档位的 `base_speed` 为 0，就使用 `car_default_params`。调好当前档位后停车进入 `SAVE FLASH` 即可掉电保存；只切换档位但不保存时，掉电后启动仍使用 Flash 中上次保存的当前档位。由于这是最简的 E08 式布局，后续如果修改 `car_params_t` 字段顺序，需要重新保存四个档位。

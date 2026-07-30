@@ -90,7 +90,7 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     // image_draw_rectan(binary_image);
     // search_neighborhood();
     // edge_real_update();
-    if (threshold_lost == 0 && car_params.cross_enabled != 0 &&
+    if (threshold_lost == 0 && car_params.cross_enabled != 0 && //这些是啥啊？？？
         Both_Lost_Time >= car_params.cross_min_both_lost &&
         Search_Stop_Line >= car_params.cross_min_white_column &&
         Left_Lost_Time < car_params.cross_max_lost_rows &&
@@ -137,7 +137,7 @@ float Calculate_Error(void)
     float sum = 0;
     float weight_sum = 0;
 
-    for(i = 30; i <= 90; i += 5)
+    for(i = 30; i <= car_result.lookhead; i += 5)
     {
         float weight = i - 20;
 

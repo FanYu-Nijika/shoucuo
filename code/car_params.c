@@ -1,6 +1,14 @@
 #include "car_params.h"
 
+#include <string.h>
+
 #include "zf_common_headfile.h"
+
+#define CAR_PARAMS_FLASH_SECTOR          (0)
+#define CAR_PARAMS_FLASH_PAGE            (8)
+#define CAR_PARAMS_FLASH_PROFILE_COUNT   (4)
+#define CAR_PARAMS_FLASH_PROFILE_START   (1)
+#define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
 const car_params_t car_default_params = {
@@ -76,6 +84,7 @@ const car_params_t car_default_params = {
     // .edge_gradient = 12,
     // .track_width_far = 78,
     // .track_width_near = 185,
+    .lookhead = 90,
 
     .exposure = 256,
     .gain = 4,
@@ -98,4 +107,64 @@ void car_params_reset(void)
     __dsync();
     car_params = car_default_params;
     __dsync();
+}
+
+static uint8_t car_params_flash_gear_valid(uint8_t gear)
+{
+    return gear >= 1 && gear <= CAR_PARAMS_FLASH_PROFILE_COUNT ? 1 : 0;
+}
+
+static uint32_t car_params_flash_profile_offset(uint8_t gear)
+{
+    return CAR_PARAMS_FLASH_PROFILE_START + (gear - 1) * CAR_PARAMS_FLASH_PROFILE_WORDS;
+}
+
+uint8_t car_params_flash_load(void)
+{
+    uint8_t gear = 1;
+
+    if (flash_check(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE) != 0) {
+        flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+        gear = flash_union_buffer[0].uint8_type;
+        if (car_params_flash_gear_valid(gear) == 0) gear = 1;
+    }
+
+    car_params_flash_switch(gear);
+    return gear;
+}
+
+void car_params_flash_switch(uint8_t gear)
+{
+    uint32_t profile_offset;
+    car_params_t stored_params;
+
+    if (car_params_flash_gear_valid(gear) == 0) return;
+    profile_offset = car_params_flash_profile_offset(gear);
+    if (profile_offset + CAR_PARAMS_FLASH_PROFILE_WORDS > EEPROM_PAGE_LENGTH) return;
+
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    memcpy(&stored_params, &flash_union_buffer[profile_offset], sizeof(car_params_t));
+    if (stored_params.base_speed == 0) stored_params = car_default_params;
+    stored_params.running = 0;
+    __dsync();
+    car_params = stored_params;
+    car_params.running = 0;
+    __dsync();
+}
+
+void car_params_flash_save(uint8_t gear)
+{
+    uint32_t profile_offset;
+    car_params_t stored_params = car_params;
+
+    if (car_params_flash_gear_valid(gear) == 0) return;
+    profile_offset = car_params_flash_profile_offset(gear);
+    if (profile_offset + CAR_PARAMS_FLASH_PROFILE_WORDS > EEPROM_PAGE_LENGTH) return;
+
+    stored_params.running = 0;
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    flash_union_buffer[0].uint32_type = 0;
+    flash_union_buffer[0].uint8_type = gear;
+    memcpy(&flash_union_buffer[profile_offset], &stored_params, sizeof(car_params_t));
+    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
 }

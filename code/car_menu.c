@@ -26,6 +26,7 @@ enum {
 enum {
     CAR_MENU_ACTION_RUN = 1,
     CAR_MENU_ACTION_STOP,
+    CAR_MENU_ACTION_SAVE_FLASH,
     CAR_MENU_ACTION_LCD_TEST,
     CAR_MENU_ACTION_RESET_DEFAULTS,
     CAR_MENU_ACTION_UART
@@ -55,7 +56,8 @@ enum {
     CAR_MENU_APPLY_PARAMS,
     CAR_MENU_APPLY_SERVO_CENTER,
     CAR_MENU_APPLY_EXPOSURE,
-    CAR_MENU_APPLY_GAIN
+    CAR_MENU_APPLY_GAIN,
+    CAR_MENU_APPLY_PROFILE
 };
 
 enum {
@@ -91,6 +93,8 @@ typedef struct {
     uint8_t action;
 } car_menu_item_t;
 
+static uint8_t car_menu_current_gear = 1;
+
 /*
  * Menu maintenance is intentionally a flat list. Add or remove one row here;
  * no second value table or synchronization code needs to be updated.
@@ -106,6 +110,8 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_RUN, "RUN", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_RUN},
     {0, CAR_MENU_PAGE_RUN, "STOP", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_STOP},
+    {0, CAR_MENU_PAGE_RUN, "SWITCH GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_current_gear, 1, 4, 1, 0, CAR_MENU_APPLY_PROFILE, 0},
+    {0, CAR_MENU_PAGE_RUN, "SAVE FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SAVE_FLASH},
     {0, CAR_MENU_PAGE_RUN, "RUNNING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_running, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "BASE SPEED", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.base_speed, 0, 10000, 100, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_RUN, "PWM LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.pwm_limit, 0, 10000, 100, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -131,6 +137,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "THRESHOLD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.threshold, 0, 255, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "EXPOSURE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.exposure, 1, 4000, 16, 0, CAR_MENU_APPLY_EXPOSURE, 0},
     {0, CAR_MENU_PAGE_VISION, "GAIN", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.gain, 0, 64, 1, 0, CAR_MENU_APPLY_GAIN, 0},
+    {0, CAR_MENU_PAGE_VISION, "LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 30, 119, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -287,6 +294,18 @@ static void car_menu_write_value(const car_menu_item_t *item, float value)
 static void car_menu_apply_value(const car_menu_item_t *item, float value)
 {
     if (item == 0) return;
+    value = car_menu_limit_value(item, value);
+    if (item->apply == CAR_MENU_APPLY_PROFILE) {
+        car_menu_current_gear = (uint8_t)value;
+        car_params_flash_switch(car_menu_current_gear);
+        car_apply_menu_params(&car_params);
+        cc_tc264_menu_servo_write_us(car_params.servo_center_us);
+        if (cc_tc264_camera_ready() != 0) {
+            cc_tc264_camera_set_exposure(car_params.exposure);
+            cc_tc264_camera_set_gain(car_params.gain);
+        }
+        return;
+    }
     car_menu_write_value(item, value);
     if (item->apply == CAR_MENU_APPLY_NONE) return;
 
@@ -421,6 +440,19 @@ static void car_menu_update_start(uint32_t now)
     car_menu_dirty = 1;
 }
 
+static void car_menu_save_flash(void)
+{
+    if (car_running != 0 || car_menu_start_pending != 0) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+        car_menu_dirty = 1;
+        return;
+    }
+
+    car_params_flash_save(car_menu_current_gear);
+    car_menu_error = CAR_MENU_ERROR_NONE;
+    car_menu_dirty = 1;
+}
+
 static void car_menu_reset_defaults(void)
 {
     if (car_running != 0) {
@@ -429,6 +461,7 @@ static void car_menu_reset_defaults(void)
         return;
     }
     car_menu_stop();
+    car_menu_current_gear = 1;
     car_params_reset();
     car_apply_menu_params(&car_params);
     cc_tc264_menu_servo_write_us(car_params.servo_center_us);
@@ -444,6 +477,7 @@ static void car_menu_execute_action(uint8_t action)
 {
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
     else if (action == CAR_MENU_ACTION_STOP) car_menu_stop();
+    else if (action == CAR_MENU_ACTION_SAVE_FLASH) car_menu_save_flash();
     else if (action == CAR_MENU_ACTION_RESET_DEFAULTS) car_menu_reset_defaults();
     else if (action == CAR_MENU_ACTION_LCD_TEST) {
         car_menu_lcd_test_until_ms = system_getval_ms() + CAR_MENU_LCD_TEST_MS;
@@ -789,6 +823,7 @@ void car_menu_init(void)
     car_init();
     car_shared_clear();
     car_params_reset();
+    car_menu_current_gear = car_params_flash_load();
     car_apply_menu_params(&car_params);
     ips200_set_dir(IPS200_CROSSWISE_180);
     ips200_init(IPS200_TYPE_SPI);
