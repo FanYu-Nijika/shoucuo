@@ -70,6 +70,7 @@ extern volatile uint32_t car_vision_max_us;
 extern volatile uint32_t car_camera_frame_count;
 extern volatile uint32_t car_camera_last_frame_ms;
 extern volatile uint32_t car_camera_age_ms;
+extern volatile uint8_t car_center_stop_request;
 
 void car_shared_clear(void);
 uint8_t car_shared_has_pending_frame(void);

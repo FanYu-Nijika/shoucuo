@@ -18,13 +18,14 @@ uint8 left_edge[MT9V03X_H], left_index;
 uint8 right_edge[MT9V03X_H], right_index;
 uint16 Search_Stop_Line;
 int16 Center_Line[MT9V03X_H];
-int a;
+int a, stop_cnt;
 uint8 Cross_Flag;
 uint8 Cross_Count;
 
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
+uint8_t protect(const uint8 *gray_frame);
 
 // struct LEFT_EDGE  L_edge[140];
 // struct RIGHT_EDGE R_edge[140];
@@ -47,11 +48,12 @@ void image_init(void) {
     for (int i = 0; i < height; ++i) {
         left_edge[i] = right_edge[i] = 0;
         Left_Line[i] = -1;
-        Right_Line[i] = 0x3f3f3f;
+        Right_Line[i] = MT9V03X_W - 1;
     }
     Cross_Flag = 0;
     Cross_Count = 0;
     left_index = right_index = 0;
+    stop_cnt = 30;
     // Search_Stop_Line = 0;
 }
 
@@ -64,6 +66,9 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     int16 right;
     uint8 threshold_lost = 0;
     float image_center = (width - 1) * 0.5;
+
+
+
 
     if (gray_frame == 0 || binary_frame == 0 || result == 0) return;
     memset(result, 0, sizeof(*result));
@@ -83,19 +88,33 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
         already_line_lost = 0;
     }
     if (car_params.automatic_threshold == 0) os_threshold = car_params.threshold;
+
+
+
     threshold_update();
+    if (protect(gray_frame) != 0) {
+        if (car_params.running != 0 && stop_cnt <= 0) car_center_stop_request = 1;
+    } else {
+        stop_cnt = 30;
+    }
     Longest_White_Column();
     if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
     // get_highest();
     // image_draw_rectan(binary_image);
     // search_neighborhood();
     // edge_real_update();
+
+
+
     if (threshold_lost == 0 && car_params.cross_enabled != 0 && //这些是啥啊？？？
         Both_Lost_Time >= car_params.cross_min_both_lost &&
         Search_Stop_Line >= car_params.cross_min_white_column &&
         Left_Lost_Time < car_params.cross_max_lost_rows &&
         Right_Lost_Time < car_params.cross_max_lost_rows)
         shizibuxian();
+
+
+
     Center_Line_Calculate();
     result->cross_detected = Cross_Flag;
 
@@ -131,13 +150,34 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     result->line_valid = 1;
 }
 
+uint8_t protect(const uint8 *gray_frame) {
+    int i, sum = 0;
+    int row = 115;
+    if (gray_frame == 0) return 0;
+    for (i = 0; i < 187; ++i) {
+        if (binary_image[row * width + i] == 0 || gray_frame[row * width + i] < 180) {
+            ++sum;
+        }
+    }
+    if (sum >= width-18) {
+        --stop_cnt;
+        // car_stop();
+        return 1;
+    }
+    return 0;
+}
+
 float Calculate_Error(void)
 {
     int i;
+    int end_row = car_params.lookhead;
     float sum = 0;
     float weight_sum = 0;
 
-    for(i = 30; i <= car_result.lookhead; i += 5)
+    if (end_row >= height) end_row = height - 1;
+    if (end_row < 30) return 0;
+
+    for (i = 30; i <= end_row; i += 5)
     {
         float weight = i - 20;
 

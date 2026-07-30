@@ -13,5 +13,6 @@ void car_menu_frame_accepted(uint32_t frame_period_ms);
 void car_menu_result_accepted(void);
 void car_menu_task(void);
 void car_menu_display(void);
+void car_menu_handle_center(void);
 
 #endif

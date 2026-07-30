@@ -31,6 +31,7 @@ volatile uint8_t car_display_pending_free_slot;
 volatile uint32_t car_camera_frame_count;
 volatile uint32_t car_camera_last_frame_ms;
 volatile uint32_t car_camera_age_ms;
+volatile uint8_t car_center_stop_request;
 
 #pragma section all restore
 
@@ -55,6 +56,7 @@ void car_shared_clear(void)
     car_camera_frame_count = 0;
     car_camera_last_frame_ms = 0;
     car_camera_age_ms = 0;
+    car_center_stop_request = 0;
     for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
         car_frame_state[slot] = CAR_FRAME_FREE;
         car_frame_slot_sequence[slot] = 0;

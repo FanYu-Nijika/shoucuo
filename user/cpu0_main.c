@@ -165,6 +165,11 @@ int core0_main(void)
 
             car_menu_result_accepted();
         }
+        if (car_center_stop_request != 0) {
+            car_center_stop_request = 0;
+            __dsync();
+            car_menu_handle_center();
+        }
         car_menu_task();
 
         // 此处编写需要循环执行的代码

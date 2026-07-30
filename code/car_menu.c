@@ -496,6 +496,13 @@ static void car_menu_emergency_stop(void)
     car_menu_stop();
 }
 
+void car_menu_handle_center(void)
+{
+    car_menu_page = CAR_MENU_PAGE_RUN;
+    car_menu_selected = 1;
+    car_menu_emergency_stop();
+}
+
 static void car_menu_move(int8_t direction)
 {
     uint16_t count = car_menu_item_count(car_menu_page);
