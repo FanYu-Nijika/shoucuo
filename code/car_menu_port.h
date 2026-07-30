@@ -8,9 +8,7 @@ enum {
     CC_KEY_DOWN_MASK = 0x02,
     CC_KEY_LEFT_MASK = 0x04,
     CC_KEY_RIGHT_MASK = 0x08,
-    CC_KEY_CENTER_MASK = 0x10,
-    CC_KEY_AUX1_MASK = 0x20,
-    CC_KEY_AUX2_MASK = 0x40
+    CC_KEY_CENTER_MASK = 0x10
 };
 
 void cc_tc264_board_init(void);

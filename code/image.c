@@ -1,4 +1,5 @@
 #include "image.h"
+#include "longest_white.h"
 #include "algorithm.h"
 #include "math_utils.h"
 #include "zf_common_font.h"
@@ -11,15 +12,17 @@ uint8* binary_image;
 int16 os_threshold;
 int16 lost_line_cnt;
 uint8 already_line_lost;
-uint8 left_edge[height], left_index;
-uint8 right_edge[height], right_index;
+uint8 left_edge[MT9V03X_H], left_index;
+uint8 right_edge[MT9V03X_H], right_index;
 uint16 Search_Stop_Line;
 int a;
+uint8 ostu_deal_threshold(void);
+void threshold_update(void);
 
 struct LEFT_EDGE  L_edge[140];
 struct RIGHT_EDGE R_edge[140];
 uint8 L_edge_count=0, R_edge_count = 0;
-int16 Left_Line[height], Right_Line[height];
+int16 Left_Line[MT9V03X_H], Right_Line[MT9V03X_H];
 uint8 dire_left,dire_right;                                 //记录上一个点的相对位置
 uint8 L_search_amount = 140, R_search_amount = 140;  //左右边界搜点时最多允许的点
 
@@ -54,12 +57,17 @@ void image_deal(uint8 start_y, uint8 end_y) {
         lost_line_cnt= LOST_LINE;
     }
     threshold_update();
-    image_draw_rectan(binary_image);
-    search_neighborhood();
-    edge_real_update();
-    shizibuxian();
+    Longest_White_Column();
+    // get_highest();
+    // image_draw_rectan(binary_image);
+    // search_neighborhood();
+    // edge_real_update();
+
+    // shizibuxian();
 }
 
+#if 0
+// Legacy edge-following helpers are disabled until their removed interfaces are restored.
 /*-------------------------------------------------------------------------------------------------------------------
   @brief     左下角点检测
   @param     起始行，终止行
@@ -314,7 +322,7 @@ void search_neighborhood(void)
             if(curr_row+1 < Boundary_search_end || curr_row>IMAGE_H-1)  break;
             if (curr_col-1 <= 0 && curr_col+1 < IMAGE_W) break;
             //搜线过程
-            if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==BLACK&&image_use[curr_row-1][curr_col]==WHITE)   //左上黑，2，右边白
+            if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row-1][curr_col]==1)   //左上黑，2，右边白
             {
                 curr_row = curr_row -1;
                 curr_col = curr_col -1;
@@ -324,7 +332,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(dire_left!=3&&image_use[curr_row-1][curr_col+1]==BLACK&&image_use[curr_row][curr_col+1]==WHITE)    //右上黑，3，下边白
+            else if(dire_left!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)    //右上黑，3，下边白
             {
                 curr_row = curr_row -1;
                 curr_col = curr_col + 1;
@@ -334,7 +342,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(image_use[curr_row-1][curr_col]==BLACK&&image_use[curr_row-1][curr_col+1]==WHITE)                  //正上黑，1，右白
+            else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col+1]==1)                  //正上黑，1，右白
             {
                 curr_row = curr_row - 1;
                 L_edge_count = L_edge_count + 1;
@@ -343,7 +351,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(dire_left!=5&&image_use[curr_row][curr_col-1]==BLACK&&image_use[curr_row-1][curr_col-1]==WHITE)     //正左黑，5，上白
+            else if(dire_left!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row-1][curr_col-1]==1)     //正左黑，5，上白
             {
                 curr_col = curr_col - 1;
                 L_edge_count = L_edge_count +1;
@@ -352,7 +360,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(dire_left!=4&&image_use[curr_row][curr_col+1]==BLACK&&image_use[curr_row+1][curr_col+1]==WHITE)  //正右黑，4，下白
+            else if(dire_left!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row+1][curr_col+1]==1)  //正右黑，4，下白
             {
                 curr_col = curr_col + 1;
                 L_edge_count = L_edge_count +1;
@@ -361,7 +369,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(dire_left!=6&&image_use[curr_row+1][curr_col-1]==BLACK&&image_use[curr_row][curr_col-1]==WHITE)    //左下黑，6，上白
+            else if(dire_left!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1)    //左下黑，6，上白
             {
                 curr_row = curr_row + 1;
                 curr_col = curr_col -1;
@@ -371,7 +379,7 @@ void search_neighborhood(void)
                 L_edge[i].col = curr_col;
                 L_edge[i].flag = 1;
             }
-            else if(dire_left!=7&&image_use[curr_row+1][curr_col+1]==BLACK&&image_use[curr_row+1][curr_col]==WHITE)    //右下黑，7，左白
+            else if(dire_left!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row+1][curr_col]==1)    //右下黑，7，左白
             {
                 curr_row = curr_row + 1;
                 curr_col = curr_col + 1;
@@ -399,7 +407,7 @@ void search_neighborhood(void)
             ////越界退出 行越界和列越界（向上向下向左向右）
             if(curr_row < Boundary_search_end || curr_row>IMAGE_H-1||curr_row+1<Boundary_search_end)  break;
             //爬线过程
-            if(curr_col<IMAGE_W&&dire_right!=3&&image_use[curr_row-1][curr_col+1]==BLACK&&image_use[curr_row-1][curr_col]==WHITE)    //右上黑，3，左白
+            if(curr_col<IMAGE_W&&dire_right!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row-1][curr_col]==1)    //右上黑，3，左白
             {
                 curr_row = curr_row - 1;
                 curr_col = curr_col + 1;
@@ -409,7 +417,7 @@ void search_neighborhood(void)
                 R_edge[i].col = curr_col;
                 R_edge[i].flag = 1;
             }
-            else if(dire_right!=2&&image_use[curr_row-1][curr_col-1]==BLACK&&image_use[curr_row][curr_col-1]==WHITE) //左上黑，2，下白
+            else if(dire_right!=2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1) //左上黑，2，下白
             {
                 curr_row = curr_row-1;
                 curr_col = curr_col-1;
@@ -419,7 +427,7 @@ void search_neighborhood(void)
                 R_edge[i].col = curr_col;
                 R_edge[i].flag = 1;
             }
-            else if(image_use[curr_row-1][curr_col]==BLACK&&image_use[curr_row-1][curr_col-1]==WHITE)                  //正上黑，1，左白
+            else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col-1]==1)                  //正上黑，1，左白
             {
                 curr_row = curr_row - 1;
                 R_edge_count = R_edge_count + 1;
@@ -428,7 +436,7 @@ void search_neighborhood(void)
                 R_edge[i].col = curr_col;
                 R_edge[i].flag = 1;
             }
-            else if(dire_right!=4&&image_use[curr_row][curr_col+1]==BLACK&&image_use[curr_row-1][curr_col+1]==WHITE)   //正右黑，4，上白
+            else if(dire_right!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row-1][curr_col+1]==1)   //正右黑，4，上白
             {
                 curr_col = curr_col + 1;
                 R_edge_count = R_edge_count + 1;
@@ -437,7 +445,7 @@ void search_neighborhood(void)
                 R_edge[i].col = curr_col;
                 R_edge[i].flag = 1;
             }
-            else if(dire_right!=5&&image_use[curr_row][curr_col-1]==BLACK&&image_use[curr_row+1][curr_col-1]==WHITE)   //正左黑，5，下白
+            else if(dire_right!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row+1][curr_col-1]==1)   //正左黑，5，下白
             {
                 curr_col = curr_col-1;
                 R_edge_count = R_edge_count + 1;
@@ -448,7 +456,7 @@ void search_neighborhood(void)
             }
 
 
-            else if(dire_right!=6&&image_use[curr_row+1][curr_col-1]==BLACK&&image_use[curr_row+1][curr_col]==WHITE)   //左下黑，6，右白
+            else if(dire_right!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row+1][curr_col]==1)   //左下黑，6，右白
             {
                 curr_row = curr_row + 1;
                 curr_col = curr_col - 1;
@@ -458,7 +466,7 @@ void search_neighborhood(void)
                 R_edge[i].col = curr_col;
                 R_edge[i].flag = 1;
             }
-            else if(dire_right!=7&&image_use[curr_row+1][curr_col+1]==BLACK&&image_use[curr_row][curr_col+1]==WHITE)   //右下黑，7，上白
+            else if(dire_right!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)   //右下黑，7，上白
             {
                 curr_row = curr_row + 1;
                 curr_col = curr_col + 1;
@@ -492,6 +500,9 @@ void image_draw_rectan(uint8(*image)[width])
     }
 }
 
+
+
+#endif
 
 uint8 ostu_deal_threshold() {
     uint32 black_cnt = 0;
@@ -554,14 +565,70 @@ void threshold_update() {
     for (int i = 0; i < height; ++i) {
         for (int j = 0; j < width; ++j) {
             if (binary_image[i*width+j] > os_threshold) {
-                binary_image[i*width+j] = 0;
+                binary_image[i*width+j] = 1;
             }
             else {
-                binary_image[i*width+j] = 1;
+                binary_image[i*width+j] = 0;
             }
         }
     }
 }
 
+//-------------------------------------------------------------------------------------------------------------------
+// 函数简介     寻找最长白列     CYH-NYY
+// 参数说明
+// 返回参数
+// 使用示例     get_highest();
+// 备注信息
+//-------------------------------------------------------------------------------------------------------------------
+
+int lwline = 94;   //最长白列所在x
+int lw = 119;      //最长白列顶部y
+int xxx = 0;
 
 
+void get_highest(void)
+{
+    lwline = width / 2;
+    lw = height;
+    xxx = 0;
+
+
+    // 从中间区域向左右搜索
+    for(int x = width/3; x < width*2/3; x += 3)
+    {
+        // 最下面一行必须是白，否则不是道路入口
+        if(binary_image[(height-1)*width+x] == 1)
+        {
+            for(int y = height-1; y >= 0; y--)
+            {
+                // 白黑黑跳变
+                if(binary_image[y*width+x] == 1 &&
+                   binary_image[(y-1)*width+x] == 0 &&
+                   binary_image[(y-2)*width+x] == 0)
+                {
+                    // 找最长白列
+                    if(y < lw)
+                    {
+                        lw = y;
+                        lwline = x;
+                    }
+
+                    break;
+                }
+
+
+                // 防止越界
+                if(y <= 2)
+                {
+                    if(y < lw)
+                    {
+                        lw = y;
+                        lwline = x;
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
