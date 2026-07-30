@@ -1,6 +1,7 @@
 #include "car_menu.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "board_pins.h"
 #include "car.h"
@@ -68,9 +69,14 @@ enum {
     CAR_MENU_ERROR_LINE_LOST
 };
 
-#define CAR_MENU_VISIBLE_ROWS     (8U)
-#define CAR_MENU_REFRESH_MS       (100U)
-#define CAR_MENU_LCD_TEST_MS      (1500U)
+#define CAR_MENU_VISIBLE_ROWS             (8U)
+#define CAR_MENU_KEY_COUNT                (5U)
+#define CAR_MENU_KEY_SCAN_MS              (10U)
+#define CAR_MENU_LONG_PRESS_MS            (1000U)
+#define CAR_MENU_KEY_REPEAT_MS            (100U)
+#define CAR_MENU_IMAGE_REFRESH_MS         (50U)
+#define CAR_MENU_TELEMETRY_REFRESH_MS     (50U)
+#define CAR_MENU_LCD_TEST_MS              (1500U)
 
 typedef struct {
     uint16_t id;
@@ -150,9 +156,11 @@ static const car_menu_item_t car_menu_items[] = {
 static uint8_t car_menu_ready;
 static uint8_t car_menu_gray_valid;
 static uint8_t car_menu_new_frame;
+static uint8_t car_menu_image_pending;
 static uint8_t car_menu_dirty;
 static uint8_t car_menu_editing;
-static uint8_t car_menu_last_keys;
+static uint8_t car_menu_previous_keys;
+static uint8_t car_menu_long_latched[CAR_MENU_KEY_COUNT];
 static uint8_t car_menu_error;
 static uint8_t car_menu_lcd_test_drawn;
 static uint16_t car_menu_page;
@@ -161,7 +169,11 @@ static uint16_t car_menu_first_visible;
 static uint16_t car_menu_edit_item_number;
 static float car_menu_edit_value;
 static float car_menu_original_value;
-static uint32_t car_menu_last_display_ms;
+static uint32_t car_menu_key_pressed_ms[CAR_MENU_KEY_COUNT];
+static uint32_t car_menu_key_repeat_ms[CAR_MENU_KEY_COUNT];
+static uint32_t car_menu_last_key_scan_ms;
+static uint32_t car_menu_last_image_display_ms;
+static uint32_t car_menu_last_telemetry_display_ms;
 static uint32_t car_menu_lcd_test_until_ms;
 
 static uint16_t car_menu_item_count(uint16_t parent)
@@ -428,20 +440,22 @@ static void car_menu_back(void)
     car_menu_dirty = 1U;
 }
 
-static void car_menu_handle_input(uint8_t keys)
+static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t repeat_keys)
 {
-    uint8_t center = (keys & CC_KEY_CENTER_MASK) != 0U ? 1U : 0U;
-    uint8_t left = (keys & CC_KEY_LEFT_MASK) != 0U ? 1U : 0U;
-    uint8_t right = (keys & CC_KEY_RIGHT_MASK) != 0U ? 1U : 0U;
-    uint8_t up = (keys & CC_KEY_UP_MASK) != 0U ? 1U : 0U;
-    uint8_t down = (keys & CC_KEY_DOWN_MASK) != 0U ? 1U : 0U;
+    uint8_t action_keys = short_keys | long_keys;
+    uint8_t adjust_keys = short_keys | repeat_keys;
+    uint8_t center = action_keys & CC_KEY_CENTER_MASK;
+    uint8_t left = action_keys & CC_KEY_LEFT_MASK;
+    uint8_t right = action_keys & CC_KEY_RIGHT_MASK;
+    uint8_t up = adjust_keys & CC_KEY_UP_MASK;
+    uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
 
     if (car_running != 0U && center != 0U) {
         car_menu_emergency_stop();
         return;
     }
     if (car_menu_lcd_test_until_ms != 0U) {
-        if (left != 0U || center != 0U || right != 0U || up != 0U || down != 0U) {
+        if (action_keys != 0U || adjust_keys != 0U) {
             car_menu_lcd_test_until_ms = 0U;
             car_menu_dirty = 1U;
         }
@@ -458,6 +472,46 @@ static void car_menu_handle_input(uint8_t keys)
     if (up != 0U) car_menu_move(-1);
     if (down != 0U) car_menu_move(1);
     if (right != 0U || center != 0U) car_menu_enter();
+}
+
+static void car_menu_process_key_scan(uint32_t now)
+{
+    uint8_t key_mask;
+    uint8_t short_keys = 0U;
+    uint8_t long_keys = 0U;
+    uint8_t repeat_keys = 0U;
+    uint8_t key_bit;
+    uint8_t index;
+
+    if (now - car_menu_last_key_scan_ms < CAR_MENU_KEY_SCAN_MS) return;
+    car_menu_last_key_scan_ms = now;
+    key_mask = cc_tc264_menu_key_mask();
+
+    for (index = 0U; index < CAR_MENU_KEY_COUNT; index++) {
+        key_bit = (uint8_t)(1U << index);
+        if ((key_mask & key_bit) != 0U && (car_menu_previous_keys & key_bit) == 0U) {
+            car_menu_key_pressed_ms[index] = now;
+            car_menu_key_repeat_ms[index] = now;
+            car_menu_long_latched[index] = 0U;
+        } else if ((key_mask & key_bit) == 0U && (car_menu_previous_keys & key_bit) != 0U) {
+            if (car_menu_long_latched[index] == 0U) short_keys |= key_bit;
+            car_menu_long_latched[index] = 0U;
+        } else if ((key_mask & key_bit) != 0U && now - car_menu_key_pressed_ms[index] >= CAR_MENU_LONG_PRESS_MS) {
+            if (index < 2U) {
+                if (now - car_menu_key_repeat_ms[index] >= CAR_MENU_KEY_REPEAT_MS) {
+                    repeat_keys |= key_bit;
+                    car_menu_key_repeat_ms[index] = now;
+                    car_menu_long_latched[index] = 1U;
+                }
+            } else if (car_menu_long_latched[index] == 0U) {
+                long_keys |= key_bit;
+                car_menu_long_latched[index] = 1U;
+            }
+        }
+    }
+
+    car_menu_previous_keys = key_mask;
+    car_menu_handle_input(short_keys, long_keys, repeat_keys);
 }
 
 static const char *car_menu_status_text(void)
@@ -594,6 +648,8 @@ static void car_menu_draw_lcd_test(void)
 void car_menu_init(void)
 {
     uint8_t camera_ready;
+    uint8_t key_mask;
+    uint32_t now;
 
     cc_tc264_board_init();
     car_init();
@@ -619,14 +675,22 @@ void car_menu_init(void)
     car_menu_first_visible = 0U;
     car_menu_gray_valid = 0U;
     car_menu_new_frame = 0U;
+    car_menu_image_pending = 0U;
     car_menu_editing = 0U;
     car_menu_edit_item_number = 0U;
     car_menu_edit_value = 0.0f;
     car_menu_original_value = 0.0f;
-    car_menu_last_display_ms = 0U;
+    now = system_getval_ms();
+    car_menu_last_key_scan_ms = now;
+    car_menu_last_image_display_ms = now;
+    car_menu_last_telemetry_display_ms = now;
     car_menu_lcd_test_until_ms = 0U;
     car_menu_lcd_test_drawn = 0U;
-    car_menu_last_keys = cc_tc264_menu_key_mask();
+    key_mask = cc_tc264_menu_key_mask();
+    car_menu_previous_keys = key_mask;
+    memset(car_menu_long_latched, 0, sizeof(car_menu_long_latched));
+    memset(car_menu_key_pressed_ms, 0, sizeof(car_menu_key_pressed_ms));
+    memset(car_menu_key_repeat_ms, 0, sizeof(car_menu_key_repeat_ms));
     car_menu_error = CAR_MENU_ERROR_NONE;
     car_menu_ready = 1U;
     car_menu_dirty = 1U;
@@ -644,26 +708,21 @@ void car_menu_result_accepted(void)
 {
     if (car_menu_ready == 0U) return;
     car_menu_new_frame = 1U;
-    car_menu_dirty = 1U;
+    car_menu_image_pending = 1U;
 }
 
 void car_menu_task(void)
 {
-    uint8_t key_mask;
-    uint8_t pressed;
     uint32_t now;
 
     if (car_menu_ready == 0U) return;
-    key_mask = cc_tc264_menu_key_mask();
-    pressed = key_mask & (uint8_t)~car_menu_last_keys;
-    car_menu_last_keys = key_mask;
     now = system_getval_ms();
 
     if (car_menu_lcd_test_until_ms != 0U && now >= car_menu_lcd_test_until_ms) {
         car_menu_lcd_test_until_ms = 0U;
         car_menu_dirty = 1U;
     }
-    car_menu_handle_input(pressed);
+    car_menu_process_key_scan(now);
     if (car_params.running != 0U && car_running == 0U) {
         car_params.running = 0U;
         car_menu_error = CAR_MENU_ERROR_LINE_LOST;
@@ -673,7 +732,6 @@ void car_menu_task(void)
         if (car_uart_stream_is_enabled() != 0U) car_uart_stream_send_frame(&car_gray_frame[0][0]);
         car_menu_new_frame = 0U;
     }
-    if (car_menu_lcd_test_until_ms == 0U && now - car_menu_last_display_ms >= CAR_MENU_REFRESH_MS) car_menu_dirty = 1U;
     car_menu_display();
 }
 
@@ -689,14 +747,29 @@ void car_menu_display(void)
             car_menu_draw_lcd_test();
             car_menu_lcd_test_drawn = 1U;
         }
-        car_menu_last_display_ms = now;
         car_menu_dirty = 0U;
         return;
     }
     car_menu_lcd_test_drawn = 0U;
+    if (car_menu_page == CAR_MENU_PAGE_IMAGE) {
+        if (car_menu_dirty != 0U || (car_menu_image_pending != 0U &&
+                                     now - car_menu_last_image_display_ms >= CAR_MENU_IMAGE_REFRESH_MS)) {
+            car_menu_draw_image();
+            car_menu_last_image_display_ms = now;
+            car_menu_image_pending = 0U;
+            car_menu_dirty = 0U;
+        }
+        return;
+    }
+    if (car_menu_page == CAR_MENU_PAGE_TELEMETRY) {
+        if (car_menu_dirty != 0U || now - car_menu_last_telemetry_display_ms >= CAR_MENU_TELEMETRY_REFRESH_MS) {
+            car_menu_draw_list();
+            car_menu_last_telemetry_display_ms = now;
+            car_menu_dirty = 0U;
+        }
+        return;
+    }
     if (car_menu_dirty == 0U) return;
-    if (car_menu_page == CAR_MENU_PAGE_IMAGE) car_menu_draw_image();
-    else car_menu_draw_list();
-    car_menu_last_display_ms = now;
+    car_menu_draw_list();
     car_menu_dirty = 0U;
 }

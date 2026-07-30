@@ -49,11 +49,11 @@ void cc_tc264_board_init(void)
     gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
-    gpio_init(BOARD_SWITCH1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_SWITCH4_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_SWITCH3_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_SWITCH5_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_SWITCH2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    gpio_init(BOARD_KEY_UP_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    gpio_init(BOARD_KEY_DOWN_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    gpio_init(BOARD_KEY_LEFT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    gpio_init(BOARD_KEY_RIGHT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    gpio_init(BOARD_KEY_CENTER_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_AUX1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_AUX2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
@@ -71,11 +71,11 @@ uint8_t cc_tc264_menu_key_mask(void)
 {
     uint8_t mask = 0U;
 
-    if (gpio_get_level(BOARD_SWITCH1_PIN) == GPIO_LOW) mask |= CC_KEY_UP_MASK;
-    if (gpio_get_level(BOARD_SWITCH4_PIN) == GPIO_LOW) mask |= CC_KEY_DOWN_MASK;
-    if (gpio_get_level(BOARD_SWITCH3_PIN) == GPIO_LOW) mask |= CC_KEY_LEFT_MASK;
-    if (gpio_get_level(BOARD_SWITCH5_PIN) == GPIO_LOW) mask |= CC_KEY_RIGHT_MASK;
-    if (gpio_get_level(BOARD_SWITCH2_PIN) == GPIO_LOW) mask |= CC_KEY_CENTER_MASK;
+    if (gpio_get_level(BOARD_KEY_UP_PIN) == GPIO_LOW) mask |= CC_KEY_UP_MASK;
+    if (gpio_get_level(BOARD_KEY_DOWN_PIN) == GPIO_LOW) mask |= CC_KEY_DOWN_MASK;
+    if (gpio_get_level(BOARD_KEY_LEFT_PIN) == GPIO_LOW) mask |= CC_KEY_LEFT_MASK;
+    if (gpio_get_level(BOARD_KEY_RIGHT_PIN) == GPIO_LOW) mask |= CC_KEY_RIGHT_MASK;
+    if (gpio_get_level(BOARD_KEY_CENTER_PIN) == GPIO_LOW) mask |= CC_KEY_CENTER_MASK;
     return mask;
 }
 

@@ -19,9 +19,9 @@ int a;
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 
-struct LEFT_EDGE  L_edge[140];
-struct RIGHT_EDGE R_edge[140];
-uint8 L_edge_count=0, R_edge_count = 0;
+// struct LEFT_EDGE  L_edge[140];
+// struct RIGHT_EDGE R_edge[140];
+// uint8 L_edge_count=0, R_edge_count = 0;
 int16 Left_Line[MT9V03X_H], Right_Line[MT9V03X_H];
 uint8 dire_left,dire_right;                                 //记录上一个点的相对位置
 uint8 L_search_amount = 140, R_search_amount = 140;  //左右边界搜点时最多允许的点
@@ -47,7 +47,7 @@ void image_init() {
 
 void image_deal(uint8 start_y, uint8 end_y) {
     memcpy(binary_image, mt9v03x_image, sizeof(mt9v03x_image));
-    if (ostu_deal_threshold()) {
+    if (ostu_deal_threshold() || Longest_White_Column_Left[0]<10) {
         if (--lost_line_cnt <= 0) {
             already_line_lost = 1;
             return;
@@ -66,15 +66,14 @@ void image_deal(uint8 start_y, uint8 end_y) {
     // shizibuxian();
 }
 
-#if 0
-// Legacy edge-following helpers are disabled until their removed interfaces are restored.
-/*-------------------------------------------------------------------------------------------------------------------
-  @brief     左下角点检测
-  @param     起始行，终止行
-  @return    返回角点所在的行数，找不到返回0
-  Sample     left_down_guai[0]=Find_Left_Down_Point(MT9V03X_H-1,20);
-  @note      角点检测阈值可根据实际值更改
--------------------------------------------------------------------------------------------------------------------*/
+// // Legacy edge-following helpers are disabled until their removed interfaces are restored.
+// /*-------------------------------------------------------------------------------------------------------------------
+//   @brief     左下角点检测
+//   @param     起始行，终止行
+//   @return    返回角点所在的行数，找不到返回0
+//   Sample     left_down_guai[0]=Find_Left_Down_Point(MT9V03X_H-1,20);
+//   @note      角点检测阈值可根据实际值更改
+// -------------------------------------------------------------------------------------------------------------------*/
 int Find_Left_Down_Point(int start,int end)//找左下角点，返回值是角点所在的行数
 {
     int i,t;
@@ -276,236 +275,234 @@ void shizibuxian()
     }
 }
 
-void edge_real_update() {
-    for (int i = 0; i < L_edge_count; ++i) {
-        if (L_edge[i].flag)
-            Left_Line[L_edge[i].col] = cc_i16_max(Left_Line[L_edge[i].col], L_edge[i].row);
-    }
-    for (int i = 0; i < R_edge_count; ++i) {
-        if (R_edge[i].flag)
-            Right_Line[R_edge[i].col] = cc_i16_min(Right_Line[R_edge[i].col], R_edge[i].row);
-    }
-    for (int i = 0; i < L_edge_count && i < R_edge_count; ++i) {
-        if (!L_edge[i].flag && !R_edge[i].flag) {
-            ++a;
-        }
-    }
-}
+// void edge_real_update() {
+//     for (int i = 0; i < L_edge_count; ++i) {
+//         if (L_edge[i].flag)
+//             Left_Line[L_edge[i].col] = cc_i16_max(Left_Line[L_edge[i].col], L_edge[i].row);
+//     }
+//     for (int i = 0; i < R_edge_count; ++i) {
+//         if (R_edge[i].flag)
+//             Right_Line[R_edge[i].col] = cc_i16_min(Right_Line[R_edge[i].col], R_edge[i].row);
+//     }
+//     for (int i = 0; i < L_edge_count && i < R_edge_count; ++i) {
+//         if (!L_edge[i].flag && !R_edge[i].flag) {
+//             ++a;
+//         }
+//     }
+// }
 
 
-/*---------------------------------------------------------------
- 【函    数】search_neighborhood
- 【功    能】八邻域找边界
- 【参    数】无
- 【返 回 值】无
- 【注意事项】
- ----------------------------------------------------------------*/
+// /*---------------------------------------------------------------
+//  【函    数】search_neighborhood
+//  【功    能】八邻域找边界
+//  【参    数】无
+//  【返 回 值】无
+//  【注意事项】
+//  ----------------------------------------------------------------*/
 
-void search_neighborhood(void)
-{
-    L_edge_count = 0;//左边点个数清0
-    R_edge_count = 0;//右边点个数清0
+// void search_neighborhood(void)
+// {
+//     L_edge_count = 0;//左边点个数清0
+//     R_edge_count = 0;//右边点个数清0
 
-    if(left_findflag)//如果左边界点存在并找到,则开始爬线
-    {
-        //变量声明
-        L_edge[0].row = L_start_y;
-        L_edge[0].col = L_start_x;
-        L_edge[0].flag = 1;
-        int16 curr_row = L_start_y;//初始化行坐标
-        int16 curr_col = L_start_x;//初始化列坐标
-        dire_left = 0; //初始化上个边界点的来向
-        //开始搜线，最多取150个点，不会往下搜，共7个方位
-        for(int i = 1;i < L_search_amount; i++)    //最多搜索150个点
-        {
-            ////越界退出 行越界和列越界（向上向下向左向右）
-            if(curr_row+1 < Boundary_search_end || curr_row>IMAGE_H-1)  break;
-            if (curr_col-1 <= 0 && curr_col+1 < IMAGE_W) break;
-            //搜线过程
-            if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row-1][curr_col]==1)   //左上黑，2，右边白
-            {
-                curr_row = curr_row -1;
-                curr_col = curr_col -1;
-                L_edge_count = L_edge_count +1;
-                dire_left = 7;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(dire_left!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)    //右上黑，3，下边白
-            {
-                curr_row = curr_row -1;
-                curr_col = curr_col + 1;
-                L_edge_count = L_edge_count + 1;
-                dire_left = 6;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col+1]==1)                  //正上黑，1，右白
-            {
-                curr_row = curr_row - 1;
-                L_edge_count = L_edge_count + 1;
-                dire_left = 0;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(dire_left!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row-1][curr_col-1]==1)     //正左黑，5，上白
-            {
-                curr_col = curr_col - 1;
-                L_edge_count = L_edge_count +1;
-                dire_left = 4;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(dire_left!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row+1][curr_col+1]==1)  //正右黑，4，下白
-            {
-                curr_col = curr_col + 1;
-                L_edge_count = L_edge_count +1;
-                dire_left = 5;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(dire_left!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1)    //左下黑，6，上白
-            {
-                curr_row = curr_row + 1;
-                curr_col = curr_col -1;
-                L_edge_count = L_edge_count +1;
-                dire_left = 3;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else if(dire_left!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row+1][curr_col]==1)    //右下黑，7，左白
-            {
-                curr_row = curr_row + 1;
-                curr_col = curr_col + 1;
-                L_edge_count = L_edge_count +1;
-                dire_left = 2;
-                L_edge[i].row = curr_row;
-                L_edge[i].col = curr_col;
-                L_edge[i].flag = 1;
-            }
-            else
-                break;
-        }
-    }
+//     if(left_findflag)//如果左边界点存在并找到,则开始爬线
+//     {
+//         //变量声明
+//         L_edge[0].row = L_start_y;
+//         L_edge[0].col = L_start_x;
+//         L_edge[0].flag = 1;
+//         int16 curr_row = L_start_y;//初始化行坐标
+//         int16 curr_col = L_start_x;//初始化列坐标
+//         dire_left = 0; //初始化上个边界点的来向
+//         //开始搜线，最多取150个点，不会往下搜，共7个方位
+//         for(int i = 1;i < L_search_amount; i++)    //最多搜索150个点
+//         {
+//             ////越界退出 行越界和列越界（向上向下向左向右）
+//             if(curr_row+1 < Boundary_search_end || curr_row>IMAGE_H-1)  break;
+//             if (curr_col-1 <= 0 && curr_col+1 < IMAGE_W) break;
+//             //搜线过程
+//             if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row-1][curr_col]==1)   //左上黑，2，右边白
+//             {
+//                 curr_row = curr_row -1;
+//                 curr_col = curr_col -1;
+//                 L_edge_count = L_edge_count +1;
+//                 dire_left = 7;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(dire_left!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)    //右上黑，3，下边白
+//             {
+//                 curr_row = curr_row -1;
+//                 curr_col = curr_col + 1;
+//                 L_edge_count = L_edge_count + 1;
+//                 dire_left = 6;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col+1]==1)                  //正上黑，1，右白
+//             {
+//                 curr_row = curr_row - 1;
+//                 L_edge_count = L_edge_count + 1;
+//                 dire_left = 0;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(dire_left!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row-1][curr_col-1]==1)     //正左黑，5，上白
+//             {
+//                 curr_col = curr_col - 1;
+//                 L_edge_count = L_edge_count +1;
+//                 dire_left = 4;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(dire_left!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row+1][curr_col+1]==1)  //正右黑，4，下白
+//             {
+//                 curr_col = curr_col + 1;
+//                 L_edge_count = L_edge_count +1;
+//                 dire_left = 5;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(dire_left!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1)    //左下黑，6，上白
+//             {
+//                 curr_row = curr_row + 1;
+//                 curr_col = curr_col -1;
+//                 L_edge_count = L_edge_count +1;
+//                 dire_left = 3;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else if(dire_left!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row+1][curr_col]==1)    //右下黑，7，左白
+//             {
+//                 curr_row = curr_row + 1;
+//                 curr_col = curr_col + 1;
+//                 L_edge_count = L_edge_count +1;
+//                 dire_left = 2;
+//                 L_edge[i].row = curr_row;
+//                 L_edge[i].col = curr_col;
+//                 L_edge[i].flag = 1;
+//             }
+//             else
+//                 break;
+//         }
+//     }
 
-    if(right_findflag)//如果右边界存在并搜到
-    {
-        R_edge[0].row = R_start_y;
-        R_edge[0].col = R_start_x;
-        R_edge[0].flag = 1;
-        int16 curr_row = R_start_y;
-        int16 curr_col = R_start_x;
-        dire_right = 0;
-        for(int i = 1;i<R_search_amount;i++)
-        {
-            ////越界退出 行越界和列越界（向上向下向左向右）
-            if(curr_row < Boundary_search_end || curr_row>IMAGE_H-1||curr_row+1<Boundary_search_end)  break;
-            //爬线过程
-            if(curr_col<IMAGE_W&&dire_right!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row-1][curr_col]==1)    //右上黑，3，左白
-            {
-                curr_row = curr_row - 1;
-                curr_col = curr_col + 1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 6;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else if(dire_right!=2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1) //左上黑，2，下白
-            {
-                curr_row = curr_row-1;
-                curr_col = curr_col-1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 7;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col-1]==1)                  //正上黑，1，左白
-            {
-                curr_row = curr_row - 1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 0;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else if(dire_right!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row-1][curr_col+1]==1)   //正右黑，4，上白
-            {
-                curr_col = curr_col + 1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 5;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else if(dire_right!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row+1][curr_col-1]==1)   //正左黑，5，下白
-            {
-                curr_col = curr_col-1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 4;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-
-
-            else if(dire_right!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row+1][curr_col]==1)   //左下黑，6，右白
-            {
-                curr_row = curr_row + 1;
-                curr_col = curr_col - 1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 3;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else if(dire_right!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)   //右下黑，7，上白
-            {
-                curr_row = curr_row + 1;
-                curr_col = curr_col + 1;
-                R_edge_count = R_edge_count + 1;
-                dire_right = 2;
-                R_edge[i].row = curr_row;
-                R_edge[i].col = curr_col;
-                R_edge[i].flag = 1;
-            }
-            else
-                break;
-        }
-    }
-}
+//     if(right_findflag)//如果右边界存在并搜到
+//     {
+//         R_edge[0].row = R_start_y;
+//         R_edge[0].col = R_start_x;
+//         R_edge[0].flag = 1;
+//         int16 curr_row = R_start_y;
+//         int16 curr_col = R_start_x;
+//         dire_right = 0;
+//         for(int i = 1;i<R_search_amount;i++)
+//         {
+//             ////越界退出 行越界和列越界（向上向下向左向右）
+//             if(curr_row < Boundary_search_end || curr_row>IMAGE_H-1||curr_row+1<Boundary_search_end)  break;
+//             //爬线过程
+//             if(curr_col<IMAGE_W&&dire_right!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row-1][curr_col]==1)    //右上黑，3，左白
+//             {
+//                 curr_row = curr_row - 1;
+//                 curr_col = curr_col + 1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 6;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else if(dire_right!=2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1) //左上黑，2，下白
+//             {
+//                 curr_row = curr_row-1;
+//                 curr_col = curr_col-1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 7;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col-1]==1)                  //正上黑，1，左白
+//             {
+//                 curr_row = curr_row - 1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 0;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else if(dire_right!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row-1][curr_col+1]==1)   //正右黑，4，上白
+//             {
+//                 curr_col = curr_col + 1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 5;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else if(dire_right!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row+1][curr_col-1]==1)   //正左黑，5，下白
+//             {
+//                 curr_col = curr_col-1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 4;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
 
 
-void image_draw_rectan(uint8(*image)[width])
-{
-    uint8 i = 0;
-    for (i = 0; i < height; i++)
-    {
-        image[i][0] = 0;
-        image[i][1] = 0;
-        image[i][width - 1] = 0;
-        image[i][width - 2] = 0;
-    }
-    for (i = 0; i < width; i++)
-    {
-        image[0][i] = 0;
-        image[1][i] = 0;
-    }
-}
+//             else if(dire_right!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row+1][curr_col]==1)   //左下黑，6，右白
+//             {
+//                 curr_row = curr_row + 1;
+//                 curr_col = curr_col - 1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 3;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else if(dire_right!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)   //右下黑，7，上白
+//             {
+//                 curr_row = curr_row + 1;
+//                 curr_col = curr_col + 1;
+//                 R_edge_count = R_edge_count + 1;
+//                 dire_right = 2;
+//                 R_edge[i].row = curr_row;
+//                 R_edge[i].col = curr_col;
+//                 R_edge[i].flag = 1;
+//             }
+//             else
+//                 break;
+//         }
+//     }
+// }
+
+
+// void image_draw_rectan(uint8(*image)[width])
+// {
+//     uint8 i = 0;
+//     for (i = 0; i < height; i++)
+//     {
+//         image[i][0] = 0;
+//         image[i][1] = 0;
+//         image[i][width - 1] = 0;
+//         image[i][width - 2] = 0;
+//     }
+//     for (i = 0; i < width; i++)
+//     {
+//         image[0][i] = 0;
+//         image[1][i] = 0;
+//     }
+// }
 
 
 
-#endif
-
-uint8 ostu_deal_threshold() {
-    uint32 black_cnt = 0;
+uint8 ostu_deal_threshold() { //懒得写注释，反正大津感觉就是套公式
+    uint32 white_cnt = 0;
     int16 PixelMax = 0, PixelMin = 255;
     uint32 PixelSum = width*height/4;
     int PixelCnt[GrayScale] = {0};
@@ -515,7 +512,7 @@ uint8 ostu_deal_threshold() {
         for (int j = 0; j < width; j += 2) {
             int GrayCur = binary_image[i*width + j];
             if (GrayCur > 200) {
-                ++black_cnt;
+                ++white_cnt;
             }
             Graysum += GrayCur;
             ++PixelCnt[GrayCur];
@@ -558,7 +555,7 @@ uint8 ostu_deal_threshold() {
 //        last_threshold = os_threshold;
 //    else
 //        os_threshold = last_threshold;
-    return black_cnt > PixelSum*0.8;
+    return white_cnt < PixelSum*0.1;
 }
 
 void threshold_update() {

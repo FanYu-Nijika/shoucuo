@@ -55,11 +55,11 @@ void car_apply_menu_params(const volatile car_params_t *params)
     servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, 0, 10000);
     servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, 0, 10000);
 
-    image_auto_threshold = params->automatic_threshold;
-    threshold = params->threshold;
-    image_scan_start_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 - params->search_window : 0;
-    image_scan_end_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 + params->search_window : MT9V03X_W;
-    image_search_start_row = params->roi_bottom != 0U && params->roi_bottom < MT9V03X_H ? params->roi_bottom : MT9V03X_H - 1U;
+//    image_auto_threshold = params->automatic_threshold;
+//    threshold = params->threshold;
+//    image_scan_start_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 - params->search_window : 0;
+//    image_scan_end_col = params->search_window < MT9V03X_W / 2 ? MT9V03X_W / 2 + params->search_window : MT9V03X_W;
+//    image_search_start_row = params->roi_bottom != 0U && params->roi_bottom < MT9V03X_H ? params->roi_bottom : MT9V03X_H - 1U;
 }
 
 

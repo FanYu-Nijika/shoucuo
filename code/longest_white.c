@@ -9,6 +9,9 @@ uint8 Right_Lost_Flag[MT9V03X_H];
 int16 Boundry_Start_Left;
 int16 Boundry_Start_Right;
 int16 Road_Wide[MT9V03X_H];
+int16 Left_Lost_Time;
+int16 Right_Lost_Time;
+int16 Both_Lost_Time;
 
 /*-------------------------------------------------------------------------------------------------------------------
   @brief     双最长白列巡线
@@ -69,7 +72,7 @@ void Longest_White_Column(void)//最长白列巡线
     {
         for (i = MT9V03X_H - 1; i >= 0; i--)
         {
-            if(image_two_value[i][j] == IMG_BLACK)
+            if(binary_image[i*width+j]== 0)
                 break;
             else
                 White_Column[j]++;
@@ -98,11 +101,17 @@ void Longest_White_Column(void)//最长白列巡线
     }
  
     Search_Stop_Line = Longest_White_Column_Left[0];//搜索截止行选取左或者右区别不大，他们两个理论上是一样的
+    if(Search_Stop_Line < 5) {
+        Search_Stop_Line = 5;
+    }
+    if(Search_Stop_Line > MT9V03X_H) {
+        Search_Stop_Line = MT9V03X_H;
+    }
     for (i = MT9V03X_H - 1; i >=MT9V03X_H-Search_Stop_Line; i--)//常规巡线
     {
         for (j = Longest_White_Column_Right[1]; j <= MT9V03X_W - 1 - 2; j++)
         {
-            if (image_two_value[i][j] ==IMG_WHITE && image_two_value[i][j + 1] == IMG_BLACK && image_two_value[i][j + 2] == IMG_BLACK)//白黑黑，找到右边界
+            if (binary_image[i][j] ==1 && binary_image[i][j + 1] == 0 && binary_image[i][j + 2] == 0)//白黑黑，找到右边界
             {
                 right_border = j;
                 Right_Lost_Flag[i] = 0; //右丢线数组，丢线置1，不丢线置0
@@ -117,7 +126,7 @@ void Longest_White_Column(void)//最长白列巡线
         }
         for (j = Longest_White_Column_Left[1]; j >= 0 + 2; j--)//往左边扫描
         {
-            if (image_two_value[i][j] ==IMG_WHITE && image_two_value[i][j - 1] == IMG_BLACK && image_two_value[i][j - 2] == IMG_BLACK)//黑黑白认为到达左边界
+            if (binary_image[i][j] ==1 && binary_image[i][j - 1] == 0 && binary_image[i][j - 2] == 0)//黑黑白认为到达左边界
             {
                 left_border = j;
                 Left_Lost_Flag[i] = 0; //左丢线数组，丢线置1，不丢线置0
@@ -149,24 +158,24 @@ void Longest_White_Column(void)//最长白列巡线
         Road_Wide[i]=Right_Line[i]-Left_Line[i];
     }
  
-    //环岛3状态改变边界，看情况而定，我认为理论上的最优情况是不需要这些处理的
-    if(Island_State==3||Island_State==4)
-    {
-        if(Right_Island_Flag==1)//右环
-        {
-            for (i = MT9V03X_H - 1; i >= 0; i--)//右边直接写在边上
-            {
-                Right_Line[i]=MT9V03X_W-1;
-            }
-        }
-        else if(Left_Island_Flag==1)//左环
-        {
-            for (i = MT9V03X_H - 1; i >= 0; i--)//左边直接写在边上
-            {
-                Left_Line[i]=0;      //右边线线数组
-            }
-        }
-    }
+    // //环岛3状态改变边界，看情况而定，我认为理论上的最优情况是不需要这些处理的
+    // if(Island_State==3||Island_State==4)
+    // {
+    //     if(Right_Island_Flag==1)//右环
+    //     {
+    //         for (i = MT9V03X_H - 1; i >= 0; i--)//右边直接写在边上
+    //         {
+    //             Right_Line[i]=MT9V03X_W-1;
+    //         }
+    //     }
+    //     else if(Left_Island_Flag==1)//左环
+    //     {
+    //         for (i = MT9V03X_H - 1; i >= 0; i--)//左边直接写在边上
+    //         {
+    //             Left_Line[i]=0;      //右边线线数组
+    //         }
+    //     }
+    // }
     //debug使用，屏幕显示相关参数
 //    ips200_showint16(0,0, Longest_White_Column_Right[0]);//【0】是白列长度
 //    ips200_showint16(0,1, Longest_White_Column_Right[1]);//【1】是下标，第j列)
