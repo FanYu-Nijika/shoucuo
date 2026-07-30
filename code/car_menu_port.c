@@ -9,13 +9,13 @@
 #define CC_SERVO_PERIOD_US          (20000)
 
 /* Servo calibration for PWM_DUTY_MAX=10000 at 50 Hz:
- * 600 -> lower limit -> 1200 us
- * 700 -> center      -> 1400 us
- * 800 -> upper limit -> 1600 us
+ * 660 -> lower limit -> 1320 us
+ * 760 -> center      -> 1520 us
+ * 860 -> upper limit -> 1720 us
  */
-#define CC_SERVO_MIN_DUTY           (600)
-#define CC_SERVO_CENTER_DUTY        (700)
-#define CC_SERVO_MAX_DUTY           (800)
+#define CC_SERVO_MIN_DUTY           (660)
+#define CC_SERVO_CENTER_DUTY        (760)
+#define CC_SERVO_MAX_DUTY           (860)
 
 static uint8_t camera_online;
 static uint8_t actuator_ready;

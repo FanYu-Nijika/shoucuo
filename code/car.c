@@ -4,9 +4,9 @@
 #include "image.h"
 #include "math_utils.h"
 
-#define CAR_SERVO_MIN_DUTY (600)
-#define CAR_SERVO_CENTER_DUTY (700)
-#define CAR_SERVO_MAX_DUTY (800)
+#define CAR_SERVO_MIN_DUTY (660)
+#define CAR_SERVO_CENTER_DUTY (760)
+#define CAR_SERVO_MAX_DUTY (860)
 
 uint8 car_running = 0;
 uint8 car_camera_ready = 0;

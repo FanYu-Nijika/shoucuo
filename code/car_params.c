@@ -10,6 +10,8 @@
 #define CAR_PARAMS_FLASH_PROFILE_START   (1)
 #define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
 
+static void car_params_flash_factory_init(void);
+
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
 const car_params_t car_default_params = {
     .base_speed = 2400,
@@ -55,10 +57,10 @@ const car_params_t car_default_params = {
 
     /*
      * Measured with PWM_DUTY_MAX=10000 at 50 Hz:
-     * PWM duty 600/700/800 corresponds to about 1200/1400/1600 us at 50 Hz.
+     * PWM duty 660/760/860 corresponds to about 1320/1520/1720 us at 50 Hz.
      * Positive image error means track is right, so servo output is reversed.
      */
-    .servo_center_us = 1400,
+    .servo_center_us = 1520,
     .servo_travel_us = 200,
     .servo_reverse = 1,
 
@@ -119,12 +121,41 @@ static uint32_t car_params_flash_profile_offset(uint8_t gear)
     return CAR_PARAMS_FLASH_PROFILE_START + (gear - 1) * CAR_PARAMS_FLASH_PROFILE_WORDS;
 }
 
+static uint8_t car_params_flash_buffer_empty(void)
+{
+    uint32_t index;
+    uint8_t all_ff = 1;
+    uint8_t all_zero = 1;
+
+    for (index = 0; index < EEPROM_PAGE_LENGTH; index++) {
+        if (flash_union_buffer[index].uint32_type != 0xFFFFFFFF) all_ff = 0;
+        if (flash_union_buffer[index].uint32_type != 0) all_zero = 0;
+    }
+
+    return all_ff != 0 || all_zero != 0;
+}
+
+static uint8_t car_params_flash_profile_empty(uint32_t offset)
+{
+    uint32_t index;
+    uint8_t all_ff = 1;
+    uint8_t all_zero = 1;
+
+    for (index = 0; index < CAR_PARAMS_FLASH_PROFILE_WORDS; index++) {
+        if (flash_union_buffer[offset + index].uint32_type != 0xFFFFFFFF) all_ff = 0;
+        if (flash_union_buffer[offset + index].uint32_type != 0) all_zero = 0;
+    }
+
+    return all_ff != 0 || all_zero != 0;
+}
+
 uint8_t car_params_flash_load(void)
 {
     uint8_t gear = 1;
-
-    if (flash_check(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE) != 0) {
-        flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    if (car_params_flash_buffer_empty() != 0) {
+        car_params_flash_factory_init();
+    } else {
         gear = flash_union_buffer[0].uint8_type;
         if (car_params_flash_gear_valid(gear) == 0) gear = 1;
     }
@@ -143,8 +174,13 @@ void car_params_flash_switch(uint8_t gear)
     if (profile_offset + CAR_PARAMS_FLASH_PROFILE_WORDS > EEPROM_PAGE_LENGTH) return;
 
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-    memcpy(&stored_params, &flash_union_buffer[profile_offset], sizeof(car_params_t));
-    if (stored_params.base_speed == 0) stored_params = car_default_params;
+    if (car_params_flash_profile_empty(profile_offset) != 0) {
+        stored_params = car_default_params;
+    } else {
+        memcpy(&stored_params, &flash_union_buffer[profile_offset], sizeof(car_params_t));
+        if (stored_params.servo_center_us == 1400 && stored_params.servo_travel_us == 200)
+            stored_params.servo_center_us = 1520;
+    }
     stored_params.running = 0;
     __dsync();
     car_params = stored_params;
@@ -166,5 +202,23 @@ void car_params_flash_save(uint8_t gear)
     flash_union_buffer[0].uint32_type = 0;
     flash_union_buffer[0].uint8_type = gear;
     memcpy(&flash_union_buffer[profile_offset], &stored_params, sizeof(car_params_t));
+    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+}
+
+static void car_params_flash_factory_init(void)
+{
+    uint8_t gear;
+    uint32_t offset;
+
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+
+    flash_union_buffer[0].uint32_type = 0;
+    flash_union_buffer[0].uint8_type = 1;
+
+    for (gear = 1; gear <= 4; gear++) {
+        offset = car_params_flash_profile_offset(gear);
+        memcpy(&flash_union_buffer[offset], &car_default_params, sizeof(car_params_t));
+    }
+
     flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
 }

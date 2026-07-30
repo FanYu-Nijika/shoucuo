@@ -53,7 +53,7 @@ void image_init(void) {
     Cross_Flag = 0;
     Cross_Count = 0;
     left_index = right_index = 0;
-    stop_cnt = 30;
+    stop_cnt = 10;
     // Search_Stop_Line = 0;
 }
 
@@ -95,7 +95,7 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     if (protect(gray_frame) != 0) {
         if (car_params.running != 0 && stop_cnt <= 0) car_center_stop_request = 1;
     } else {
-        stop_cnt = 30;
+        stop_cnt = 10;
     }
     Longest_White_Column();
     if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
