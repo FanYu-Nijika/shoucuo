@@ -28,9 +28,9 @@
 #define BOARD_KEY2_PIN                     (BOARD_KEY_AUX2_PIN)
 #define BOARD_SWITCH1_PIN                  (BOARD_KEY_DOWN_PIN)
 #define BOARD_SWITCH2_PIN                  (BOARD_KEY_CENTER_PIN)
-#define BOARD_SWITCH3_PIN                  (BOARD_KEY_LEFT_PIN)
+#define BOARD_SWITCH3_PIN                  (BOARD_KEY_RIGHT_PIN)
 #define BOARD_SWITCH4_PIN                  (BOARD_KEY_UP_PIN)
-#define BOARD_SWITCH5_PIN                  (BOARD_KEY_RIGHT_PIN)
+#define BOARD_SWITCH5_PIN                  (BOARD_KEY_LEFT_PIN)
 
 // P13.0 经 R12 驱动 Q1，输出高电平时导通蜂鸣器驱动级。
 #define BOARD_BUZZER_PIN                   (P13_0)

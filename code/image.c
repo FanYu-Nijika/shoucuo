@@ -121,14 +121,14 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     result->left_edge = left;
     result->right_edge = right;
     result->line_width = right - left;
-    if (already_line_lost != 0 || Left_Lost_Flag[row] != 0 || Right_Lost_Flag[row] != 0 ||
-        Longest_White_Column_Left[0] < car_params.minimum_line_pixels) return;
-
-    result->line_valid = 1;
     result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
     result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
+    if (already_line_lost != 0 || Left_Lost_Flag[row] != 0 || Right_Lost_Flag[row] != 0 ||
+        Longest_White_Column_Left[0] < car_params.minimum_line_pixels) return;
+
+    result->line_valid = 1;
 }
 
 float Calculate_Error(void)

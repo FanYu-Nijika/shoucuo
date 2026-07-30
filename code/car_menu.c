@@ -512,10 +512,10 @@ static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t
     uint8_t action_keys = short_keys | long_keys;
     uint8_t adjust_keys = short_keys | repeat_keys;
     uint8_t center = action_keys & CC_KEY_CENTER_MASK;
-    uint8_t left = action_keys & CC_KEY_LEFT_MASK;
-    uint8_t right = action_keys & CC_KEY_RIGHT_MASK;
-    uint8_t up = adjust_keys & CC_KEY_UP_MASK;
-    uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
+    uint8_t left = action_keys & CC_KEY_RIGHT_MASK;
+    uint8_t right = action_keys & CC_KEY_LEFT_MASK;
+    uint8_t up = adjust_keys & CC_KEY_DOWN_MASK;
+    uint8_t down = adjust_keys & CC_KEY_UP_MASK;
 
     if ((car_running != 0 || car_menu_start_pending != 0) && center != 0) {
         car_menu_emergency_stop();

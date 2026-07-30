@@ -4,7 +4,7 @@
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
 const car_params_t car_default_params = {
-    .base_speed = 2200,
+    .base_speed = 2400,
     // .minimum_speed = 2700,
     .curve_slowdown = 0,
     // .cruise_speed = 2800,
@@ -19,9 +19,9 @@ const car_params_t car_default_params = {
     .lost_stop_frames = CAR_LOST_STOP_FRAMES,
 
     /* Simple PD units: us/pixel and us/pixel/frame. */
-    .steering_kp = CAR_STEERING_KP_DEFAULT,
+    .steering_kp = 2.5,
     // .steering_ki = 0.0,
-    .steering_kd = CAR_STEERING_KD_DEFAULT,
+    .steering_kd = 4.0,
     // .curve_variance_threshold = CAR_CURVE_VARIANCE_DEFAULT,
     // .curve_blend_threshold1 = CAR_CURVE_BLEND_THRESHOLD1_DEFAULT,
     // .curve_blend_threshold2 = CAR_CURVE_BLEND_THRESHOLD2_DEFAULT,
@@ -56,11 +56,11 @@ const car_params_t car_default_params = {
 
     .automatic_threshold = 1,
     .cross_enabled = 1,
-    .cross_min_both_lost = 10,
-    .cross_min_white_column = 60,
+    .cross_min_both_lost = 8,
+    .cross_min_white_column = 30,
     .cross_edge_stable_diff = 5,
-    .cross_tear_diff_first = 8,
-    .cross_tear_diff_second = 15,
+    .cross_tear_diff_first = 5,
+    .cross_tear_diff_second = 10,
     .cross_corner_row_gap_max = 30,
     .cross_max_lost_rows = 108,
     .threshold = 100,
@@ -81,8 +81,8 @@ const car_params_t car_default_params = {
     .gain = 4,
     .pwm_limit = 5000,
     // .deadzone = 15,
-    .left_direction = 1,
-    .right_direction = 1,
+    .left_direction = -1,
+    .right_direction = -1,
     .running = 0
 };
 

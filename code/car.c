@@ -33,6 +33,7 @@ float steering_kd = CAR_STEERING_KD_DEFAULT;
 static uint8 had_valid_track = 0;
 static int16 last_error = 0;
 static int16 last_valid_error = 0;
+static const uint8 car_line_loss_protection_enabled = 0;
 
 void car_apply_menu_params(const volatile car_params_t *params)
 {
@@ -162,7 +163,7 @@ void car_track_update(int16 error, uint8 valid, uint8 new_result)
 
     if (new_result == 0) return;
 
-    if (!valid) {
+    if (!valid && car_line_loss_protection_enabled != 0) {
         car_lost_count++;
         if (car_lost_count >= lost_stop_frames) {
             car_running = 0;
@@ -188,6 +189,8 @@ void car_track_update(int16 error, uint8 valid, uint8 new_result)
         car_set_motor(speed, speed);
         return;
     }
+
+    if (!valid) valid = 1;
 
     car_lost_count = 0;
     had_valid_track = 1;
