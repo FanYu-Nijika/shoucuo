@@ -7,7 +7,7 @@
 #include "image.h"
 #include "line_camera.h"
 #include "math_utils.h"
-#include "motor4.h"
+#include "motor2.h"
 #include "pid.h"
 // #include "ring_buffer.h"
 #include "soft_timer.h"

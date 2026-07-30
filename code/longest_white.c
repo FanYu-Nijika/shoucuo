@@ -48,24 +48,9 @@ void Longest_White_Column(void)//最长白列巡线
         White_Column[i] = 0;
     }
  
-//环岛需要对最长白列范围进行限定
-    //环岛3状态需要改变最长白列寻找范围
-    if(Right_Island_Flag==1)//右环
-    {
-        if(Island_State==3)
-        {
-            start_column=40;
-            end_column=MT9V03X_W-20;
-        }
-    }
-    else if(Left_Island_Flag==1)//左环
-    {
-        if(Island_State==3)
-        {
-            start_column=20;
-            end_column=MT9V03X_W-40;
-        }
-    }
+    /* The old island branch depended on removed state variables. The current
+     * shoucuo pipeline keeps the normal search window and handles cross repair
+     * in image.c, so no island-specific range is applied here. */
  
     //从左到右，从下往上，遍历全图记录范围内的每一列白点数量
     for (j =start_column; j<=end_column; j++)
