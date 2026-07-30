@@ -26,6 +26,11 @@ volatile uint32_t car_vision_max_us;
 
 uint8_t car_binary_frames[CAR_FRAME_SLOT_COUNT][CAR_IMAGE_HEIGHT][CAR_IMAGE_WIDTH];
 volatile uint8_t car_display_slot;
+volatile uint8_t car_display_read_slot;
+volatile uint8_t car_display_pending_free_slot;
+volatile uint32_t car_camera_frame_count;
+volatile uint32_t car_camera_last_frame_ms;
+volatile uint32_t car_camera_age_ms;
 
 #pragma section all restore
 
@@ -35,20 +40,25 @@ void car_shared_clear(void)
 
     memset((void *)car_gray_frames, 0, sizeof(car_gray_frames));
     memset((void *)car_binary_frames, 0, sizeof(car_binary_frames));
-    memset((void *)&car_result, 0, sizeof(car_result));
-    car_frame_sequence = 0U;
-    car_frame_period_ms = 20U;
+    memset((void *)&car_result, 0, sizeof(car_result_t));
+    car_frame_sequence = 0;
+    car_frame_period_ms = 20;
     car_display_slot = CAR_FRAME_SLOT_NONE;
-    car_result_ready = 0U;
-    car_capture_drop_count = 0U;
-    car_processing_drop_count = 0U;
-    car_display_drop_count = 0U;
-    car_result_drop_count = 0U;
-    car_vision_max_us = 0U;
-    for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+    car_display_read_slot = CAR_FRAME_SLOT_NONE;
+    car_display_pending_free_slot = CAR_FRAME_SLOT_NONE;
+    car_result_ready = 0;
+    car_capture_drop_count = 0;
+    car_processing_drop_count = 0;
+    car_display_drop_count = 0;
+    car_result_drop_count = 0;
+    car_vision_max_us = 0;
+    car_camera_frame_count = 0;
+    car_camera_last_frame_ms = 0;
+    car_camera_age_ms = 0;
+    for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
         car_frame_state[slot] = CAR_FRAME_FREE;
-        car_frame_slot_sequence[slot] = 0U;
-        car_frame_slot_period_ms[slot] = 20U;
+        car_frame_slot_sequence[slot] = 0;
+        car_frame_slot_period_ms[slot] = 20;
     }
     __dsync();
 }
@@ -57,8 +67,8 @@ uint8_t car_shared_has_pending_frame(void)
 {
     uint8_t slot;
 
-    for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
-        if (car_frame_state[slot] == CAR_FRAME_READY || car_frame_state[slot] == CAR_FRAME_READING) return 1U;
+    for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+        if (car_frame_state[slot] == CAR_FRAME_READY || car_frame_state[slot] == CAR_FRAME_READING) return 1;
     }
-    return 0U;
+    return 0;
 }

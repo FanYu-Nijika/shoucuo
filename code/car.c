@@ -4,9 +4,9 @@
 #include "image.h"
 #include "math_utils.h"
 
-#define CAR_SERVO_MIN_DUTY (600U)
-#define CAR_SERVO_CENTER_DUTY (700U)
-#define CAR_SERVO_MAX_DUTY (800U)
+#define CAR_SERVO_MIN_DUTY (600)
+#define CAR_SERVO_CENTER_DUTY (700)
+#define CAR_SERVO_MAX_DUTY (800)
 
 uint8 car_running = 0;
 uint8 car_camera_ready = 0;
@@ -45,14 +45,14 @@ void car_apply_menu_params(const volatile car_params_t *params)
     motor_base_duty = params->base_speed;
     motor_limit = params->pwm_limit;
     curve_slowdown = params->curve_slowdown;
-    lost_stop_frames = params->lost_stop_frames;
+    lost_stop_frames = params->lost_stop_frames == 0 ? 1 : params->lost_stop_frames;
     steering_kp = params->steering_kp;
     steering_kd = params->steering_kd;
     servo_reverse = params->servo_reverse;
-    left_motor_reverse = params->left_direction < 0 ? 1U : 0U;
-    right_motor_reverse = params->right_direction < 0 ? 1U : 0U;
+    left_motor_reverse = params->left_direction < 0 ? 1 : 0;
+    right_motor_reverse = params->right_direction < 0 ? 1 : 0;
 
-    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000U / 20000U;
+    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000 / 20000;
     minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / 20000;
     maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / 20000;
     servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
@@ -62,10 +62,6 @@ void car_apply_menu_params(const volatile car_params_t *params)
     if (servo_max_duty < servo_center_duty) servo_max_duty = servo_center_duty;
 
 }
-
-
-
-
 
 
 static void car_set_servo(uint16 duty)
@@ -151,7 +147,7 @@ void car_stop(void)
     car_set_servo(servo_center_duty);
 }
 
-void car_track_update(int16 error, uint8 valid)
+void car_track_update(int16 error, uint8 valid, uint8 new_result)
 {
     int16 speed;
     int16 error_abs;
@@ -163,6 +159,8 @@ void car_track_update(int16 error, uint8 valid)
         car_set_servo(servo_center_duty);
         return;
     }
+
+    if (new_result == 0) return;
 
     if (!valid) {
         car_lost_count++;

@@ -27,9 +27,9 @@ void cc_pid_set_integral_limits(cc_pid_t *pid, float integral_min, float integra
 void cc_pid_reset(cc_pid_t *pid)
 {
     if (pid == 0) return;
-    pid->integral = 0.0f;
-    pid->previous_error = 0.0f;
-    pid->last_output = 0.0f;
+    pid->integral = 0.0;
+    pid->previous_error = 0.0;
+    pid->last_output = 0.0;
     pid->initialized = 0;
 }
 
@@ -40,10 +40,10 @@ float cc_pid_update(cc_pid_t *pid, float setpoint, float measurement, float dt)
 
 float cc_pid_update_error(cc_pid_t *pid, float error, float dt)
 {
-    float derivative = 0.0f;
+    float derivative = 0.0;
     float output;
-    if (pid == 0) return 0.0f;
-    if (dt <= 0.0f) return pid->last_output;
+    if (pid == 0) return 0.0;
+    if (dt <= 0.0) return pid->last_output;
     if (pid->initialized != 0) derivative = (error - pid->previous_error) / dt;
     pid->integral += error * dt;
     pid->integral = cc_math_clamp_f32(pid->integral, pid->integral_min, pid->integral_max);
@@ -57,6 +57,6 @@ float cc_pid_update_error(cc_pid_t *pid, float error, float dt)
 
 float cc_pid_output(const cc_pid_t *pid)
 {
-    return pid == 0 ? 0.0f : pid->last_output;
+    return pid == 0 ? 0.0 : pid->last_output;
 }
 

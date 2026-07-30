@@ -21,6 +21,7 @@ int16 Center_Line[MT9V03X_H];
 int a;
 uint8 Cross_Flag;
 uint8 Cross_Count;
+
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
@@ -61,18 +62,21 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     uint16 index;
     int16 left;
     int16 right;
+    uint8 threshold_lost = 0;
     float image_center = (width - 1) * 0.5;
 
     if (gray_frame == 0 || binary_frame == 0 || result == 0) return;
     memset(result, 0, sizeof(*result));
     binary_image = binary_frame;
+    Cross_Flag = 0;
+    Cross_Count = 0;
     (void)start_y;
     (void)end_y;
     memcpy(binary_image, gray_frame, MT9V03X_IMAGE_SIZE);
     if (car_params.automatic_threshold != 0 && ostu_deal_threshold() != 0) {
         if (--lost_line_cnt <= 0) {
             already_line_lost = 1;
-            return;
+            threshold_lost = 1;
         }
     } else {
         lost_line_cnt= LOST_LINE;
@@ -81,16 +85,19 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     if (car_params.automatic_threshold == 0) os_threshold = car_params.threshold;
     threshold_update();
     Longest_White_Column();
-    if(Longest_White_Column_Left[0]<10) {
-        already_line_lost=1;
-        return;
-    }
+    if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
     // get_highest();
     // image_draw_rectan(binary_image);
     // search_neighborhood();
     // edge_real_update();
-    shizibuxian();
+    if (threshold_lost == 0 && car_params.cross_enabled != 0 &&
+        Both_Lost_Time >= car_params.cross_min_both_lost &&
+        Search_Stop_Line >= car_params.cross_min_white_column &&
+        Left_Lost_Time < car_params.cross_max_lost_rows &&
+        Right_Lost_Time < car_params.cross_max_lost_rows)
+        shizibuxian();
     Center_Line_Calculate();
+    result->cross_detected = Cross_Flag;
 
     if (row >= height) row = height - 1;
     for (index = 0; index < height; index++) {
@@ -117,11 +124,11 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     if (already_line_lost != 0 || Left_Lost_Flag[row] != 0 || Right_Lost_Flag[row] != 0 ||
         Longest_White_Column_Left[0] < car_params.minimum_line_pixels) return;
 
-    result->line_valid = 1U;
+    result->line_valid = 1;
     result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
     result->center_x = image_center + result->error_pixels;
-    result->error_normalized = result->error_pixels / (width * 0.5f);
-    result->near_error_cm = result->error_pixels * 40.0f / (result->line_width > 0 ? result->line_width : 1U);
+    result->error_normalized = result->error_pixels / (width * 0.5);
+    result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
 }
 
 float Calculate_Error(void)
@@ -140,14 +147,28 @@ float Calculate_Error(void)
 
     if(weight_sum == 0) return 0;
 
-    return sum / weight_sum - MT9V03X_W * 0.5f;
+    return sum / weight_sum - MT9V03X_W * 0.5;
 }
 
 void Center_Line_Calculate(void)
 {
     int i;
-    for(i=0;i<MT9V03X_H;i++) {
-        Center_Line[i]=(Left_Line[i]+Right_Line[i])/2;
+    int16 temp;
+
+    for (i = 0; i < MT9V03X_H; i++) {
+        if (Left_Line[i] < 0) Left_Line[i] = 0;
+        if (Left_Line[i] >= MT9V03X_W) Left_Line[i] = MT9V03X_W - 1;
+        if (Right_Line[i] < 0) Right_Line[i] = 0;
+        if (Right_Line[i] >= MT9V03X_W) Right_Line[i] = MT9V03X_W - 1;
+        if (Right_Line[i] < Left_Line[i]) {
+            temp = Left_Line[i];
+            Left_Line[i] = Right_Line[i];
+            Right_Line[i] = temp;
+        }
+        Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
+        // binary_image[i*width+Center_Line[i]] = 0;
+        if (binary_image != 0 && Center_Line[i] >= 0 && Center_Line[i] < MT9V03X_W)
+            binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
     }
 }
 
@@ -159,172 +180,100 @@ void Center_Line_Calculate(void)
 //   Sample     left_down_guai[0]=Find_Left_Down_Point(MT9V03X_H-1,20);
 //   @note      角点检测阈值可根据实际值更改
 // -------------------------------------------------------------------------------------------------------------------*/
-int Find_Left_Down_Point(int start,int end)//找左下角点，返回值是角点所在的行数
+static void cross_prepare_search_range(int *start, int *end)
 {
-    int i,t;
-    int left_down_line=0;
-    if(Left_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
-       return left_down_line;
-    if(start<end)//--访问，要保证start>end
-    {
-        t=start;
-        start=end;
-        end=t;
+    int temp;
+
+    if (*start < *end) {
+        temp = *start;
+        *start = *end;
+        *end = temp;
     }
-    if(start>=MT9V03X_H-1-5)//下面5行上面5行数据不稳定，不能作为边界点来判断，舍弃
-        start=MT9V03X_H-1-5;//另一方面，当判断第i行时，会访问到i+3和i-4行，防止越界
-    if(end<=MT9V03X_H-Search_Stop_Line)
-        end=MT9V03X_H-Search_Stop_Line;
-    if(end<=5)
-       end=5;
-    for(i=start;i>=end;--i)
-    {
-        if(left_down_line==0&&//只找第一个符合条件的点
-           abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-           abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
-           abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
-              (Left_Line[i]-Left_Line[i-2])>=5&&
-              (Left_Line[i]-Left_Line[i-3])>=10&&
-              (Left_Line[i]-Left_Line[i-4])>=10)
-        {
-            left_down_line=i;//获取行数即可
+    if (*start >= MT9V03X_H - 1 - 5) *start = MT9V03X_H - 1 - 5;
+    if (*end <= MT9V03X_H - Search_Stop_Line) *end = MT9V03X_H - Search_Stop_Line;
+    if (*end <= 5) *end = 5;
+}
+
+int Find_Left_Down_Point(int start,int end)
+{
+    int i;
+    int left_down_line = 0;
+
+    if (Left_Lost_Time >= car_params.cross_max_lost_rows) return left_down_line;
+    cross_prepare_search_range(&start, &end);
+    for (i = start; i >= end; i--) {
+        if (abs(Left_Line[i] - Left_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i + 1] - Left_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i + 2] - Left_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+            Left_Line[i] - Left_Line[i - 2] >= car_params.cross_tear_diff_first &&
+            Left_Line[i] - Left_Line[i - 3] >= car_params.cross_tear_diff_second &&
+            Left_Line[i] - Left_Line[i - 4] >= car_params.cross_tear_diff_second) {
+            left_down_line = i;
             break;
         }
     }
     return left_down_line;
 }
-int Find_Right_Down_Point(int start,int end)//找左下角点，返回值是角点所在的行数
+
+int Find_Right_Down_Point(int start,int end)
 {
-    int i,t;
-    int right_down_line=0;
-    if(Right_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
-       return right_down_line;
-    if(start<end)//--访问，要保证start>end
-    {
-        t=start;
-        start=end;
-        end=t;
-    }
-    if(start>=MT9V03X_H-1-5)//下面5行上面5行数据不稳定，不能作为边界点来判断，舍弃
-        start=MT9V03X_H-1-5;//另一方面，当判断第i行时，会访问到i+3和i-4行，防止越界
-    if(end<=MT9V03X_H-Search_Stop_Line)
-        end=MT9V03X_H-Search_Stop_Line;
-    if(end<=5)
-       end=5;
-    for(i=start;i>=end;--i)
-    {
-        // if(right_down_line==0&&//只找第一个符合条件的点
-        //    abs(Right_Line[i]-Right_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Right_Line[i+1]-Right_Line[i+2])<=5&&
-        //    abs(Right_Line[i+2]-Right_Line[i+3])<=5&&
-        //       (Right_Line[i]-Right_Line[i-2])>=5&&
-        //       (Right_Line[i]-Right_Line[i-3])>=10&&
-        //       (Right_Line[i]-Right_Line[i-4])>=10)
-        // {
-        //     right_down_line=i;//获取行数即可
-        //     break;
-        // }
-        if(right_down_line==0&&
-            abs(Right_Line[i]-Right_Line[i+1])<=5&&
-            abs(Right_Line[i+1]-Right_Line[i+2])<=5&&
-            abs(Right_Line[i+2]-Right_Line[i+3])<=5&&
-            (Right_Line[i-2]-Right_Line[i])>=5&&
-            (Right_Line[i-3]-Right_Line[i])>=10&&
-            (Right_Line[i-4]-Right_Line[i])>=10)
-        {
-            right_down_line=i;
+    int i;
+    int right_down_line = 0;
+
+    if (Right_Lost_Time >= car_params.cross_max_lost_rows) return right_down_line;
+    cross_prepare_search_range(&start, &end);
+    for (i = start; i >= end; i--) {
+        if (abs(Right_Line[i] - Right_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i + 1] - Right_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i + 2] - Right_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+            Right_Line[i - 2] - Right_Line[i] >= car_params.cross_tear_diff_first &&
+            Right_Line[i - 3] - Right_Line[i] >= car_params.cross_tear_diff_second &&
+            Right_Line[i - 4] - Right_Line[i] >= car_params.cross_tear_diff_second) {
+            right_down_line = i;
             break;
         }
     }
     return right_down_line;
 }
-int Find_Left_Up_Point(int start,int end)//找左下角点，返回值是角点所在的行数
+
+int Find_Left_Up_Point(int start,int end)
 {
-    int i,t;
-    int left_up_line=0;
-    if(Left_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
-       return left_up_line;
-    if(start<end)//--访问，要保证start>end
-    {
-        t=start;
-        start=end;
-        end=t;
-    }
-    if(start>=MT9V03X_H-1-5)//下面5行上面5行数据不稳定，不能作为边界点来判断，舍弃
-        start=MT9V03X_H-1-5;//另一方面，当判断第i行时，会访问到i+3和i-4行，防止越界
-    if(end<=MT9V03X_H-Search_Stop_Line)
-        end=MT9V03X_H-Search_Stop_Line;
-    if(end<=5)
-       end=5;
-    for(i=start;i>=end;--i)
-    {
-        // if(left_up_line==0&&//只找第一个符合条件的点
-        //    abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
-        //    abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
-        //       (Left_Line[i]-Left_Line[i-2])>=5&&
-        //       (Left_Line[i]-Left_Line[i-3])>=10&&
-        //       (Left_Line[i]-Left_Line[i-4])>=10)
-        // {
-        //     left_up_line=i;//获取行数即可
-        //     break;
-        // }
-        if(left_up_line==0&&
-            abs(Left_Line[i]-Left_Line[i+1])<=5&&
-            abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
-            abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
-            (Left_Line[i]-Left_Line[i+2])>=5&&
-            (Left_Line[i]-Left_Line[i+3])>=10&&
-            (Left_Line[i]-Left_Line[i+4])>=10)
-        {
-            left_up_line=i;
+    int i;
+    int left_up_line = 0;
+
+    if (Left_Lost_Time >= car_params.cross_max_lost_rows) return left_up_line;
+    cross_prepare_search_range(&start, &end);
+    for (i = start; i >= end; i--) {
+        if (abs(Left_Line[i] - Left_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i + 1] - Left_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i + 2] - Left_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+            Left_Line[i] - Left_Line[i + 2] >= car_params.cross_tear_diff_first &&
+            Left_Line[i] - Left_Line[i + 3] >= car_params.cross_tear_diff_second &&
+            Left_Line[i] - Left_Line[i + 4] >= car_params.cross_tear_diff_second) {
+            left_up_line = i;
             break;
         }
     }
     return left_up_line;
 }
-int Find_Right_Up_Point(int start,int end)//找左下角点，返回值是角点所在的行数
+
+int Find_Right_Up_Point(int start,int end)
 {
-    int i,t;
-    int right_up_line=0;
-//    if(Left_Lost_Time>=0.9*MT9V03X_H)//大部分都丢线，没有拐点判断的意义
-//       return right_up_line;
-    if(start<end)//--访问，要保证start>end
-    {
-        t=start;
-        start=end;
-        end=t;
-    }
-    if(start>=MT9V03X_H-1-5)//下面5行上面5行数据不稳定，不能作为边界点来判断，舍弃
-        start=MT9V03X_H-1-5;//另一方面，当判断第i行时，会访问到i+3和i-4行，防止越界
-    if(end<=MT9V03X_H-Search_Stop_Line)
-        end=MT9V03X_H-Search_Stop_Line;
-    if(end<=5)
-       end=5;
-    for(i=start;i>=end;--i)
-    {
-        // if(right_up_line==0&&//只找第一个符合条件的点
-        //    abs(Left_Line[i]-Left_Line[i+1])<=5&&//角点的阈值可以更改
-        //    abs(Left_Line[i+1]-Left_Line[i+2])<=5&&
-        //    abs(Left_Line[i+2]-Left_Line[i+3])<=5&&
-        //       (Left_Line[i]-Left_Line[i-2])>=5&&
-        //       (Left_Line[i]-Left_Line[i-3])>=10&&
-        //       (Left_Line[i]-Left_Line[i-4])>=10)
-        // {
-        //     right_up_line=i;//获取行数即可
-        //     break;
-        // }
-        if(right_up_line==0&&
-                abs(Right_Line[i]-Right_Line[i+1])<=5&&
-                abs(Right_Line[i+1]-Right_Line[i+2])<=5&&
-                abs(Right_Line[i+2]-Right_Line[i+3])<=5&&
-                (Right_Line[i+2]-Right_Line[i])>=5&&
-                (Right_Line[i+3]-Right_Line[i])>=10&&
-                (Right_Line[i+4]-Right_Line[i])>=10)
-            {
-                right_up_line=i;
-                break;
-            }
+    int i;
+    int right_up_line = 0;
+
+    if (Right_Lost_Time >= car_params.cross_max_lost_rows) return right_up_line;
+    cross_prepare_search_range(&start, &end);
+    for (i = start; i >= end; i--) {
+        if (abs(Right_Line[i] - Right_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i + 1] - Right_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i + 2] - Right_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+            Right_Line[i + 2] - Right_Line[i] >= car_params.cross_tear_diff_first &&
+            Right_Line[i + 3] - Right_Line[i] >= car_params.cross_tear_diff_second &&
+            Right_Line[i + 4] - Right_Line[i] >= car_params.cross_tear_diff_second) {
+            right_up_line = i;
+            break;
+        }
     }
     return right_up_line;
 }
@@ -403,78 +352,132 @@ void Draw_Right_Line(int start,int end)
 //         Set_Binary_Point(x,y);
 //     }
 // }
+static void cross_write_binary_point(int row,int column)
+{
+    if (binary_image == 0 || row < 0 || row >= MT9V03X_H) return;
+    if (column < 0) column = 0;
+    if (column >= MT9V03X_W) column = MT9V03X_W - 1;
+    binary_image[row * MT9V03X_W + column] = 1;
+}
+
 void Add_Left_Line(int start,int end)
 {
     int i;
-    int x1=Left_Line[start];
-    int x2=Left_Line[end];
+    int temp;
+    int x1;
+    int x2;
+    int value;
 
-    if(start>end)
-    {
-        int t=start;
-        start=end;
-        end=t;
-
-        x1=Left_Line[start];
-        x2=Left_Line[end];
+    if (binary_image == 0) return;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if (start >= MT9V03X_H) start = MT9V03X_H - 1;
+    if (end >= MT9V03X_H) end = MT9V03X_H - 1;
+    if (start > end) {
+        temp = start;
+        start = end;
+        end = temp;
     }
 
-    for(i=start;i<=end;i++)
-    {
-        Left_Line[i]=x1+(x2-x1)*(i-start)/(end-start);
+    x1 = Left_Line[start];
+    x2 = Left_Line[end];
+    if (x1 < 0) x1 = 0;
+    if (x1 >= MT9V03X_W) x1 = MT9V03X_W - 1;
+    if (x2 < 0) x2 = 0;
+    if (x2 >= MT9V03X_W) x2 = MT9V03X_W - 1;
 
-        binary_image[i*MT9V03X_W+Left_Line[i]]=1;
+    if (start == end) {
+        Left_Line[start] = x1;
+        cross_write_binary_point(start, x1);
+        return;
+    }
+
+    for (i = start; i <= end; i++) {
+        value = x1 + (x2 - x1) * (i - start) / (end - start);
+        if (value < 0) value = 0;
+        if (value >= MT9V03X_W) value = MT9V03X_W - 1;
+        Left_Line[i] = value;
+        cross_write_binary_point(i, value);
     }
 }
-
 
 void Add_Right_Line(int start,int end)
 {
     int i;
-    int x1=Right_Line[start];
-    int x2=Right_Line[end];
+    int temp;
+    int x1;
+    int x2;
+    int value;
 
-    if(start>end)
-    {
-        int t=start;
-        start=end;
-        end=t;
-
-        x1=Right_Line[start];
-        x2=Right_Line[end];
+    if (binary_image == 0) return;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if (start >= MT9V03X_H) start = MT9V03X_H - 1;
+    if (end >= MT9V03X_H) end = MT9V03X_H - 1;
+    if (start > end) {
+        temp = start;
+        start = end;
+        end = temp;
     }
 
-    for(i=start;i<=end;i++)
-    {
-        Right_Line[i]=x1+(x2-x1)*(i-start)/(end-start);
+    x1 = Right_Line[start];
+    x2 = Right_Line[end];
+    if (x1 < 0) x1 = 0;
+    if (x1 >= MT9V03X_W) x1 = MT9V03X_W - 1;
+    if (x2 < 0) x2 = 0;
+    if (x2 >= MT9V03X_W) x2 = MT9V03X_W - 1;
 
-        binary_image[i*MT9V03X_W+Right_Line[i]]=1;
-    }
-}
-void Lengthen_Left_Boundry(int start,int end)
-{
-    int i;
-    float k;
-
-    if(start<5)
-    {
-        Add_Left_Line(start,end);
+    if (start == end) {
+        Right_Line[start] = x1;
+        cross_write_binary_point(start, x1);
         return;
     }
 
-    k=(float)(Left_Line[start]-Left_Line[start-4])/4.0f;
+    for (i = start; i <= end; i++) {
+        value = x1 + (x2 - x1) * (i - start) / (end - start);
+        if (value < 0) value = 0;
+        if (value >= MT9V03X_W) value = MT9V03X_W - 1;
+        Right_Line[i] = value;
+        cross_write_binary_point(i, value);
+    }
+}
 
-    for(i=start;i<=end;i++)
-    {
-        Left_Line[i]=(int)((i-start)*k+Left_Line[start]);
+void Lengthen_Left_Boundry(int start,int end)
+{
+    int i;
+    int temp;
+    int value;
+    float k;
 
-        if(Left_Line[i]<0)
-            Left_Line[i]=0;
+    if (binary_image == 0) return;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if (start >= MT9V03X_H) start = MT9V03X_H - 1;
+    if (end >= MT9V03X_H) end = MT9V03X_H - 1;
+    if (start > end) {
+        temp = start;
+        start = end;
+        end = temp;
+    }
+    if (start <= 5 && start <= end) {
+        Add_Left_Line(start, end);
+        return;
+    }
+    if (start > end) return;
+    if (start == end) {
+        if (Left_Line[start] < 0) Left_Line[start] = 0;
+        if (Left_Line[start] >= MT9V03X_W) Left_Line[start] = MT9V03X_W - 1;
+        cross_write_binary_point(start, Left_Line[start]);
+        return;
+    }
 
-        if(Left_Line[i]>=MT9V03X_W)
-            Left_Line[i]=MT9V03X_W-1;
-
-        binary_image[i*MT9V03X_W+Left_Line[i]]=1;
+    k = (Left_Line[start] - Left_Line[start - 4]) / 5.0;
+    for (i = start; i <= end; i++) {
+        value = (i - start) * k + Left_Line[start];
+        if (value < 0) value = 0;
+        if (value >= MT9V03X_W) value = MT9V03X_W - 1;
+        Left_Line[i] = value;
+        cross_write_binary_point(i, value);
     }
 }
 
@@ -483,27 +486,39 @@ void Lengthen_Left_Boundry(int start,int end)
 void Lengthen_Right_Boundry(int start,int end)
 {
     int i;
+    int temp;
+    int value;
     float k;
 
-    if(start<5)
-    {
-        Add_Right_Line(start,end);
+    if (binary_image == 0) return;
+    if (start < 0) start = 0;
+    if (end < 0) end = 0;
+    if (start >= MT9V03X_H) start = MT9V03X_H - 1;
+    if (end >= MT9V03X_H) end = MT9V03X_H - 1;
+    if (start > end) {
+        temp = start;
+        start = end;
+        end = temp;
+    }
+    if (start <= 5 && start <= end) {
+        Add_Right_Line(start, end);
+        return;
+    }
+    if (start > end) return;
+    if (start == end) {
+        if (Right_Line[start] < 0) Right_Line[start] = 0;
+        if (Right_Line[start] >= MT9V03X_W) Right_Line[start] = MT9V03X_W - 1;
+        cross_write_binary_point(start, Right_Line[start]);
         return;
     }
 
-    k=(float)(Right_Line[start]-Right_Line[start-4])/4.0f;
-
-    for(i=start;i<=end;i++)
-    {
-        Right_Line[i]=(int)((i-start)*k+Right_Line[start]);
-
-        if(Right_Line[i]<0)
-            Right_Line[i]=0;
-
-        if(Right_Line[i]>=MT9V03X_W)
-            Right_Line[i]=MT9V03X_W-1;
-
-        binary_image[i*MT9V03X_W+Right_Line[i]]=1;
+    k = (Right_Line[start] - Right_Line[start - 4]) / 5.0;
+    for (i = start; i <= end; i++) {
+        value = (i - start) * k + Right_Line[start];
+        if (value < 0) value = 0;
+        if (value >= MT9V03X_W) value = MT9V03X_W - 1;
+        Right_Line[i] = value;
+        cross_write_binary_point(i, value);
     }
 }
 void Set_Binary_Point(int x,int y)
@@ -517,43 +532,33 @@ void Set_Binary_Point(int x,int y)
 }
 void shizibuxian(void)
 {
-    int left_up=Find_Left_Up_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
-    int right_up=Find_Right_Up_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
-    int left_down=Find_Left_Down_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
-    int right_down=Find_Right_Down_Point(MT9V03X_H-6,MT9V03X_H-Search_Stop_Line);
+    int left_up;
+    int right_up;
+    int left_down;
+    int right_down;
+    int search_start = MT9V03X_H - 6;
+    int search_end = MT9V03X_H - Search_Stop_Line;
+    int down_end;
+    int center = (MT9V03X_W - 1) / 2;
 
-    int count=0;
+    left_up = Find_Left_Up_Point(search_start, search_end);
+    right_up = Find_Right_Up_Point(search_start, search_end);
+    if (left_up <= 0 || right_up <= 0) return;
+    if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
+    if (abs(left_up - right_up) >= car_params.cross_corner_row_gap_max) return;
 
-    if(left_up>0)
-        count++;
+    down_end = (left_up > right_up ? left_up : right_up) + 2;
+    left_down = Find_Left_Down_Point(search_start, down_end);
+    right_down = Find_Right_Down_Point(search_start, down_end);
+    if (left_down <= left_up) left_down = 0;
+    if (right_down <= right_up) right_down = 0;
 
-    if(right_up>0)
-        count++;
-
-    if(left_down>0)
-        count++;
-
-    if(right_down>0)
-        count++;
-
-    if(count<=1)
-        return;
-
-
-    Cross_Flag=1;
-    Cross_Count=3;
-
-
-    if(left_up>0&&left_down>0)
-        Add_Left_Line(left_up,left_down);
-    else if(left_up>0)
-        Lengthen_Left_Boundry(left_up,MT9V03X_H-1);
-
-
-    if(right_up>0&&right_down>0)
-        Add_Right_Line(right_up,right_down);
-    else if(right_up>0)
-        Lengthen_Right_Boundry(right_up,MT9V03X_H-1);
+    Cross_Flag = 1;
+    Cross_Count = 3;
+    if (left_down > 0) Add_Left_Line(left_up, left_down);
+    else Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
+    if (right_down > 0) Add_Right_Line(right_up, right_down);
+    else Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
 }
 
 // void edge_real_update() {
@@ -782,61 +787,59 @@ void shizibuxian(void)
 
 
 
-uint8 ostu_deal_threshold() { //懒得写注释，反正大津感觉就是套公式
+uint8 ostu_deal_threshold(void)
+{
     uint32 white_cnt = 0;
-    int16 PixelMax = 0, PixelMin = 255;
-    uint32 PixelSum = width*height/4;
+    uint32 PixelSum = 0;
+    int16 PixelMax = 0;
+    int16 PixelMin = 255;
     int PixelCnt[GrayScale] = {0};
     float PixelPro[GrayScale] = {0};
     uint32 Graysum = 0;
-    for (int i = 0; i < height; i += 2) {
-        for (int j = 0; j < width; j += 2) {
-            int GrayCur = binary_image[i*width + j];
-            if (GrayCur > 200) {
-                ++white_cnt;
-            }
+    int i;
+    int j;
+    int GrayCur;
+    float w0 = 0;
+    float w1 = 0;
+    float u0tmp = 0;
+    float u1tmp = 0;
+    float u0;
+    float u1;
+    float deltaTmp;
+    float deltaMax = 0;
+
+    os_threshold = car_params.threshold;
+    for (i = 0; i < height; i += 2) {
+        for (j = 0; j < width; j += 2) {
+            GrayCur = binary_image[i * width + j];
+            if (GrayCur > 200) white_cnt++;
             Graysum += GrayCur;
-            ++PixelCnt[GrayCur];
+            PixelCnt[GrayCur]++;
+            PixelSum++;
             if (GrayCur > PixelMax) PixelMax = GrayCur;
             if (GrayCur < PixelMin) PixelMin = GrayCur;
         }
     }
-    for (int i = PixelMin; i < PixelMax; ++i) {
-        PixelPro[i] = PixelCnt[i]/PixelSum;
-    }
-//    float w0, w1, u0temp, u1temp, deltatemp, deltamax;
-    float w0, w1, u0tmp, u1tmp, u0, u1, u, deltaTmp, deltaMax = 0;
 
-    w0 = w1 = u0tmp = u1tmp = u0 = u1 = u = deltaTmp = 0;
-    for (int j = PixelMin; j < PixelMax; ++j)
-    {
+    if (PixelSum == 0) return 1;
+    if (PixelMin >= PixelMax) return white_cnt < PixelSum * 0.1;
 
-        w0 += PixelPro[j];  //背景部分每个灰度值的像素点所占比例之和   即背景部分的比例
-        u0tmp += j * PixelPro[j];  //背景部分 每个灰度值的点的比例 *灰度值
-
-        w1=1-w0;
-        u1tmp=Graysum/PixelSum-u0tmp;
-
-        u0 = u0tmp / w0;              //背景平均灰度
-        u1 = u1tmp / w1;              //前景平均灰度
-        u = u0tmp + u1tmp;            //全局平均灰度
-        deltaTmp = (float)(w0 *w1* (u0 - u1)* (u0 - u1)) ;
-        if (deltaTmp > deltaMax)
-        {
+    for (i = PixelMin; i < PixelMax; i++) PixelPro[i] = (float)PixelCnt[i] / PixelSum;
+    for (j = PixelMin; j < PixelMax; j++) {
+        w0 += PixelPro[j];
+        u0tmp += j * PixelPro[j];
+        w1 = 1 - w0;
+        if (w0 <= 0 || w1 <= 0) continue;
+        u1tmp = (float)Graysum / PixelSum - u0tmp;
+        u0 = u0tmp / w0;
+        u1 = u1tmp / w1;
+        deltaTmp = w0 * w1 * (u0 - u1) * (u0 - u1);
+        if (deltaTmp > deltaMax) {
             deltaMax = deltaTmp;
             os_threshold = j;
         }
-//        if (deltaTmp < deltaMax)
-//        {
-//            break;
-//        }
-
     }
-//    if(os_threshold>90 && os_threshold<130)
-//        last_threshold = os_threshold;
-//    else
-//        os_threshold = last_threshold;
-    return white_cnt < PixelSum*0.1;
+    return white_cnt < PixelSum * 0.1;
 }
 
 void threshold_update() {

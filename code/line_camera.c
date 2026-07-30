@@ -31,11 +31,11 @@
 //    camera->last_result.left_edge = 0;
 //    camera->last_result.right_edge = 0;
 //    camera->last_result.line_width = 0;
-//    camera->last_result.center_x = 0.0f;
-//    camera->last_result.error_pixels = 0.0f;
-//    camera->last_result.error_normalized = 0.0f;
-//    camera->last_result.heading_error = 0.0f;
-//    camera->last_result.strength = 0.0f;
+//    camera->last_result.center_x = 0.0;
+//    camera->last_result.error_pixels = 0.0;
+//    camera->last_result.error_normalized = 0.0;
+//    camera->last_result.heading_error = 0.0;
+//    camera->last_result.strength = 0.0;
 //    camera->last_result.threshold_used = camera->config.threshold;
 //}
 //
@@ -76,18 +76,18 @@
 //        result.left_edge = 0;
 //        result.right_edge = 0;
 //        result.line_width = 0;
-//        result.center_x = 0.0f;
-//        result.error_pixels = 0.0f;
-//        result.error_normalized = 0.0f;
-//        result.heading_error = 0.0f;
-//        result.strength = 0.0f;
+//        result.center_x = 0.0;
+//        result.error_pixels = 0.0;
+//        result.error_normalized = 0.0;
+//        result.heading_error = 0.0;
+//        result.strength = 0.0;
 //        result.threshold_used = 0;
 //        return result;
 //    }
 //    result = camera->last_result;
 //    result.valid = 0;
 //    result.valid_rows = 0;
-//    result.strength = 0.0f;
+//    result.strength = 0.0;
 //    if (!cc_image_u8_is_valid(image)) return result;
 //
 //    top = camera->config.roi_top < image->height ? camera->config.roi_top : 0;
@@ -107,13 +107,13 @@
 //        if (!cc_image_u8_row_span(image, (uint16_t)row, threshold, camera->config.dark_is_line, &left, &right, &pixels)) continue;
 //        if (pixels < camera->config.minimum_line_pixels) continue;
 //        weighted_center += (uint64_t)(left + right) * pixels;
-//        weight += (uint64_t)2u * pixels;
-//        if (row < ((uint32_t)top + bottom) / 2u) {
+//        weight += (uint64_t)2 * pixels;
+//        if (row < ((uint32_t)top + bottom) / 2) {
 //            far_center_sum += (uint64_t)(left + right) * pixels;
-//            far_weight += (uint64_t)2u * pixels;
+//            far_weight += (uint64_t)2 * pixels;
 //        } else {
 //            near_center_sum += (uint64_t)(left + right) * pixels;
-//            near_weight += (uint64_t)2u * pixels;
+//            near_weight += (uint64_t)2 * pixels;
 //        }
 //        if (first_valid != 0) { overall_left = left; overall_right = right; first_valid = 0; }
 //        if (left < overall_left) overall_left = left;
@@ -130,23 +130,23 @@
 //        return result;
 //    }
 //
-//    image_center = (float)(image->width - 1u) * 0.5f + (float)camera->config.center_offset_pixels;
-//    half_width = (float)image->width * 0.5f;
+//    image_center = (float)(image->width - 1) * 0.5 + (float)camera->config.center_offset_pixels;
+//    half_width = (float)image->width * 0.5;
 //    result.valid = 1;
 //    result.valid_rows = valid_rows;
 //    result.lost_count = 0;
 //    result.left_edge = overall_left;
 //    result.right_edge = overall_right;
-//    result.line_width = (uint16_t)(overall_right - overall_left + 1u);
+//    result.line_width = (uint16_t)(overall_right - overall_left + 1);
 //    result.center_x = (float)weighted_center / (float)weight;
 //    result.error_pixels = result.center_x - image_center;
-//    result.error_normalized = cc_math_clamp_f32(result.error_pixels / half_width, -1.0f, 1.0f);
-//    result.heading_error = 0.0f;
+//    result.error_normalized = cc_math_clamp_f32(result.error_pixels / half_width, -1.0, 1.0);
+//    result.heading_error = 0.0;
 //    if (far_weight != 0 && near_weight != 0) {
 //        float far_center = (float)far_center_sum / (float)far_weight;
 //        float near_center = (float)near_center_sum / (float)near_weight;
 //        result.heading_error = cc_math_clamp_f32((near_center - far_center) / half_width,
-//                                                -1.0f, 1.0f);
+//                                                -1.0, 1.0);
 //    }
 //    result.strength = (float)valid_rows / (float)rows;
 //    camera->lost_count = 0;

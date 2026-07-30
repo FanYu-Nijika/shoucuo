@@ -28,7 +28,18 @@ extern int16 Right_Line[MT9V03X_H];
 
 extern uint16 Search_Stop_Line;
 
-extern uint8 Cross_Flag;
+// extern uint8 Cross_Flag;
+typedef enum
+{
+    CROSS_NONE = 0,
+    CROSS_APPROACH,
+    CROSS_INSIDE
+} cross_state_t;
+
+extern cross_state_t cross_state;
+extern uint16 cross_lost_count;
+extern uint16 cross_inside_count;
+
 extern uint8 Cross_Count;
 
 extern int16 Center_Line[MT9V03X_H];

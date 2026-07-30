@@ -38,6 +38,7 @@
 #include <string.h>
 
 #include "car_menu.h"
+#include "car.h"
 #include "car_shared.h"
 #include "image.h"
 
@@ -49,11 +50,23 @@
 // 本例程是开源库空工程 可用作移植或者测试各类内外设
 
 #define PIT_NUM                 (CCU60_CH0 )
+#define CAR_CONTROL_RESULT_TIMEOUT_MS (200)
 
 
 volatile uint32 car_time_ms = 0;
 volatile int16 control_error = 0;
 volatile uint8 control_valid = 0;
+volatile uint8 control_result_new = 0;
+volatile uint32 control_result_age_ms = 0;
+
+void car_control_clear_latched_result(void)
+{
+    control_error = 0;
+    control_valid = 0;
+    control_result_new = 0;
+    control_result_age_ms = 0;
+    __dsync();
+}
 
 static int8_t find_free_frame_slot(uint8_t preferred_slot)
 {
@@ -72,7 +85,9 @@ static void update_display_slot(uint8_t slot)
     uint8_t old_slot = car_display_slot;
 
     if (old_slot != CAR_FRAME_SLOT_NONE && old_slot != slot && old_slot < CAR_FRAME_SLOT_COUNT) {
-        if (car_frame_state[old_slot] == CAR_FRAME_DISPLAY_READY) {
+        if (car_frame_state[old_slot] == CAR_FRAME_DISPLAY_READING) {
+            car_display_pending_free_slot = old_slot;
+        } else if (car_frame_state[old_slot] == CAR_FRAME_DISPLAY_READY) {
             car_frame_state[old_slot] = CAR_FRAME_FREE;
             car_display_drop_count++;
         }
@@ -92,7 +107,6 @@ int core0_main(void)
     // 此处编写用户代码 例如外设初始化代码等
 
     car_menu_init();
-    car_init();
     pit_ms_init(PIT_NUM, 20);
 
     // 此处编写用户代码 例如外设初始化代码等
@@ -104,6 +118,10 @@ int core0_main(void)
             uint32 now_ms = system_getval_ms();
             uint32 frame_period_ms = last_frame_ms == 0 ? 20 : now_ms - last_frame_ms;
             int8_t slot;
+
+            car_camera_frame_count++;
+            car_camera_last_frame_ms = now_ms;
+            car_camera_age_ms = 0;
 
             if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
             last_frame_ms = now_ms;
@@ -118,7 +136,7 @@ int core0_main(void)
                 __dsync();
                 car_frame_state[(uint8_t)slot] = CAR_FRAME_READY;
                 __dsync();
-                next_frame_slot = (uint8_t)(((uint8_t)slot + 1U) % CAR_FRAME_SLOT_COUNT);
+                next_frame_slot = (uint8_t)(((uint8_t)slot + 1) % CAR_FRAME_SLOT_COUNT);
                 car_menu_frame_accepted(frame_period_ms);
             } else {
                 car_capture_drop_count++;
@@ -126,18 +144,7 @@ int core0_main(void)
             mt9v03x_finish_flag = 0;
         }
 
-        // CPU1处理完成后，CPU0读取偏差并更新舵机和两个后轮电机。
-        // if (car_result_ready != 0) {
-        //     car_result_t result;
-
-        //     __dsync();
-        //     result = car_result;
-        //     car_result_ready = 0;
-        //     __dsync();
-        //     if (result.frame_slot < CAR_FRAME_SLOT_COUNT) update_display_slot(result.frame_slot);
-        //     car_track_update((int16)result.error_pixels, result.line_valid);
-        //     car_menu_result_accepted();
-        // }
+        car_camera_age_ms = car_camera_frame_count == 0 ? 0 : system_getval_ms() - car_camera_last_frame_ms;
 
         if (car_result_ready != 0) {
             car_result_t result;
@@ -149,6 +156,9 @@ int core0_main(void)
 
             control_error = (int16)result.error_pixels;
             control_valid = result.line_valid;
+            control_result_age_ms = 0;
+            control_result_new = 1;
+            __dsync();
 
             if (result.frame_slot < CAR_FRAME_SLOT_COUNT)
                 update_display_slot(result.frame_slot);
@@ -168,7 +178,14 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     pit_clear_flag(CCU60_CH0);
 
     car_time_ms += 20;
-    car_track_update(control_error, control_valid);
+    if (control_result_age_ms < CAR_CONTROL_RESULT_TIMEOUT_MS) control_result_age_ms += 20;
+    if (car_running != 0 && control_result_age_ms >= CAR_CONTROL_RESULT_TIMEOUT_MS) {
+        car_control_clear_latched_result();
+        car_stop();
+    } else {
+        car_track_update(control_error, control_valid, control_result_new);
+        control_result_new = 0;
+    }
 }
 
 #pragma section all restore

@@ -3,23 +3,23 @@
 
 #include <stdint.h>
 
-#define CAR_PATH_WEIGHT_FAR       (0.30f)
-#define CAR_PATH_WEIGHT_MIDDLE    (1.00f)
-#define CAR_PATH_WEIGHT_NEAR      (1.50f)
-#define CAR_STEERING_KP_DEFAULT   (2.75f)
-#define CAR_STEERING_KD_DEFAULT   (18.88f)
-#define CAR_CURVE_STEERING_KP_DEFAULT         (5.50f)
-#define CAR_CURVE_STEERING_KD_DEFAULT         (680.00f)
-#define CAR_CURVE_VARIANCE_DEFAULT             (8.00f)
-#define CAR_CURVE_BLEND_THRESHOLD1_DEFAULT    (0.15f)
-#define CAR_CURVE_BLEND_THRESHOLD2_DEFAULT    (0.45f)
-#define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.35f)
-#define CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT    (0.10f)
-#define CAR_CURVE_PREVIEW_BASE_DEFAULT_CM     (8.0f)
-#define CAR_CURVE_PREVIEW_SPEED_DEFAULT_CM    (4.0f)
-#define CAR_WHEEL_ANGLE_MAX_DEG   (40.0f)
+#define CAR_PATH_WEIGHT_FAR       (0.30)
+#define CAR_PATH_WEIGHT_MIDDLE    (1.00)
+#define CAR_PATH_WEIGHT_NEAR      (1.50)
+#define CAR_STEERING_KP_DEFAULT   (2.75)
+#define CAR_STEERING_KD_DEFAULT   (18.88)
+#define CAR_CURVE_STEERING_KP_DEFAULT         (5.50)
+#define CAR_CURVE_STEERING_KD_DEFAULT         (680.00)
+#define CAR_CURVE_VARIANCE_DEFAULT             (8.00)
+#define CAR_CURVE_BLEND_THRESHOLD1_DEFAULT    (0.15)
+#define CAR_CURVE_BLEND_THRESHOLD2_DEFAULT    (0.45)
+#define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.35)
+#define CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT    (0.10)
+#define CAR_CURVE_PREVIEW_BASE_DEFAULT_CM     (8.0)
+#define CAR_CURVE_PREVIEW_SPEED_DEFAULT_CM    (4.0)
+#define CAR_WHEEL_ANGLE_MAX_DEG   (40.0)
 #define CAR_MAXIMUM_STEERING_US    (280)
-#define CAR_LOST_STOP_FRAMES       (600)
+#define CAR_LOST_STOP_FRAMES       (50)
 #define CAR_CONTROL_ROW_FAR_DEFAULT  (56)
 #define CAR_CONTROL_ROW_NEAR_DEFAULT (84)
 
@@ -76,6 +76,13 @@ typedef struct {
 
     uint8_t automatic_threshold;
     uint8_t cross_enabled;
+    uint8_t cross_min_both_lost;
+    uint16_t cross_min_white_column;
+    uint8_t cross_edge_stable_diff;
+    uint8_t cross_tear_diff_first;
+    uint8_t cross_tear_diff_second;
+    uint8_t cross_corner_row_gap_max;
+    uint16_t cross_max_lost_rows;
     uint8_t threshold;
     uint8_t dark_is_line;
     uint8_t minimum_line_pixels;

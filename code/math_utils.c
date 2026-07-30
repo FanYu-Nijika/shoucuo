@@ -94,8 +94,8 @@ int32_t cc_math_deadzone_i32(int32_t value, int32_t radius)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_deadzone_f32(float value, float radius)
 {
-    if (radius < 0.0f) radius = -radius;
-    return fabsf(value) < radius ? 0.0f : value;
+    if (radius < 0.0) radius = -radius;
+    return fabsf(value) < radius ? 0.0 : value;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -119,7 +119,7 @@ int32_t cc_math_sign_i32(int32_t value)
 //-------------------------------------------------------------------------------------------------------------------
 int32_t cc_math_round_f32_to_i32(float value)
 {
-    return value >= 0.0f ? (int32_t)(value + 0.5f) : (int32_t)(value - 0.5f);
+    return value >= 0.0 ? (int32_t)(value + 0.5) : (int32_t)(value - 0.5);
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -141,7 +141,7 @@ float cc_math_lerp(float first, float second, float amount)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_inverse_lerp(float first, float second, float value)
 {
-    if (first == second) return 0.0f;
+    if (first == second) return 0.0;
     return (value - first) / (second - first);
 }
 
@@ -153,8 +153,8 @@ float cc_math_inverse_lerp(float first, float second, float value)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_smoothstep(float edge0, float edge1, float value)
 {
-    float amount = cc_math_clamp_f32(cc_math_inverse_lerp(edge0, edge1, value), 0.0f, 1.0f);
-    return amount * amount * (3.0f - 2.0f * amount);
+    float amount = cc_math_clamp_f32(cc_math_inverse_lerp(edge0, edge1, value), 0.0, 1.0);
+    return amount * amount * (3.0 - 2.0 * amount);
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -166,9 +166,9 @@ float cc_math_smoothstep(float edge0, float edge1, float value)
 float cc_math_approach(float current, float target, float step)
 {
     float distance = target - current;
-    if (step < 0.0f) step = -step;
+    if (step < 0.0) step = -step;
     if (fabsf(distance) <= step) return target;
-    return current + (distance > 0.0f ? step : -step);
+    return current + (distance > 0.0 ? step : -step);
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -179,8 +179,8 @@ float cc_math_approach(float current, float target, float step)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_wrap_degrees(float degrees)
 {
-    while (degrees > 180.0f) degrees -= 360.0f;
-    while (degrees < -180.0f) degrees += 360.0f;
+    while (degrees > 180.0) degrees -= 360.0;
+    while (degrees < -180.0) degrees += 360.0;
     return degrees;
 }
 
@@ -192,8 +192,8 @@ float cc_math_wrap_degrees(float degrees)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_wrap_radians(float radians)
 {
-    const float pi = 3.14159265358979323846f;
-    const float two_pi = 6.28318530717958647692f;
+    const float pi = 3.14159265358979323846;
+    const float two_pi = 6.28318530717958647692;
     while (radians > pi) radians -= two_pi;
     while (radians < -pi) radians += two_pi;
     return radians;
@@ -218,7 +218,7 @@ float cc_math_normalize_angle_error(float target, float measured)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_math_safe_divide(float numerator, float denominator, float fallback)
 {
-    if (fabsf(denominator) < 0.000001f) return fallback;
+    if (fabsf(denominator) < 0.000001) return fallback;
     return numerator / denominator;
 }
 

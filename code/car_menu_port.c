@@ -15,7 +15,7 @@
  */
 #define CC_SERVO_MIN_DUTY           (600)
 #define CC_SERVO_CENTER_DUTY        (700)
-#define CC_SERVO_MAX_DUTY           (800U)
+#define CC_SERVO_MAX_DUTY           (800)
 
 static uint8_t camera_online;
 static uint8_t actuator_ready;
@@ -32,8 +32,8 @@ static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reve
     uint32_t duty;
 
     /* Disable both H-bridge inputs before changing direction. */
-    pwm_set_duty(forward_pin, 0U);
-    pwm_set_duty(reverse_pin, 0U);
+    pwm_set_duty(forward_pin, 0);
+    pwm_set_duty(reverse_pin, 0);
     if (value == 0) return;
 
     duty = (uint32_t)(value > 0 ? value : -value);
@@ -55,19 +55,19 @@ void cc_tc264_board_init(void)
     gpio_init(BOARD_KEY_AUX1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_AUX2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
-    pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0U);
-    pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0U);
-    pwm_init(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0U);
-    pwm_init(BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0U);
+    pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
+    pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
+    pwm_init(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
+    pwm_init(BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
     pwm_init(BOARD_SERVO_PWM_PIN, CC_SERVO_PWM_FREQUENCY_HZ, CC_SERVO_CENTER_DUTY);
 
-    actuator_ready = 1U;
+    actuator_ready = 1;
     cc_tc264_menu_motor_stop();
 }
 
 uint8_t cc_tc264_menu_key_mask(void)
 {
-    uint8_t mask = 0U;
+    uint8_t mask = 0;
 
     if (gpio_get_level(BOARD_KEY_UP_PIN) == GPIO_LOW) mask |= CC_KEY_UP_MASK;
     if (gpio_get_level(BOARD_KEY_DOWN_PIN) == GPIO_LOW) mask |= CC_KEY_DOWN_MASK;
@@ -80,9 +80,9 @@ uint8_t cc_tc264_menu_key_mask(void)
 uint8_t cc_tc264_camera_init(void)
 {
 #if BOARD_CAMERA_ENABLE
-    camera_online = mt9v03x_init() == 0 ? 1U : 0U;
+    camera_online = mt9v03x_init() == 0 ? 1 : 0;
 #else
-    camera_online = 0U;
+    camera_online = 0;
 #endif
     return camera_online;
 }
@@ -95,22 +95,22 @@ uint8_t cc_tc264_camera_ready(void)
 uint8_t cc_tc264_camera_set_exposure(uint16_t exposure)
 {
 #if BOARD_CAMERA_ENABLE
-    if (camera_online == 0U) return 0U;
-    return mt9v03x_set_exposure_time(exposure) == 0 ? 1U : 0U;
+    if (camera_online == 0) return 0;
+    return mt9v03x_set_exposure_time(exposure) == 0 ? 1 : 0;
 #else
     (void)exposure;
-    return 0U;
+    return 0;
 #endif
 }
 
 uint8_t cc_tc264_camera_set_gain(uint8_t gain)
 {
 #if BOARD_CAMERA_ENABLE
-    if (camera_online == 0U) return 0U;
-    return mt9v03x_set_reg(0x35U, gain) == 0 ? 1U : 0U;
+    if (camera_online == 0) return 0;
+    return mt9v03x_set_reg(0x35, gain) == 0 ? 1 : 0;
 #else
     (void)gain;
-    return 0U;
+    return 0;
 #endif
 }
 
@@ -121,21 +121,21 @@ uint8_t cc_tc264_motor_ready(void)
 
 void cc_tc264_menu_motor_write(int16_t left, int16_t right)
 {
-    if (actuator_ready == 0U) return;
+    if (actuator_ready == 0) return;
     write_motor_pair(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, left);
     write_motor_pair(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, right);
 }
 
 void cc_tc264_menu_motor_stop(void)
 {
-    if (actuator_ready == 0U) return;
+    if (actuator_ready == 0) return;
     write_motor_pair(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, 0);
     write_motor_pair(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, 0);
 }
 
 void cc_tc264_menu_servo_write_us(int16_t pulse_us)
 {
-    if (actuator_ready == 0U) return;
+    if (actuator_ready == 0) return;
     pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_duty(pulse_us));
 }
 

@@ -44,10 +44,10 @@
 static int8_t newest_ready_slot(void)
 {
     int8_t selected = -1;
-    uint32_t selected_sequence = 0U;
+    uint32_t selected_sequence = 0;
     uint8_t slot;
 
-    for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+    for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
         if (car_frame_state[slot] == CAR_FRAME_READY &&
             (selected < 0 || car_frame_slot_sequence[slot] > selected_sequence)) {
             selected = (int8_t)slot;
@@ -79,17 +79,18 @@ void core1_main(void)
             uint32_t frame_sequence;
             car_result_t result;
 
-            for (slot = 0U; slot < CAR_FRAME_SLOT_COUNT; slot++) {
+            for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
                 if (slot != (uint8_t)selected && car_frame_state[slot] == CAR_FRAME_READY) {
                     car_frame_state[slot] = CAR_FRAME_FREE;
                     car_processing_drop_count++;
                 }
             }
+            __dsync();
             car_frame_state[(uint8_t)selected] = CAR_FRAME_READING;
             __dsync();
 
             frame_sequence = car_frame_slot_sequence[(uint8_t)selected];
-            image_deal(0U, CAR_IMAGE_HEIGHT, &car_gray_frames[(uint8_t)selected][0][0],
+            image_deal(0, CAR_IMAGE_HEIGHT, &car_gray_frames[(uint8_t)selected][0][0],
                        &car_binary_frames[(uint8_t)selected][0][0], &result);
             processing_us = system_getval_us() - start_us;
             result.frame_slot = (uint8_t)selected;
@@ -97,15 +98,16 @@ void core1_main(void)
             result.processing_time_us = processing_us;
 
             if (processing_us > car_vision_max_us) car_vision_max_us = processing_us;
-            if (car_result_ready != 0U) {
+            if (car_result_ready != 0) {
                 car_result_drop_count++;
                 car_frame_state[(uint8_t)selected] = CAR_FRAME_FREE;
+                __dsync();
             } else {
                 car_result = result;
                 __dsync();
                 car_frame_state[(uint8_t)selected] = CAR_FRAME_DISPLAY_READY;
                 __dsync();
-                car_result_ready = 1U;
+                car_result_ready = 1;
                 __dsync();
             }
 
