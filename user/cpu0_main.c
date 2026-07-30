@@ -52,12 +52,14 @@
 
 
 volatile uint32 car_time_ms = 0;
+volatile int16 control_error = 0;
+volatile uint8 control_valid = 0;
 
 static int8_t find_free_frame_slot(uint8_t preferred_slot)
 {
     uint8_t offset;
 
-    for (offset = 0U; offset < CAR_FRAME_SLOT_COUNT; offset++) {
+    for (offset = 0; offset < CAR_FRAME_SLOT_COUNT; offset++) {
         uint8_t slot = (uint8_t)((preferred_slot + offset) % CAR_FRAME_SLOT_COUNT);
 
         if (car_frame_state[slot] == CAR_FRAME_FREE) return (int8_t)slot;
@@ -82,8 +84,8 @@ static void update_display_slot(uint8_t slot)
 // **************************** 代码区域 ****************************
 int core0_main(void)
 {
-    uint32 last_frame_ms = 0U;
-    uint8 next_frame_slot = 0U;
+    uint32 last_frame_ms = 0;
+    uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
     debug_init();                   // 初始化默认调试串口
@@ -91,19 +93,19 @@ int core0_main(void)
 
     car_menu_init();
     car_init();
-    pit_ms_init(PIT_NUM, 5);
+    pit_ms_init(PIT_NUM, 20);
 
     // 此处编写用户代码 例如外设初始化代码等
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE) {
         // 此处编写需要循环执行的代码
 
-        if (mt9v03x_finish_flag != 0U) {
+        if (mt9v03x_finish_flag != 0) {
             uint32 now_ms = system_getval_ms();
-            uint32 frame_period_ms = last_frame_ms == 0U ? 20U : now_ms - last_frame_ms;
+            uint32 frame_period_ms = last_frame_ms == 0 ? 20 : now_ms - last_frame_ms;
             int8_t slot;
 
-            if (frame_period_ms == 0U || frame_period_ms > 250U) frame_period_ms = 20U;
+            if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
             last_frame_ms = now_ms;
 
             slot = find_free_frame_slot(next_frame_slot);
@@ -121,22 +123,38 @@ int core0_main(void)
             } else {
                 car_capture_drop_count++;
             }
-            mt9v03x_finish_flag = 0U;
+            mt9v03x_finish_flag = 0;
         }
 
         // CPU1处理完成后，CPU0读取偏差并更新舵机和两个后轮电机。
-        if (car_result_ready != 0U) {
+        // if (car_result_ready != 0) {
+        //     car_result_t result;
+
+        //     __dsync();
+        //     result = car_result;
+        //     car_result_ready = 0;
+        //     __dsync();
+        //     if (result.frame_slot < CAR_FRAME_SLOT_COUNT) update_display_slot(result.frame_slot);
+        //     car_track_update((int16)result.error_pixels, result.line_valid);
+        //     car_menu_result_accepted();
+        // }
+
+        if (car_result_ready != 0) {
             car_result_t result;
 
             __dsync();
             result = car_result;
-            car_result_ready = 0U;
+            car_result_ready = 0;
             __dsync();
-            if (result.frame_slot < CAR_FRAME_SLOT_COUNT) update_display_slot(result.frame_slot);
-            car_track_update((int16)result.error_pixels, result.line_valid);
+
+            control_error = (int16)result.error_pixels;
+            control_valid = result.line_valid;
+
+            if (result.frame_slot < CAR_FRAME_SLOT_COUNT)
+                update_display_slot(result.frame_slot);
+
             car_menu_result_accepted();
         }
-
         car_menu_task();
 
         // 此处编写需要循环执行的代码
@@ -145,9 +163,12 @@ int core0_main(void)
 
 IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 {
-    interrupt_global_enable(0);                     // 开启中断嵌套
+    interrupt_global_enable(0);
+
     pit_clear_flag(CCU60_CH0);
+
     car_time_ms += 5;
+    car_track_update(control_error, control_valid);
 }
 
 #pragma section all restore
