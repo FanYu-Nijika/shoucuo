@@ -244,9 +244,9 @@ int Find_Left_Up_Point(int start,int end)
     if (Left_Lost_Time >= car_params.cross_max_lost_rows) return left_up_line;
     cross_prepare_search_range(&start, &end);
     for (i = start; i >= end; i--) {
-        if (abs(Left_Line[i] - Left_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
-            abs(Left_Line[i + 1] - Left_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
-            abs(Left_Line[i + 2] - Left_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+        if (abs(Left_Line[i] - Left_Line[i - 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i - 1] - Left_Line[i - 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Left_Line[i - 2] - Left_Line[i - 3]) <= car_params.cross_edge_stable_diff &&
             Left_Line[i] - Left_Line[i + 2] >= car_params.cross_tear_diff_first &&
             Left_Line[i] - Left_Line[i + 3] >= car_params.cross_tear_diff_second &&
             Left_Line[i] - Left_Line[i + 4] >= car_params.cross_tear_diff_second) {
@@ -265,9 +265,9 @@ int Find_Right_Up_Point(int start,int end)
     if (Right_Lost_Time >= car_params.cross_max_lost_rows) return right_up_line;
     cross_prepare_search_range(&start, &end);
     for (i = start; i >= end; i--) {
-        if (abs(Right_Line[i] - Right_Line[i + 1]) <= car_params.cross_edge_stable_diff &&
-            abs(Right_Line[i + 1] - Right_Line[i + 2]) <= car_params.cross_edge_stable_diff &&
-            abs(Right_Line[i + 2] - Right_Line[i + 3]) <= car_params.cross_edge_stable_diff &&
+        if (abs(Right_Line[i] - Right_Line[i - 1]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i - 1] - Right_Line[i - 2]) <= car_params.cross_edge_stable_diff &&
+            abs(Right_Line[i - 2] - Right_Line[i - 3]) <= car_params.cross_edge_stable_diff &&
             Right_Line[i + 2] - Right_Line[i] >= car_params.cross_tear_diff_first &&
             Right_Line[i + 3] - Right_Line[i] >= car_params.cross_tear_diff_second &&
             Right_Line[i + 4] - Right_Line[i] >= car_params.cross_tear_diff_second) {
@@ -357,7 +357,7 @@ static void cross_write_binary_point(int row,int column)
     if (binary_image == 0 || row < 0 || row >= MT9V03X_H) return;
     if (column < 0) column = 0;
     if (column >= MT9V03X_W) column = MT9V03X_W - 1;
-    binary_image[row * MT9V03X_W + column] = 1;
+    binary_image[row * MT9V03X_W + column] = 0;
 }
 
 void Add_Left_Line(int start,int end)

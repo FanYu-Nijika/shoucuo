@@ -132,8 +132,8 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "EXPOSURE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.exposure, 1, 4000, 16, 0, CAR_MENU_APPLY_EXPOSURE, 0},
     {0, CAR_MENU_PAGE_VISION, "GAIN", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.gain, 0, 64, 1, 0, CAR_MENU_APPLY_GAIN, 0},
 
-    {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "LEFT COMMAND", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.left_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT COMMAND", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.right_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
@@ -790,7 +790,7 @@ void car_menu_init(void)
     car_shared_clear();
     car_params_reset();
     car_apply_menu_params(&car_params);
-    ips200_set_dir(IPS200_CROSSWISE);
+    ips200_set_dir(IPS200_CROSSWISE_180);
     ips200_init(IPS200_TYPE_SPI);
     car_uart_stream_init();
 
