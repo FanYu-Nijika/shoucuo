@@ -179,20 +179,20 @@ float Calculate_Error(void)
 
     for (i = 30; i <= end_row; i += 5)
     {
-        // float weight = i - 20;
+        float weight = i - 20;
         // float weight = 1;
-        float weight;
-        if (end_row == 90) {
-            weight = i-20;
-        }
-        else {
-            if (end_row <= 60) {
-                weight = i+20/(end_row-30)*i;
-            }
-            else {
-                weight = i-20;
-            }
-        }
+        // float weight;
+        // if (end_row == 90) {
+        //     weight = i-20;
+        // }
+        // else {
+        //     if (end_row <= 60) {
+        //         weight = i+20/(end_row-30)*i;
+        //     }
+        //     else {
+        //         weight = i-20;
+        //     }
+        // }
 
         sum += Center_Line[i] * weight;
         weight_sum += weight;

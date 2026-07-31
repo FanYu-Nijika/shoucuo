@@ -198,7 +198,7 @@ void car_track_update(float error, uint8 valid, uint8 new_result)
     last_valid_error = error;
     d_error = error-last_error;
     last_error = error;
-    d_filter += 0.1*(d_error-d_filter);
+    d_filter += 0.8*(d_error-d_filter);
     steering = steering_kp * error + steering_kd * d_filter;
     if (servo_reverse) steering = -steering;
 
