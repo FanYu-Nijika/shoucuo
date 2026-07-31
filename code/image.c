@@ -179,7 +179,20 @@ float Calculate_Error(void)
 
     for (i = 30; i <= end_row; i += 5)
     {
-        float weight = i - 20;
+        // float weight = i - 20;
+        // float weight = 1;
+        float weight;
+        if (end_row == 90) {
+            weight = i-20;
+        }
+        else {
+            if (end_row <= 60) {
+                weight = i+20/(end_row-30)*i;
+            }
+            else {
+                weight = i-20;
+            }
+        }
 
         sum += Center_Line[i] * weight;
         weight_sum += weight;
@@ -579,7 +592,7 @@ static uint8 cross_pair_slope_ok(int row1,int x1,int row2,int x2)
     /* The straight-entry samples are below 0.83. A limit of 2 keeps margin
      * for pixel noise while rejecting a nearly horizontal false connection. */
     if (dy <= 0) return 0;
-    return dx <= 2*dy;
+    return dx <= dy;
 }
 
 void shizibuxian(void)

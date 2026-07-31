@@ -31,7 +31,7 @@ void car_set_camera_ready(uint8 ready);
 void car_set_running(uint8 running);
 void car_toggle_running(void);
 void car_stop(void);
-void car_track_update(int16 error, uint8 valid, uint8 new_result);
+void car_track_update(float error, uint8 valid, uint8 new_result);
 void car_apply_menu_params(const volatile car_params_t *params);
 void car_control_clear_latched_result(void);
 

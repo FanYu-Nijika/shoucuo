@@ -1,35 +1,35 @@
 /*********************************************************************************************************************
-* TC264 Opensourec Library 即（TC264 开源库）是一个基于官方 SDK 接口的第三方开源库
-* Copyright (c) 2022 SEEKFREE 逐飞科技
+* TC264 Opensourec Library 即（TC264 开源库）是一�?基于官方 SDK 接口的�??三方开源库
+* Copyright (c) 2022 SEEKFREE 逐�?��?�技
 *
-* 本文件是 TC264 开源库的一部分
+* �?文件�? TC264 开源库的一部分
 *
-* TC264 开源库 是免费软件
-* 您可以根据自由软件基金会发布的 GPL（GNU General Public License，即 GNU通用公共许可证）的条款
-* 即 GPL 的第3版（即 GPL3.0）或（您选择的）任何后来的版本，重新发布和/或修改它
+* TC264 开源库 �?免费�?�?
+* 您可以根�?�?由软件基金会发布�? GPL（GNU General Public License，即 GNU通用�?共�?�可证）的条�?
+* �? GPL 的�??3版（�? GPL3.0）或（您选择的）任何后来的版�?，重新发布和/或修改它
 *
-* 本开源库的发布是希望它能发挥作用，但并未对其作任何的保证
+* �?开源库的发布是希望它能发挥作用，但并未对其作任何的保证
 * 甚至没有隐含的适销性或适合特定用途的保证
-* 更多细节请参见 GPL
+* 更�?�细节�?�参�? GPL
 *
-* 您应该在收到本开源库的同时收到一份 GPL 的副本
-* 如果没有，请参阅<https://www.gnu.org/licenses/>
+* 您应该在收到�?开源库的同时收到一�? GPL 的副�?
+* 如果没有，�?�参�?<https://www.gnu.org/licenses/>
 *
-* 额外注明：
-* 本开源库使用 GPL3.0 开源许可证协议 以上许可申明为译文版本
-* 许可申明英文版在 libraries/doc 文件夹下的 GPL3_permission_statement.txt 文件中
-* 许可证副本在 libraries 文件夹下 即该文件夹下的 LICENSE 文件
-* 欢迎各位使用并传播本程序 但修改内容时必须保留逐飞科技的版权声明（即本声明）
+* 额�?�注明：
+* �?开源库使用 GPL3.0 开源�?�可证协�? 以上许可申明为译文版�?
+* 许可申明英文版在 libraries/doc 文件夹下�? GPL3_permission_statement.txt 文件�?
+* 许可证副�?�? libraries 文件夹下 即�?�文件夹下的 LICENSE 文件
+* 欢迎各位使用并传�?�?程序 但修改内容时必须保留逐�?��?�技的版权声明（即本声明�?
 *
 * 文件名称          cpu0_main
-* 公司名称          成都逐飞科技有限公司
+* �?司名�?          成都逐�?��?�技有限�?�?
 * 版本信息          查看 libraries/doc 文件夹内 version 文件 版本说明
-* 开发环境          ADS v1.10.2
+* 开发环�?          ADS v1.10.2
 * 适用平台          TC264D
 * 店铺链接          https://seekfree.taobao.com/
 *
-* 修改记录
-* 日期              作者                备注
+* �?改�?�录
+* 日期              作�?                备注
 * 2022-09-15       pudding            first version
 ********************************************************************************************************************/
 
@@ -43,18 +43,18 @@
 #include "image.h"
 
 #pragma section all "cpu0_dsram"
-// 将本语句与#pragma section all restore语句之间的全局变量都放在CPU0的RAM中
+// 将本�?句与#pragma section all restore�?句之间的全局变量都放在CPU0的RAM�?
 
-// 本例程是开源库空工程 可用作移植或者测试各类内外设
-// 本例程是开源库空工程 可用作移植或者测试各类内外设
-// 本例程是开源库空工程 可用作移植或者测试各类内外设
+// �?例程�?开源库空工�? �?用作移�?�或者测试各类内外�??
+// �?例程�?开源库空工�? �?用作移�?�或者测试各类内外�??
+// �?例程�?开源库空工�? �?用作移�?�或者测试各类内外�??
 
 #define PIT_NUM                 (CCU60_CH0 )
 #define CAR_CONTROL_RESULT_TIMEOUT_MS (200)
 
 
 volatile uint32 car_time_ms = 0;
-volatile int16 control_error = 0;
+volatile float control_error = 0;
 volatile uint8 control_valid = 0;
 volatile uint8 control_result_new = 0;
 volatile uint32 control_result_age_ms = 0;
@@ -103,16 +103,16 @@ int core0_main(void)
     uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
-    debug_init();                   // 初始化默认调试串口
-    // 此处编写用户代码 例如外设初始化代码等
+    debug_init();                   // 初�?�化默�?�调试串�?
+    // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
 
     car_menu_init();
     pit_ms_init(PIT_NUM, 20);
 
-    // 此处编写用户代码 例如外设初始化代码等
+    // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE) {
-        // 此处编写需要循环执行的代码
+        // 此�?�编写需要循�?执�?�的代码
 
         if (mt9v03x_finish_flag != 0) {
             uint32 now_ms = system_getval_ms();
@@ -154,7 +154,7 @@ int core0_main(void)
             car_result_ready = 0;
             __dsync();
 
-            control_error = (int16)result.error_pixels;
+            control_error = result.error_pixels;
             control_valid = result.line_valid;
             control_result_age_ms = 0;
             control_result_new = 1;
@@ -172,7 +172,7 @@ int core0_main(void)
         }
         car_menu_task();
 
-        // 此处编写需要循环执行的代码
+        // 此�?�编写需要循�?执�?�的代码
     }
 }
 

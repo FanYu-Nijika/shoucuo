@@ -4,9 +4,9 @@
 #include "image.h"
 #include "math_utils.h"
 
-#define CAR_SERVO_MIN_DUTY (660)
+#define CAR_SERVO_MIN_DUTY (620)
 #define CAR_SERVO_CENTER_DUTY (760)
-#define CAR_SERVO_MAX_DUTY (860)
+#define CAR_SERVO_MAX_DUTY (900)
 
 uint8 car_running = 0;
 uint8 car_camera_ready = 0;
@@ -31,8 +31,8 @@ float steering_kp = CAR_STEERING_KP_DEFAULT;
 float steering_kd = CAR_STEERING_KD_DEFAULT;
 
 static uint8 had_valid_track = 0;
-static int16 last_error = 0;
-static int16 last_valid_error = 0;
+static float last_error = 0;
+static float last_valid_error = 0;
 static const uint8 car_line_loss_protection_enabled = 0;
 
 void car_apply_menu_params(const volatile car_params_t *params)
@@ -148,12 +148,13 @@ void car_stop(void)
     car_set_servo(servo_center_duty);
 }
 
-void car_track_update(int16 error, uint8 valid, uint8 new_result)
+void car_track_update(float error, uint8 valid, uint8 new_result)
 {
     int16 speed;
-    int16 error_abs;
+    float error_abs;
     float steering;
     float servo_command;
+    static float d_error = 0., d_filter = 0.;
 
     if (!car_running) {
         car_set_motor(0, 0);
@@ -195,8 +196,10 @@ void car_track_update(int16 error, uint8 valid, uint8 new_result)
     car_lost_count = 0;
     had_valid_track = 1;
     last_valid_error = error;
-    steering = steering_kp * error + steering_kd * (error - last_error);
+    d_error = error-last_error;
     last_error = error;
+    d_filter += 0.1*(d_error-d_filter);
+    steering = steering_kp * error + steering_kd * d_filter;
     if (servo_reverse) steering = -steering;
 
     servo_command = servo_center_duty + steering;

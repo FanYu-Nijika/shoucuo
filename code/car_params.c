@@ -6,8 +6,9 @@
 
 #define CAR_PARAMS_FLASH_SECTOR          (0)
 #define CAR_PARAMS_FLASH_PAGE            (8)
+#define CAR_PARAMS_FLASH_FORMAT_VERSION  (2)
 #define CAR_PARAMS_FLASH_PROFILE_COUNT   (4)
-#define CAR_PARAMS_FLASH_PROFILE_START   (1)
+#define CAR_PARAMS_FLASH_PROFILE_START   (2)
 #define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
 
 static void car_params_flash_factory_init(void);
@@ -29,9 +30,9 @@ const car_params_t car_default_params = {
     .lost_stop_frames = CAR_LOST_STOP_FRAMES,
 
     /* Simple PD units: us/pixel and us/pixel/frame. */
-    .steering_kp = 2.5,
+    .steering_kp = 3.0,
     // .steering_ki = 0.0,
-    .steering_kd = 4.0,
+    .steering_kd = 3.8,
     // .curve_variance_threshold = CAR_CURVE_VARIANCE_DEFAULT,
     // .curve_blend_threshold1 = CAR_CURVE_BLEND_THRESHOLD1_DEFAULT,
     // .curve_blend_threshold2 = CAR_CURVE_BLEND_THRESHOLD2_DEFAULT,
@@ -60,7 +61,7 @@ const car_params_t car_default_params = {
      * PWM duty 660/760/860 corresponds to about 1320/1520/1720 us at 50 Hz.
      * Positive image error means track is right, so servo output is reversed.
      */
-    .servo_center_us = 1520,
+    .servo_center_us = 1540,
     .servo_travel_us = 200,
     .servo_reverse = 1,
 
@@ -102,6 +103,15 @@ const car_params_t car_default_params = {
 volatile car_params_t car_params;
 
 #pragma section all restore
+
+
+
+
+
+
+
+
+
 
 void car_params_reset(void)
 {
@@ -153,7 +163,8 @@ uint8_t car_params_flash_load(void)
 {
     uint8_t gear = 1;
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-    if (car_params_flash_buffer_empty() != 0) {
+    if (car_params_flash_buffer_empty() != 0 ||
+        flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION) {
         car_params_flash_factory_init();
     } else {
         gear = flash_union_buffer[0].uint8_type;
@@ -201,6 +212,7 @@ void car_params_flash_save(uint8_t gear)
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
     flash_union_buffer[0].uint32_type = 0;
     flash_union_buffer[0].uint8_type = gear;
+    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
     memcpy(&flash_union_buffer[profile_offset], &stored_params, sizeof(car_params_t));
     flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
 }
@@ -214,6 +226,7 @@ static void car_params_flash_factory_init(void)
 
     flash_union_buffer[0].uint32_type = 0;
     flash_union_buffer[0].uint8_type = 1;
+    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
 
     for (gear = 1; gear <= 4; gear++) {
         offset = car_params_flash_profile_offset(gear);
