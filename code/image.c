@@ -23,6 +23,7 @@ uint8 right_edge[MT9V03X_H], right_index;
 uint8 LCenter[MT9V03X_H];
 uint16 Search_Stop_Line;
 int16 Center_Line[MT9V03X_H];
+static int16 Dynamic_Center_Line[MT9V03X_H];
 int a, stop_cnt;
 uint8 Cross_Flag;
 uint8 Cross_Count;
@@ -103,23 +104,24 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     } else {
         stop_cnt = 10;
     }
+    // Longest_White_Column();
     Longest_White_Column();
-    // uint8 xieru_type = Judge_xierushizi_type();
-    // if (xieru_type != CROSS_SKEW_NONE) {
-    //     Repair_xierushizi(xieru_type);
-    // }
-    // Center_Line_Calculate();
+    Build_Dynamic_Center_Line();
     xieru_type = Judge_xierushizi_type();
+
     if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
+
     if (threshold_lost == 0 && car_params.cross_enabled != 0) {
-        if (xieru_type != CROSS_SKEW_NONE ||
-            (Both_Lost_Time >= car_params.cross_min_both_lost &&
-            Search_Stop_Line >= car_params.cross_min_white_column &&
-            Left_Lost_Time < car_params.cross_max_lost_rows &&
-            Right_Lost_Time < car_params.cross_max_lost_rows)) {
+        if (xieru_type != CROSS_SKEW_NONE) {
             shizibuxian(xieru_type);
+        } else if (Both_Lost_Time >= car_params.cross_min_both_lost &&
+                Search_Stop_Line >= car_params.cross_min_white_column &&
+                Left_Lost_Time < car_params.cross_max_lost_rows &&
+                Right_Lost_Time < car_params.cross_max_lost_rows) {
+            shizibuxian(CROSS_SKEW_NONE);
         }
     }
+
     Center_Line_Calculate();
     if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
     // get_highest();
@@ -164,72 +166,171 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     result->line_valid = 1;
 }
 
-int Find_dynamic_middleSeed(uint8 type) //找真正的面向的中心,用于判断左右斜入
-{
-    int x, y, max_x = 0, max_length = 0, length, bottom_row = MT9V03X_H - 1, top_row = MT9V03X_H - 60;
-    int bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+// int Find_dynamic_middleSeed(uint8 type) //找真正的面向的中心,用于判断左右斜入
+// {
+//     int x, y, max_x = 0, max_length = 0, length, bottom_row = MT9V03X_H - 1, top_row = MT9V03X_H - 60;
+//     int bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
 
-    /*
-     * 在最下面一行左右边界之间，
-     * 找向上延伸最长的白色列。
-     */
-    for (x = Left_Line[bottom_row] + 1; x < Right_Line[bottom_row]; ++x) {
+//     /*
+//      * 在最下面一行左右边界之间，
+//      * 找向上延伸最长的白色列。
+//      */
+//     for (x = Left_Line[bottom_row] + 1; x < Right_Line[bottom_row]; ++x) {
+//         length = 0;
+//         for (y = bottom_row - 1; y >= top_row; y--) {
+//             if (binary_image[(y + 1) * width + x] != 0 && binary_image[y * width + x] == 0){
+//                 length = bottom_row - y;
+//                 // if (length > max_length) {
+//                 //     max_length = length;
+//                 //     max_x = x;
+//                 // }
+//                 break;
+//             }
+//             if (binary_image[(y + 1) * width + x] == 0 && binary_image[y * width + x] == 0){
+//                 break;
+//             }
+//             if (y == top_row) {
+//                 length = bottom_row - top_row;
+//                 if (length > max_length) {
+//                     max_length = length;
+//                     max_x = x;
+//                 }
+//             }
+//         }
+//         if (length > max_length || (length == max_length && length > 0 && abs(x - bottom_center) < abs(max_x - bottom_center))) {
+//             max_length = length;
+//             max_x = x;
+//         }
+//     }
+
+//     // if (max_x <= 0) max_x = 1;
+//     if (max_x <= 0) max_x = bottom_center;
+
+//     if (max_x >= width - 1) max_x = width - 2;
+
+//     /*
+//      * 从底部向上逐行扫描。
+//      * 每一行都以 max_x 为中心，分别寻找左右边界。
+//      */
+//     for (y = bottom_row - 1; y > top_row; y--)
+//     {
+//         if (binary_image[y * width + max_x] == 0) {
+//             break;
+//         }
+//         for (x = max_x; x < width - 1; x++) {
+//             if (x == width - 2 || (binary_image[y * width + x] != 0 &&  binary_image[y * width + x - 1] != 0 &&  binary_image[y * width + x + 1] == 0)) {
+//                 Right_Line[y] = x;
+//                 break;
+//             }
+//         }
+//         for (x = max_x; x > 0; x--) {
+//             if (x == 1 || (binary_image[y * width + x] != 0 && binary_image[y * width + x - 1] == 0 && binary_image[y * width + x + 1] != 0)) {
+//                 Left_Line[y] = x;
+//                 break;
+//             }
+//         }
+
+//         Center_Line[y] = (Left_Line[y] + Right_Line[y]) / 2;
+//     }
+// }
+uint8 Build_Dynamic_Center_Line(void)
+{
+    int x, y, left, right, found_left, found_right, max_x = 0, max_length = 0, length, count = 0, bottom_row = MT9V03X_H - 1, top_row = MT9V03X_H - 60, bottom_center, value;
+    float sum_y = 0, sum_x = 0, sum_yy = 0, sum_yx = 0, denominator, k, b;
+
+    if (Left_Line[bottom_row] >= Right_Line[bottom_row]) return 0;
+
+    bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+
+    for (x = Left_Line[bottom_row] + 1; x < Right_Line[bottom_row]; x++) {
         length = 0;
+
         for (y = bottom_row - 1; y >= top_row; y--) {
-            if (binary_image[(y + 1) * width + x] != 0 && binary_image[y * width + x] == 0){
+            if (binary_image[(y + 1) * width + x] != 0 && binary_image[y * width + x] == 0) {
                 length = bottom_row - y;
-                // if (length > max_length) {
-                //     max_length = length;
-                //     max_x = x;
-                // }
                 break;
             }
-            if (binary_image[(y + 1) * width + x] == 0 && binary_image[y * width + x] == 0){
-                break;
-            }
-            if (y == top_row) {
-                length = bottom_row - top_row;
-                if (length > max_length) {
-                    max_length = length;
-                    max_x = x;
-                }
-            }
+
+            if (binary_image[(y + 1) * width + x] == 0 && binary_image[y * width + x] == 0) break;
+
+            if (y == top_row) length = bottom_row - top_row;
         }
-        if (length > max_length || (length == max_length && length > 0 && abs(x - bottom_center) < abs(max_x - bottom_center))) {
+
+        if (length > max_length ||
+            (length == max_length && length > 0 && abs(x - bottom_center) < abs(max_x - bottom_center))) {
             max_length = length;
             max_x = x;
         }
     }
 
-    // if (max_x <= 0) max_x = 1;
     if (max_x <= 0) max_x = bottom_center;
-
     if (max_x >= width - 1) max_x = width - 2;
 
-    /*
-     * 从底部向上逐行扫描。
-     * 每一行都以 max_x 为中心，分别寻找左右边界。
-     */
-    for (y = bottom_row - 1; y > top_row; y--)
-    {
-        if (binary_image[y * width + max_x] == 0) {
-            break;
-        }
+    for (y = bottom_row - 1; y > top_row; y--) {
+        if (binary_image[y * width + max_x] == 0) break;
+
+        left = max_x;
+        right = max_x;
+        found_left = 0;
+        found_right = 0;
+
         for (x = max_x; x < width - 1; x++) {
-            if (x == width - 2 || (binary_image[y * width + x] != 0 &&  binary_image[y * width + x - 1] != 0 &&  binary_image[y * width + x + 1] == 0)) {
-                Right_Line[y] = x;
-                break;
-            }
-        }
-        for (x = max_x; x > 0; x--) {
-            if (x == 1 || (binary_image[y * width + x] != 0 && binary_image[y * width + x - 1] == 0 && binary_image[y * width + x + 1] != 0)) {
-                Left_Line[y] = x;
+            if (x == width - 2 ||
+                (binary_image[y * width + x] != 0 &&
+                 binary_image[y * width + x - 1] != 0 &&
+                 binary_image[y * width + x + 1] == 0)) {
+                right = x;
+                found_right = 1;
                 break;
             }
         }
 
-        Center_Line[y] = (Left_Line[y] + Right_Line[y]) / 2;
+        for (x = max_x; x > 0; x--) {
+            if (x == 1 ||
+                (binary_image[y * width + x] != 0 &&
+                 binary_image[y * width + x - 1] == 0 &&
+                 binary_image[y * width + x + 1] != 0)) {
+                left = x;
+                found_left = 1;
+                break;
+            }
+        }
+
+        if (found_left == 0 || found_right == 0 || left >= right) continue;
+
+        value = (left + right) / 2;
+        sum_y += y;
+        sum_x += value;
+        sum_yy += y * y;
+        sum_yx += y * value;
+        count++;
     }
+
+    if (count < 8) {
+        for (y = 0; y < MT9V03X_H; y++) Dynamic_Center_Line[y] = bottom_center;
+        return 0;
+    }
+
+    denominator = count * sum_yy - sum_y * sum_y;
+
+    if (denominator > -0.001f && denominator < 0.001f) {
+        for (y = 0; y < MT9V03X_H; y++) Dynamic_Center_Line[y] = bottom_center;
+        return 0;
+    }
+
+    k = (count * sum_yx - sum_y * sum_x) / denominator;
+    b = (sum_x - k * sum_y) / count;
+
+    for (y = 0; y < MT9V03X_H; y++) {
+        value = k * y + b;
+
+        if (value < 1) value = 1;
+        if (value >= MT9V03X_W - 1) value = MT9V03X_W - 2;
+
+        Dynamic_Center_Line[y] = value;
+    }
+
+    return 1;
 }
 int Find_xierushizi_up_point(uint8 type)
 {
@@ -264,55 +365,152 @@ int Find_xierushizi_up_point(uint8 type)
 
 // uint8 Judge_xierushizi_type(void)
 // {
-//     int i, left_cnt = 0, right_cnt = 0, bottom_row = MT9V03X_H - 10;
-//     int bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+//     int i, left_cnt = 0, right_cnt = 0;
+//     int bottom_row = MT9V03X_H - 1;
+//     int start_row = 15, end_row = 55;
+//     int valid_top = MT9V03X_H - Search_Stop_Line;
+//     int bottom_center;
 
-//     for (i = 15; i < 55; i++) {
-//         if (Left_Lost_Flag[i] == 0 && Left_Line[i] > bottom_center + 10) {
-//             left_cnt++;
-//         }
+//     if (Left_Line[bottom_row] >= Right_Line[bottom_row]) return CROSS_SKEW_NONE;
 
-//         if (Right_Lost_Flag[i] == 0 && Right_Line[i] < bottom_center - 10) {
-//             right_cnt++;
-//         }
+//     bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+
+//     if (start_row < valid_top) start_row = valid_top;
+//     if (end_row > MT9V03X_H - 2) end_row = MT9V03X_H - 2;
+
+//     for (i = start_row; i < end_row; i++) {
+//         if (Left_Lost_Flag[i] == 0 && Left_Line[i] > bottom_center + CROSS_SKEW_MARGIN) left_cnt++;
+//         if (Right_Lost_Flag[i] == 0 && Right_Line[i] < bottom_center - CROSS_SKEW_MARGIN) right_cnt++;
 //     }
 
-//     if (left_cnt >= 8 && right_cnt < 8) {
-//         return CROSS_SKEW_LEFT;
+//     if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) {
+//         if (Find_xierushizi_up_point(CROSS_SKEW_LEFT) > 5) return CROSS_SKEW_LEFT;
 //     }
 
-//     if (right_cnt >= 8 && left_cnt < 8) {
-//         return CROSS_SKEW_RIGHT;
+//     if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) {
+//         if (Find_xierushizi_up_point(CROSS_SKEW_RIGHT) > 5) return CROSS_SKEW_RIGHT;
 //     }
 
 //     return CROSS_SKEW_NONE;
 // }
 uint8 Judge_xierushizi_type(void)
 {
-    int i, left_cnt = 0, right_cnt = 0;
-    int bottom_row = MT9V03X_H - 1;
-    int start_row = 15;
-    int end_row = 55;
-    int valid_top = MT9V03X_H - Search_Stop_Line;
-    int bottom_center;
-
-    if (Left_Line[bottom_row] >= Right_Line[bottom_row]) return CROSS_SKEW_NONE;
-
-    bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+    int i, left_cnt = 0, right_cnt = 0, start_row = 15, end_row = 55, valid_top = MT9V03X_H - Search_Stop_Line;
 
     if (start_row < valid_top) start_row = valid_top;
     if (end_row > MT9V03X_H - 2) end_row = MT9V03X_H - 2;
 
     for (i = start_row; i < end_row; i++) {
-        if (Left_Lost_Flag[i] == 0 && Left_Line[i] > bottom_center + CROSS_SKEW_MARGIN) left_cnt++;
-        if (Right_Lost_Flag[i] == 0 && Right_Line[i] < bottom_center - CROSS_SKEW_MARGIN) right_cnt++;
+        if (Left_Lost_Flag[i] == 0 &&
+            Left_Line[i] > Dynamic_Center_Line[i] + CROSS_SKEW_MARGIN) {
+            left_cnt++;
+        }
+
+        if (Right_Lost_Flag[i] == 0 &&
+            Right_Line[i] < Dynamic_Center_Line[i] - CROSS_SKEW_MARGIN) {
+            right_cnt++;
+        }
     }
 
-    if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_LEFT;
-    if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_RIGHT;
+    if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) {
+        if (Find_xierushizi_up_point(CROSS_SKEW_LEFT) > 5) return CROSS_SKEW_LEFT;
+    }
+
+    if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) {
+        if (Find_xierushizi_up_point(CROSS_SKEW_RIGHT) > 5) return CROSS_SKEW_RIGHT;
+    }
 
     return CROSS_SKEW_NONE;
 }
+
+static void Repair_Left_Skew(int skew_up)
+{
+    int i;
+    int left;
+    int right;
+    int start_row = MT9V03X_H - Search_Stop_Line;
+
+    if (start_row < 5) start_row = 5;
+
+    for (i = start_row; i < MT9V03X_H; i++) {
+        if (i <= skew_up && Left_Lost_Flag[i] == 0 &&
+            Left_Line[i] > Dynamic_Center_Line[i] + CROSS_SKEW_MARGIN) {
+            right = Left_Line[i];
+        } else {
+            right = Right_Line[i];
+        }
+
+        if (right <= Dynamic_Center_Line[i]) right = Dynamic_Center_Line[i] + 1;
+        if (right >= MT9V03X_W) right = MT9V03X_W - 1;
+
+        left = 2 * Dynamic_Center_Line[i] - right;
+
+        if (left < 0) left = 0;
+        if (left >= Dynamic_Center_Line[i]) left = Dynamic_Center_Line[i] - 1;
+
+        Left_Line[i] = left;
+        Right_Line[i] = right;
+        Left_Lost_Flag[i] = 0;
+        Right_Lost_Flag[i] = 0;
+    }
+}
+static void Repair_Right_Skew(int skew_up)
+{
+    int i;
+    int left;
+    int right;
+    int start_row = MT9V03X_H - Search_Stop_Line;
+
+    if (start_row < 5) start_row = 5;
+
+    for (i = start_row; i < MT9V03X_H; i++) {
+        if (i <= skew_up && Right_Lost_Flag[i] == 0 &&
+            Right_Line[i] < Dynamic_Center_Line[i] - CROSS_SKEW_MARGIN) {
+            left = Right_Line[i];
+        } else {
+            left = Left_Line[i];
+        }
+
+        if (left >= Dynamic_Center_Line[i]) left = Dynamic_Center_Line[i] - 1;
+        if (left < 0) left = 0;
+
+        right = 2 * Dynamic_Center_Line[i] - left;
+
+        if (right >= MT9V03X_W) right = MT9V03X_W - 1;
+        if (right <= Dynamic_Center_Line[i]) right = Dynamic_Center_Line[i] + 1;
+
+        Left_Line[i] = left;
+        Right_Line[i] = right;
+        Left_Lost_Flag[i] = 0;
+        Right_Lost_Flag[i] = 0;
+    }
+}
+// uint8 Judge_xierushizi_type(void)
+// {
+//     int i, left_cnt = 0, right_cnt = 0;
+//     int bottom_row = MT9V03X_H - 1;
+//     int start_row = 15;
+//     int end_row = 55;
+//     int valid_top = MT9V03X_H - Search_Stop_Line;
+//     int bottom_center;
+
+//     if (Left_Line[bottom_row] >= Right_Line[bottom_row]) return CROSS_SKEW_NONE;
+
+//     bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+
+//     if (start_row < valid_top) start_row = valid_top;
+//     if (end_row > MT9V03X_H - 2) end_row = MT9V03X_H - 2;
+
+//     for (i = start_row; i < end_row; i++) {
+//         if (Left_Lost_Flag[i] == 0 && Left_Line[i] > bottom_center + CROSS_SKEW_MARGIN) left_cnt++;
+//         if (Right_Lost_Flag[i] == 0 && Right_Line[i] < bottom_center - CROSS_SKEW_MARGIN) right_cnt++;
+//     }
+
+//     if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_LEFT;
+//     if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_RIGHT;
+
+//     return CROSS_SKEW_NONE;
+// }
 
 // void Repair_xierushizi(uint8 type)
 // {
@@ -388,13 +586,17 @@ float Calculate_Error(void)
     float sum = 0;
     float weight_sum = 0;
     static float last_error = 0.;
+    static float filtered_center[MT9V03X_H];
+    float filter_alpha;
+
+
 
     if (end_row >= height) end_row = height - 1;
     if (end_row < 30) return 0;
 
     for (i = 30; i <= end_row; i += 5)
     {
-        float weight = (float)(i - 20);
+        float weight = i - 20;
         // float weight = 1;
         // float weight;
         // if (end_row == 90) {
@@ -408,8 +610,11 @@ float Calculate_Error(void)
         //         weight = i-20;
         //     }
         // }
+        if (i < 60) filter_alpha = 0.6f;
+        else filter_alpha = 0.85f;
 
-        sum += Center_Line[i] * weight;
+        filtered_center[i] = filter_alpha * Center_Line[i] + (1.0f - filter_alpha) * filtered_center[i];
+        sum += filtered_center[i] * weight;
         weight_sum += weight;
     }
 
@@ -421,6 +626,25 @@ float Calculate_Error(void)
     return result;
 }
 
+// void Center_Line_Calculate(void)
+// {
+//     int i;
+//     int16 temp;
+
+//     for (i = 0; i < MT9V03X_H; i++) {
+//         if (Left_Line[i] < 0) Left_Line[i] = 0;
+//         if (Left_Line[i] >= MT9V03X_W) Left_Line[i] = MT9V03X_W - 1;
+//         if (Right_Line[i] < 0) Right_Line[i] = 0;
+//         if (Right_Line[i] >= MT9V03X_W) Right_Line[i] = MT9V03X_W - 1;
+//         if (Right_Line[i] < Left_Line[i]) {
+//             temp = Left_Line[i];
+//             Left_Line[i] = Right_Line[i];
+//             Right_Line[i] = temp;
+//         }
+//         Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
+//         binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
+//     }
+// }
 void Center_Line_Calculate(void)
 {
     int i;
@@ -431,12 +655,19 @@ void Center_Line_Calculate(void)
         if (Left_Line[i] >= MT9V03X_W) Left_Line[i] = MT9V03X_W - 1;
         if (Right_Line[i] < 0) Right_Line[i] = 0;
         if (Right_Line[i] >= MT9V03X_W) Right_Line[i] = MT9V03X_W - 1;
+
         if (Right_Line[i] < Left_Line[i]) {
             temp = Left_Line[i];
             Left_Line[i] = Right_Line[i];
             Right_Line[i] = temp;
         }
-        Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
+
+        if (xieru_type != CROSS_SKEW_NONE) {
+            Center_Line[i] = Dynamic_Center_Line[i];
+        } else {
+            Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
+        }
+
         binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
     }
 }
@@ -853,26 +1084,49 @@ void Set_Binary_Point(int x,int y)
 void shizibuxian(uint8 xieru_type)
 {
     int i, left_up, right_up, left_down, right_down, skew_up;
-    int search_start = MT9V03X_H - 6, search_end = MT9V03X_H - Search_Stop_Line, down_end, center = (MT9V03X_W - 1) / 2;
+    int search_start = MT9V03X_H - 6, search_end = MT9V03X_H - Search_Stop_Line, down_end;
+    // int center = (MT9V03X_W - 1) / 2;
+    int bottom_row = MT9V03X_H - 1;
+    int center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
 
+    // if (xieru_type == CROSS_SKEW_LEFT) {
+    //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
+    //     if (skew_up <= 5) return;
+
+    //     Lengthen_Left_Boundry(skew_up - 1, MT9V03X_H - 1);
+    //     for (i = skew_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
+
+    //     Cross_Flag = 1;
+    //     Cross_Count = 3;
+    //     return;
+    // }
     if (xieru_type == CROSS_SKEW_LEFT) {
         skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
         if (skew_up <= 5) return;
 
-        Lengthen_Left_Boundry(skew_up - 1, MT9V03X_H - 1);
-        for (i = skew_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
+        Repair_Left_Skew(skew_up);
 
         Cross_Flag = 1;
         Cross_Count = 3;
         return;
     }
 
+    // if (xieru_type == CROSS_SKEW_RIGHT) {
+    //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
+    //     if (skew_up <= 5) return;
+
+    //     Lengthen_Right_Boundry(skew_up - 1, MT9V03X_H - 1);
+    //     for (i = skew_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
+
+    //     Cross_Flag = 1;
+    //     Cross_Count = 3;
+    //     return;
+    // }
     if (xieru_type == CROSS_SKEW_RIGHT) {
         skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
         if (skew_up <= 5) return;
 
-        Lengthen_Right_Boundry(skew_up - 1, MT9V03X_H - 1);
-        for (i = skew_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
+        Repair_Right_Skew(skew_up);
 
         Cross_Flag = 1;
         Cross_Count = 3;
@@ -883,7 +1137,8 @@ void shizibuxian(uint8 xieru_type)
     right_up = Find_Right_Up_Point(search_start, search_end);
 
     if (left_up <= 0 || right_up <= 0) return;
-    if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
+    // if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
+    if (Left_Line[left_up] > center || Right_Line[right_up] < center) return;
     if (abs(left_up - right_up) >= car_params.cross_corner_row_gap_max) return;
 
     down_end = (left_up > right_up ? left_up : right_up) + 2;

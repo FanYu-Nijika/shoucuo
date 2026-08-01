@@ -64,12 +64,13 @@ int Find_Right_Up_Point(int start,int end);
 #define CROSS_SKEW_RIGHT 2
 
 #define CROSS_SKEW_MARGIN     10
-#define CROSS_SKEW_COUNT_MIN  8
-#define CROSS_SKEW_JUMP       15
+#define CROSS_SKEW_COUNT_MIN  6
+#define CROSS_SKEW_JUMP       24
 
 uint8 Judge_xierushizi_type(void);
 int Find_xierushizi_up_point(uint8 type);
 void shizibuxian(uint8 xieru_type);
+uint8 Build_Dynamic_Center_Line(void);
 
 void Add_Left_Line(int start,int end);
 void Add_Right_Line(int start,int end);
