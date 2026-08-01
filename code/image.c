@@ -485,82 +485,7 @@ static void Repair_Right_Skew(int skew_up)
         Right_Lost_Flag[i] = 0;
     }
 }
-// uint8 Judge_xierushizi_type(void)
-// {
-//     int i, left_cnt = 0, right_cnt = 0;
-//     int bottom_row = MT9V03X_H - 1;
-//     int start_row = 15;
-//     int end_row = 55;
-//     int valid_top = MT9V03X_H - Search_Stop_Line;
-//     int bottom_center;
 
-//     if (Left_Line[bottom_row] >= Right_Line[bottom_row]) return CROSS_SKEW_NONE;
-
-//     bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
-
-//     if (start_row < valid_top) start_row = valid_top;
-//     if (end_row > MT9V03X_H - 2) end_row = MT9V03X_H - 2;
-
-//     for (i = start_row; i < end_row; i++) {
-//         if (Left_Lost_Flag[i] == 0 && Left_Line[i] > bottom_center + CROSS_SKEW_MARGIN) left_cnt++;
-//         if (Right_Lost_Flag[i] == 0 && Right_Line[i] < bottom_center - CROSS_SKEW_MARGIN) right_cnt++;
-//     }
-
-//     if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_LEFT;
-//     if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) return CROSS_SKEW_RIGHT;
-
-//     return CROSS_SKEW_NONE;
-// }
-
-// void Repair_xierushizi(uint8 type)
-// {
-//     int i, guai = 0, temp;
-
-//     if (type == CROSS_SKEW_LEFT)
-//     {
-//         for (i = 5; i < 65; i++)
-//         {
-//             if (Left_Line[i] - Left_Line[i - 1] > 15 &&
-//                 Left_Line[i] - Left_Line[i - 2] > 15)
-//             {
-//                 guai = i;
-//                 break;
-//             }
-//         }
-
-//         if (guai != 0)
-//         {
-//             for (i = guai; i < MT9V03X_H; i++)
-//             {
-//                 temp = Left_Line[i];
-//                 Left_Line[i] = Right_Line[i];
-//                 Right_Line[i] = temp;
-//             }
-//         }
-//     }
-//     else if (type == CROSS_SKEW_RIGHT)
-//     {
-//         for (i = 5; i < 65; i++)
-//         {
-//             if (Right_Line[i] - Right_Line[i - 1] < -15 &&
-//                 Right_Line[i] - Right_Line[i - 2] < -15)
-//             {
-//                 guai = i;
-//                 break;
-//             }
-//         }
-
-//         if (guai != 0)
-//         {
-//             for (i = guai; i < MT9V03X_H; i++)
-//             {
-//                 temp = Left_Line[i];
-//                 Left_Line[i] = Right_Line[i];
-//                 Right_Line[i] = temp;
-//             }
-//         }
-//     }
-// }
 
 uint8_t protect(const uint8 *gray_frame) {
     int i, sum = 0;
@@ -610,8 +535,8 @@ float Calculate_Error(void)
         //         weight = i-20;
         //     }
         // }
-        if (i < 60) filter_alpha = 0.6f;
-        else filter_alpha = 0.85f;
+        if (i < 60) filter_alpha = 0.85f;
+        else filter_alpha = 0.6f;
 
         filtered_center[i] = filter_alpha * Center_Line[i] + (1.0f - filter_alpha) * filtered_center[i];
         sum += filtered_center[i] * weight;
@@ -626,25 +551,6 @@ float Calculate_Error(void)
     return result;
 }
 
-// void Center_Line_Calculate(void)
-// {
-//     int i;
-//     int16 temp;
-
-//     for (i = 0; i < MT9V03X_H; i++) {
-//         if (Left_Line[i] < 0) Left_Line[i] = 0;
-//         if (Left_Line[i] >= MT9V03X_W) Left_Line[i] = MT9V03X_W - 1;
-//         if (Right_Line[i] < 0) Right_Line[i] = 0;
-//         if (Right_Line[i] >= MT9V03X_W) Right_Line[i] = MT9V03X_W - 1;
-//         if (Right_Line[i] < Left_Line[i]) {
-//             temp = Left_Line[i];
-//             Left_Line[i] = Right_Line[i];
-//             Right_Line[i] = temp;
-//         }
-//         Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
-//         binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
-//     }
-// }
 void Center_Line_Calculate(void)
 {
     int i;
@@ -779,12 +685,6 @@ int Find_Right_Up_Point(int start,int end)
 }
 
 
-// void shizibuxian() {
-//     int left_down_line = Find_Left_Down_Point(0, height);
-//     int left_up_line = Find_Left_Up_Point(0, height);
-//     int right_down_line = Find_Right_Down_Point(0, height);
-//     int right_up_line = Find_Right_Up_Point(0, height);
-// }
 void Draw_Line(int x1, int y1, int x2, int y2)
 {
     int dx = abs(x2 - x1);
@@ -814,44 +714,7 @@ void Draw_Right_Line(int start,int end)
 {
     Draw_Line(Right_Line[start],start,Right_Line[end],end);
 }
-// void Extend_Left_Line(int start,int end)
-// {
-//     int x;
-//     int dx;
 
-//     if(start<4) {
-//         Draw_Left_Line(start,end);
-//         return;
-//     }
-//     x=Left_Line[start];
-//     dx=Left_Line[start]-Left_Line[start-4];
-//     for(int y=start;y<=end;y++)
-//     {
-//         x+=dx/4;
-//         if(x<0) x=0;
-//         if(x>=MT9V03X_W) x=MT9V03X_W-1;
-//         Set_Binary_Point(x,y);
-//     }
-// }
-// void Extend_Right_Line(int start,int end)
-// {
-//     int x;
-//     int dx;
-
-//     if(start<4) {
-//         Draw_Right_Line(start,end);
-//         return;
-//     }
-
-//     x=Right_Line[start];
-//     dx=Right_Line[start]-Right_Line[start-4];
-//     for(int y=start;y<=end;y++) {
-//         x+=dx/4;
-//         if(x<0) x=0;
-//         if(x>=MT9V03X_W) x=MT9V03X_W-1;
-//         Set_Binary_Point(x,y);
-//     }
-// }
 static void cross_write_binary_point(int row,int column)
 {
     if (binary_image == 0 || row < 0 || row >= MT9V03X_H) return;
@@ -1031,76 +894,29 @@ void Set_Binary_Point(int x,int y)
     binary_image[y*MT9V03X_W+x+1]=1;
 }
 
-// static uint8 cross_pair_slope_ok(int row1,int x1,int row2,int x2)
-// {
-//     int dx = abs(x2 - x1);
-//     int dy = abs(row2 - row1);
-
-//     /* The straight-entry samples are below 0.83. A limit of 2 keeps margin
-//      * for pixel noise while rejecting a nearly horizontal false connection. */
-//     if (dy <= 0) return 0;
-//     return dx <= dy;
-// }
-
-// void shizibuxian(void)
-// {
-//     int left_up;
-//     int right_up;
-//     int left_down;
-//     int right_down;
-//     int search_start = MT9V03X_H - 6;
-//     int search_end = MT9V03X_H - Search_Stop_Line;
-//     int down_end;
-//     int center = (MT9V03X_W - 1) / 2;
-
-//     left_up = Find_Left_Up_Point(search_start, search_end);
-//     right_up = Find_Right_Up_Point(search_start, search_end);
-//     // if (left_up <= 0 || right_up <= 0) return;
-//     if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
-//     if (abs(left_up - right_up) >= car_params.cross_corner_row_gap_max) return;
-
-//     down_end = (left_up > right_up ? left_up : right_up) + 2;
-//     left_down = Find_Left_Down_Point(search_start, down_end);
-//     right_down = Find_Right_Down_Point(search_start, down_end);
-//     if (left_down <= left_up) left_down = 0;
-//     if (right_down <= right_up) right_down = 0;
-
-//     Cross_Flag = 1;
-//     Cross_Count = 3;
-//     // if (left_down > 0) {
-//     //     if (cross_pair_slope_ok(left_up, Left_Line[left_up], left_down, Left_Line[left_down]))
-//     //         Add_Left_Line(left_up, left_down);
-//     // } else {
-//     // }
-//     Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
-//     // if (right_down > 0) {
-//     //     if (cross_pair_slope_ok(right_up, Right_Line[right_up], right_down, Right_Line[right_down]))
-//     //         Add_Right_Line(right_up, right_down);
-//     // } else {
-//     // }
-//     Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
-// }
-
 void shizibuxian(uint8 xieru_type)
 {
-    int i, left_up, right_up, left_down, right_down, skew_up;
-    int search_start = MT9V03X_H - 6, search_end = MT9V03X_H - Search_Stop_Line, down_end;
-    // int center = (MT9V03X_W - 1) / 2;
-    int bottom_row = MT9V03X_H - 1;
-    int center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+    int i;
+    int left_up;
+    int right_up;
+    int left_down;
+    int right_down;
+    int skew_up;
+    int search_start;
+    int search_end;
+    int down_end;
+    int bottom_row;
+    int center;
 
-    // if (xieru_type == CROSS_SKEW_LEFT) {
-    //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
-    //     if (skew_up <= 5) return;
+    search_start = MT9V03X_H - 6;
+    search_end = MT9V03X_H - Search_Stop_Line;
+    bottom_row = MT9V03X_H - 1;
 
-    //     Lengthen_Left_Boundry(skew_up - 1, MT9V03X_H - 1);
-    //     for (i = skew_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
-
-    //     Cross_Flag = 1;
-    //     Cross_Count = 3;
-    //     return;
-    // }
-    if (xieru_type == CROSS_SKEW_LEFT) {
+    /*
+     * 斜入十字仍使用你现在的逻辑。
+     */
+    if (xieru_type == CROSS_SKEW_LEFT)
+    {
         skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
         if (skew_up <= 5) return;
 
@@ -1111,18 +927,8 @@ void shizibuxian(uint8 xieru_type)
         return;
     }
 
-    // if (xieru_type == CROSS_SKEW_RIGHT) {
-    //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
-    //     if (skew_up <= 5) return;
-
-    //     Lengthen_Right_Boundry(skew_up - 1, MT9V03X_H - 1);
-    //     for (i = skew_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
-
-    //     Cross_Flag = 1;
-    //     Cross_Count = 3;
-    //     return;
-    // }
-    if (xieru_type == CROSS_SKEW_RIGHT) {
+    if (xieru_type == CROSS_SKEW_RIGHT)
+    {
         skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
         if (skew_up <= 5) return;
 
@@ -1133,255 +939,202 @@ void shizibuxian(uint8 xieru_type)
         return;
     }
 
+    /*
+     * 以下为正入十字。
+     */
     left_up = Find_Left_Up_Point(search_start, search_end);
     right_up = Find_Right_Up_Point(search_start, search_end);
 
     if (left_up <= 0 || right_up <= 0) return;
-    // if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
-    if (Left_Line[left_up] > center || Right_Line[right_up] < center) return;
-    if (abs(left_up - right_up) >= car_params.cross_corner_row_gap_max) return;
 
+    /*
+     * 用底部道路中心确认两个上拐点确实分布在中线两侧。
+     * 加3像素容差，避免边界抖动导致漏检。
+     */
+    if (Left_Lost_Flag[bottom_row] == 0 &&
+        Right_Lost_Flag[bottom_row] == 0 &&
+        Left_Line[bottom_row] < Right_Line[bottom_row])
+    {
+        center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+    }
+    else
+    {
+        center = (MT9V03X_W - 1) / 2;
+    }
+
+    if (Left_Line[left_up] > center + 3) return;
+    if (Right_Line[right_up] < center - 3) return;
+
+    /*
+     * 正入时左右上拐点不能相差太远。
+     */
+    if (abs(left_up - right_up) >
+        car_params.cross_corner_row_gap_max)
+    {
+        return;
+    }
+
+    /*
+     * 下拐点必须在上拐点的近车方向，即行号更大。
+     */
     down_end = (left_up > right_up ? left_up : right_up) + 2;
-    left_down = Find_Left_Down_Point(search_start, down_end);
-    right_down = Find_Right_Down_Point(search_start, down_end);
 
-    if (left_down <= left_up) left_down = 0;
-    if (right_down <= right_up) right_down = 0;
+    left_down =
+        Find_Left_Down_Point(search_start, down_end);
 
-    Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
-    Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
+    right_down =
+        Find_Right_Down_Point(search_start, down_end);
 
-    for (i = left_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
-    for (i = right_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
+    if (left_down <= left_up)
+    {
+        left_down = 0;
+    }
+
+    if (right_down <= right_up)
+    {
+        right_down = 0;
+    }
+
+    /*
+     * 四个角点均存在：
+     * 上下角点直接连线。
+     */
+    if (left_down > 0 && right_down > 0)
+    {
+        Add_Left_Line(left_up, left_down);
+        Add_Right_Line(right_up, right_down);
+    }
+    /*
+     * 只有左下角点：
+     * 左侧连线，右侧延长。
+     */
+    else if (left_down > 0)
+    {
+        Add_Left_Line(left_up, left_down);
+
+        Lengthen_Right_Boundry(
+            right_up - 1,
+            MT9V03X_H - 1);
+    }
+    /*
+     * 只有右下角点：
+     * 右侧连线，左侧延长。
+     */
+    else if (right_down > 0)
+    {
+        Lengthen_Left_Boundry(
+            left_up - 1,
+            MT9V03X_H - 1);
+
+        Add_Right_Line(right_up, right_down);
+    }
+    /*
+     * 两个下角点都找不到：
+     * 才退化为延长两条上边界。
+     */
+    else
+    {
+        Lengthen_Left_Boundry(
+            left_up - 1,
+            MT9V03X_H - 1);
+
+        Lengthen_Right_Boundry(
+            right_up - 1,
+            MT9V03X_H - 1);
+    }
+
+    /*
+     * 补线后的区域重新标为有效边界。
+     */
+    for (i = left_up; i < MT9V03X_H; i++)
+    {
+        Left_Lost_Flag[i] = 0;
+    }
+
+    for (i = right_up; i < MT9V03X_H; i++)
+    {
+        Right_Lost_Flag[i] = 0;
+    }
 
     Cross_Flag = 1;
     Cross_Count = 3;
 }
-
-// void edge_real_update() {
-//     for (int i = 0; i < L_edge_count; ++i) {
-//         if (L_edge[i].flag)
-//             Left_Line[L_edge[i].col] = cc_i16_max(Left_Line[L_edge[i].col], L_edge[i].row);
-//     }
-//     for (int i = 0; i < R_edge_count; ++i) {
-//         if (R_edge[i].flag)
-//             Right_Line[R_edge[i].col] = cc_i16_min(Right_Line[R_edge[i].col], R_edge[i].row);
-//     }
-//     for (int i = 0; i < L_edge_count && i < R_edge_count; ++i) {
-//         if (!L_edge[i].flag && !R_edge[i].flag) {
-//             ++a;
-//         }
-//     }
-// }
-
-
-// /*---------------------------------------------------------------
-//  【函    数】search_neighborhood
-//  【功    能】八邻域找边界
-//  【参    数】无
-//  【返 回 值】无
-//  【注意事项】
-//  ----------------------------------------------------------------*/
-
-// void search_neighborhood(void)
+// void shizibuxian(uint8 xieru_type)
 // {
-//     L_edge_count = 0;//左边点个数清0
-//     R_edge_count = 0;//右边点个数清0
+//     int i, left_up, right_up, left_down, right_down, skew_up;
+//     int search_start = MT9V03X_H - 6, search_end = MT9V03X_H - Search_Stop_Line, down_end;
+//     // int center = (MT9V03X_W - 1) / 2;
+//     int bottom_row = MT9V03X_H - 1;
+//     int center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
 
-//     if(left_findflag)//如果左边界点存在并找到,则开始爬线
-//     {
-//         //变量声明
-//         L_edge[0].row = L_start_y;
-//         L_edge[0].col = L_start_x;
-//         L_edge[0].flag = 1;
-//         int16 curr_row = L_start_y;//初始化行坐标
-//         int16 curr_col = L_start_x;//初始化列坐标
-//         dire_left = 0; //初始化上个边界点的来向
-//         //开始搜线，最多取150个点，不会往下搜，共7个方位
-//         for(int i = 1;i < L_search_amount; i++)    //最多搜索150个点
-//         {
-//             ////越界退出 行越界和列越界（向上向下向左向右）
-//             if(curr_row+1 < Boundary_search_end || curr_row>IMAGE_H-1)  break;
-//             if (curr_col-1 <= 0 && curr_col+1 < IMAGE_W) break;
-//             //搜线过程
-//             if(dire_left != 2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row-1][curr_col]==1)   //左上黑，2，右边白
-//             {
-//                 curr_row = curr_row -1;
-//                 curr_col = curr_col -1;
-//                 L_edge_count = L_edge_count +1;
-//                 dire_left = 7;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(dire_left!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)    //右上黑，3，下边白
-//             {
-//                 curr_row = curr_row -1;
-//                 curr_col = curr_col + 1;
-//                 L_edge_count = L_edge_count + 1;
-//                 dire_left = 6;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col+1]==1)                  //正上黑，1，右白
-//             {
-//                 curr_row = curr_row - 1;
-//                 L_edge_count = L_edge_count + 1;
-//                 dire_left = 0;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(dire_left!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row-1][curr_col-1]==1)     //正左黑，5，上白
-//             {
-//                 curr_col = curr_col - 1;
-//                 L_edge_count = L_edge_count +1;
-//                 dire_left = 4;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(dire_left!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row+1][curr_col+1]==1)  //正右黑，4，下白
-//             {
-//                 curr_col = curr_col + 1;
-//                 L_edge_count = L_edge_count +1;
-//                 dire_left = 5;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(dire_left!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1)    //左下黑，6，上白
-//             {
-//                 curr_row = curr_row + 1;
-//                 curr_col = curr_col -1;
-//                 L_edge_count = L_edge_count +1;
-//                 dire_left = 3;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else if(dire_left!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row+1][curr_col]==1)    //右下黑，7，左白
-//             {
-//                 curr_row = curr_row + 1;
-//                 curr_col = curr_col + 1;
-//                 L_edge_count = L_edge_count +1;
-//                 dire_left = 2;
-//                 L_edge[i].row = curr_row;
-//                 L_edge[i].col = curr_col;
-//                 L_edge[i].flag = 1;
-//             }
-//             else
-//                 break;
-//         }
+//     // if (xieru_type == CROSS_SKEW_LEFT) {
+//     //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
+//     //     if (skew_up <= 5) return;
+
+//     //     Lengthen_Left_Boundry(skew_up - 1, MT9V03X_H - 1);
+//     //     for (i = skew_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
+
+//     //     Cross_Flag = 1;
+//     //     Cross_Count = 3;
+//     //     return;
+//     // }
+//     if (xieru_type == CROSS_SKEW_LEFT) {
+//         skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
+//         if (skew_up <= 5) return;
+
+//         Repair_Left_Skew(skew_up);
+
+//         Cross_Flag = 1;
+//         Cross_Count = 3;
+//         return;
 //     }
 
-//     if(right_findflag)//如果右边界存在并搜到
-//     {
-//         R_edge[0].row = R_start_y;
-//         R_edge[0].col = R_start_x;
-//         R_edge[0].flag = 1;
-//         int16 curr_row = R_start_y;
-//         int16 curr_col = R_start_x;
-//         dire_right = 0;
-//         for(int i = 1;i<R_search_amount;i++)
-//         {
-//             ////越界退出 行越界和列越界（向上向下向左向右）
-//             if(curr_row < Boundary_search_end || curr_row>IMAGE_H-1||curr_row+1<Boundary_search_end)  break;
-//             //爬线过程
-//             if(curr_col<IMAGE_W&&dire_right!=3&&image_use[curr_row-1][curr_col+1]==0&&image_use[curr_row-1][curr_col]==1)    //右上黑，3，左白
-//             {
-//                 curr_row = curr_row - 1;
-//                 curr_col = curr_col + 1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 6;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else if(dire_right!=2&&image_use[curr_row-1][curr_col-1]==0&&image_use[curr_row][curr_col-1]==1) //左上黑，2，下白
-//             {
-//                 curr_row = curr_row-1;
-//                 curr_col = curr_col-1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 7;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else if(image_use[curr_row-1][curr_col]==0&&image_use[curr_row-1][curr_col-1]==1)                  //正上黑，1，左白
-//             {
-//                 curr_row = curr_row - 1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 0;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else if(dire_right!=4&&image_use[curr_row][curr_col+1]==0&&image_use[curr_row-1][curr_col+1]==1)   //正右黑，4，上白
-//             {
-//                 curr_col = curr_col + 1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 5;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else if(dire_right!=5&&image_use[curr_row][curr_col-1]==0&&image_use[curr_row+1][curr_col-1]==1)   //正左黑，5，下白
-//             {
-//                 curr_col = curr_col-1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 4;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
+//     // if (xieru_type == CROSS_SKEW_RIGHT) {
+//     //     skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
+//     //     if (skew_up <= 5) return;
 
+//     //     Lengthen_Right_Boundry(skew_up - 1, MT9V03X_H - 1);
+//     //     for (i = skew_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
 
-//             else if(dire_right!=6&&image_use[curr_row+1][curr_col-1]==0&&image_use[curr_row+1][curr_col]==1)   //左下黑，6，右白
-//             {
-//                 curr_row = curr_row + 1;
-//                 curr_col = curr_col - 1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 3;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else if(dire_right!=7&&image_use[curr_row+1][curr_col+1]==0&&image_use[curr_row][curr_col+1]==1)   //右下黑，7，上白
-//             {
-//                 curr_row = curr_row + 1;
-//                 curr_col = curr_col + 1;
-//                 R_edge_count = R_edge_count + 1;
-//                 dire_right = 2;
-//                 R_edge[i].row = curr_row;
-//                 R_edge[i].col = curr_col;
-//                 R_edge[i].flag = 1;
-//             }
-//             else
-//                 break;
-//         }
+//     //     Cross_Flag = 1;
+//     //     Cross_Count = 3;
+//     //     return;
+//     // }
+//     if (xieru_type == CROSS_SKEW_RIGHT) {
+//         skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
+//         if (skew_up <= 5) return;
+
+//         Repair_Right_Skew(skew_up);
+
+//         Cross_Flag = 1;
+//         Cross_Count = 3;
+//         return;
 //     }
+
+//     left_up = Find_Left_Up_Point(search_start, search_end);
+//     right_up = Find_Right_Up_Point(search_start, search_end);
+
+//     if (left_up <= 0 || right_up <= 0) return;
+//     // if (Left_Line[left_up] >= center || Right_Line[right_up] <= center) return;
+//     if (Left_Line[left_up] > center || Right_Line[right_up] < center) return;
+//     if (abs(left_up - right_up) >= car_params.cross_corner_row_gap_max) return;
+
+//     down_end = (left_up > right_up ? left_up : right_up) + 2;
+//     left_down = Find_Left_Down_Point(search_start, down_end);
+//     right_down = Find_Right_Down_Point(search_start, down_end);
+
+//     if (left_down <= left_up) left_down = 0;
+//     if (right_down <= right_up) right_down = 0;
+
+//     Lengthen_Left_Boundry(left_up - 1, MT9V03X_H - 1);
+//     Lengthen_Right_Boundry(right_up - 1, MT9V03X_H - 1);
+
+//     for (i = left_up - 1; i < MT9V03X_H; i++) Left_Lost_Flag[i] = 0;
+//     for (i = right_up - 1; i < MT9V03X_H; i++) Right_Lost_Flag[i] = 0;
+
+//     Cross_Flag = 1;
+//     Cross_Count = 3;
 // }
-
-
-// void image_draw_rectan(uint8(*image)[width])
-// {
-//     uint8 i = 0;
-//     for (i = 0; i < height; i++)
-//     {
-//         image[i][0] = 0;
-//         image[i][1] = 0;
-//         image[i][width - 1] = 0;
-//         image[i][width - 2] = 0;
-//     }
-//     for (i = 0; i < width; i++)
-//     {
-//         image[0][i] = 0;
-//         image[1][i] = 0;
-//     }
-// }
-
 
 
 uint8 ostu_deal_threshold(void)
@@ -1439,18 +1192,6 @@ uint8 ostu_deal_threshold(void)
     return white_cnt < PixelSum * 0.1;
 }
 
-// void threshold_update() {
-//     for (int i = 0; i < height; ++i) {
-//         for (int j = 0; j < width; ++j) {
-//             if (binary_image[j*width+i] > os_threshold) {
-//                 binary_image[j*width+i] = 1;
-//             }
-//             else {
-//                 binary_image[j*width+i] = 0;
-//             }
-//         }
-//     }
-// }
 void threshold_update(void)
 {
     int i, j;
@@ -1464,14 +1205,6 @@ void threshold_update(void)
         }
     }
 }
-
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介     寻找最长白列     CYH-NYY
-// 参数说明
-// 返回参数
-// 使用示例     get_highest();
-// 备注信息
-//-------------------------------------------------------------------------------------------------------------------
 
 int lwline = 94;   //最长白列所在x
 int lw = 119;      //最长白列顶部y
@@ -1523,3 +1256,56 @@ void get_highest(void)
         }
     }
 }
+
+float Last_Curvature_Value = 0;     //防止
+/**
+* 函数功能：      计算中线曲率，作为控制速度的一个数据
+* 特殊说明：      无
+* 形  参：        uint8 *line      中线
+*                 uint8 start      爬线相遇点的Y值，或最大有效行
+*                 uint8 end        爬线起始行（或图像最底端）
+*
+* 示例：          Calculate_Curvature_2(C_Line, Y_Meet, L_Start_Point[1]);
+* 返回值：        Last_Curvature_Value      所得曲率
+*/
+// float Calculate_Curvature_2(uint8 *line, uint8 start, uint8 end)
+// {
+//     int16 Sum_Difference_Value = 0;     //用于X坐标差值的累积
+//     int16 Sum_Weight = 0;               //用于权值相加
+//     uint8 i = 0;
+ 
+//     // uint8 Base_Curvature_Weight[60] = {0, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+//     //                                    1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+//     //                                    1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+//     //                                    1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+//     //                                    1, 0, 1, 0, 1, 0, 1, 0, 1, 0,
+//     //                                    1, 0, 1, 0, 1, 0, 1, 0, 1, 0};       //固定权值，0,1,0,1间隔加权
+//     uint8 Base_Curvature_Weight[120];
+//     for (i = 0; i < 120; ++i) {
+//         Base_Curvature_Weight[i] = i&1;
+//     }
+//     uint8 Trends_Curvature_Weight[19] = {4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 7, 7, 6, 6, 5, 5, 4};      //动态权值，高权值放中间
+ 
+//     uint8 Start_Line = (uint8)((float)(Y_Meet - 2) / 18.0f * 16.0f + 24.0f);    //动态权替换固定权起始行，我图像为60行，最低从24行向上替换，最高为40行向上替换，Y_Meet最大值为20
+ 
+//     //将动态权值赋值给固定权值数组
+//     for(i = 0; i < 19; i ++) {
+//         Base_Curvature_Weight[Start_Line - i] = Trends_Curvature_Weight[i];
+//     }
+ 
+//     for(i = start; i < end - 1; i++)    //求差值和并求出权值
+//     {
+//         Sum_Difference_Value += (int16)(My_ABS((int)line[i] - (int)line[i + 1]) * (int)Base_Curvature_Weight[i]);
+//         Sum_Weight += (int16)Base_Curvature_Weight[i];
+//     }
+ 
+//     if(Sum_Weight != 0)     //防止权值为0，但好像不会出现，当时不知道为啥要写这个
+//     {
+//         Last_Curvature_Value = (float)Sum_Difference_Value / (float)Sum_Weight;     //求加权平均值，归一化放在了另一个函数里
+//         return Last_Curvature_Value;
+//     }
+//     else
+//     {
+//         return Last_Curvature_Value;
+//     }
+// }
