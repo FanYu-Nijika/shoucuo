@@ -56,7 +56,21 @@ int Find_Right_Down_Point(int start,int end);
 int Find_Left_Up_Point(int start,int end);
 int Find_Right_Up_Point(int start,int end);
 
-void shizibuxian(void);
+// void Judge_xierushizi_type(void);
+// void uint8 Judge_xierushizi_type(void);
+// void Repair_xierushizi(uint8 type)£»
+#define CROSS_SKEW_NONE  0
+#define CROSS_SKEW_LEFT  1
+#define CROSS_SKEW_RIGHT 2
+
+#define CROSS_SKEW_MARGIN     10
+#define CROSS_SKEW_COUNT_MIN  8
+#define CROSS_SKEW_JUMP       15
+
+uint8 Judge_xierushizi_type(void);
+int Find_xierushizi_up_point(uint8 type);
+void shizibuxian(uint8 xieru_type);
+
 void Add_Left_Line(int start,int end);
 void Add_Right_Line(int start,int end);
 
