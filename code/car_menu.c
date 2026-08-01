@@ -258,7 +258,7 @@ static float car_menu_read_value(const car_menu_item_t *item)
         case CAR_MENU_VALUE_U16: return *(volatile uint16_t *)item->address;
         case CAR_MENU_VALUE_U8: return *(volatile uint8_t *)item->address;
         case CAR_MENU_VALUE_I8: return *(volatile int8_t *)item->address;
-        case CAR_MENU_VALUE_U32: return *(volatile uint32_t *)item->address;
+        case CAR_MENU_VALUE_U32: return (float)*(volatile uint32_t *)item->address;
         case CAR_MENU_VALUE_FLOAT: return *(volatile float *)item->address;
         case CAR_MENU_VALUE_BOOL: return *(volatile uint8_t *)item->address != 0 ? 1.0 : 0.0;
         case CAR_MENU_VALUE_DIRECTION: return *(volatile int8_t *)item->address < 0 ? -1.0 : 1.0;
@@ -914,7 +914,7 @@ void car_menu_task(void)
         uint8_t slot = car_menu_acquire_display_slot();
 
         if (slot < CAR_FRAME_SLOT_COUNT) {
-            if (car_uart_stream_is_enabled() != 0) car_uart_stream_send_frame(&car_gray_frames[slot][0][0]);
+            if (car_uart_stream_is_enabled() != 0) car_uart_stream_send_frame(&car_binary_frames[slot][0][0]);
             car_menu_release_display_slot(slot);
             car_menu_new_frame = 0;
         }

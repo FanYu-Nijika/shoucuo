@@ -106,7 +106,7 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
 
 
 
-    if (threshold_lost == 0 && car_params.cross_enabled != 0 && //这些是啥啊？？？
+    if (threshold_lost == 0 && car_params.cross_enabled != 0 && //what the hell is this???
         Both_Lost_Time >= car_params.cross_min_both_lost &&
         Search_Stop_Line >= car_params.cross_min_white_column &&
         Left_Lost_Time < car_params.cross_max_lost_rows &&
@@ -179,7 +179,7 @@ float Calculate_Error(void)
 
     for (i = 30; i <= end_row; i += 5)
     {
-        float weight = i - 20;
+        float weight = (float)(i - 20);
         // float weight = 1;
         // float weight;
         // if (end_row == 90) {
@@ -219,9 +219,6 @@ void Center_Line_Calculate(void)
             Right_Line[i] = temp;
         }
         Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
-        // binary_image[i*width+Center_Line[i]] = 0;
-        if (binary_image != 0 && Center_Line[i] >= 0 && Center_Line[i] < MT9V03X_W)
-            binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
     }
 }
 
@@ -440,7 +437,7 @@ void Add_Left_Line(int start,int end)
     if (x2 >= MT9V03X_W) x2 = MT9V03X_W - 1;
 
     if (start == end) {
-        Left_Line[start] = x1;
+        Left_Line[start] = (int16)x1;
         cross_write_binary_point(start, x1);
         return;
     }
@@ -449,7 +446,7 @@ void Add_Left_Line(int start,int end)
         value = x1 + (x2 - x1) * (i - start) / (end - start);
         if (value < 0) value = 0;
         if (value >= MT9V03X_W) value = MT9V03X_W - 1;
-        Left_Line[i] = value;
+        Left_Line[i] = (int16)value;
         cross_write_binary_point(i, value);
     }
 }
@@ -481,7 +478,7 @@ void Add_Right_Line(int start,int end)
     if (x2 >= MT9V03X_W) x2 = MT9V03X_W - 1;
 
     if (start == end) {
-        Right_Line[start] = x1;
+        Right_Line[start] = (int16)x1;
         cross_write_binary_point(start, x1);
         return;
     }
@@ -490,7 +487,7 @@ void Add_Right_Line(int start,int end)
         value = x1 + (x2 - x1) * (i - start) / (end - start);
         if (value < 0) value = 0;
         if (value >= MT9V03X_W) value = MT9V03X_W - 1;
-        Right_Line[i] = value;
+        Right_Line[i] = (int16)value;
         cross_write_binary_point(i, value);
     }
 }
@@ -529,7 +526,7 @@ void Lengthen_Left_Boundry(int start,int end)
         value = (i - start) * k + Left_Line[start];
         if (value < 0) value = 0;
         if (value >= MT9V03X_W) value = MT9V03X_W - 1;
-        Left_Line[i] = value;
+        Left_Line[i] = (int16)value;
         cross_write_binary_point(i, value);
     }
 }
@@ -570,7 +567,7 @@ void Lengthen_Right_Boundry(int start,int end)
         value = (i - start) * k + Right_Line[start];
         if (value < 0) value = 0;
         if (value >= MT9V03X_W) value = MT9V03X_W - 1;
-        Right_Line[i] = value;
+        Right_Line[i] = (int16)value;
         cross_write_binary_point(i, value);
     }
 }
@@ -871,7 +868,7 @@ uint8 ostu_deal_threshold(void)
     uint32 Graysum = 0;
     int i;
     int j;
-    int GrayCur;
+    int16 GrayCur;
     float w0 = 0;
     float w1 = 0;
     float u0tmp = 0;
@@ -909,7 +906,7 @@ uint8 ostu_deal_threshold(void)
         deltaTmp = w0 * w1 * (u0 - u1) * (u0 - u1);
         if (deltaTmp > deltaMax) {
             deltaMax = deltaTmp;
-            os_threshold = j;
+            os_threshold = (int16)j;
         }
     }
     return white_cnt < PixelSum * 0.1;
