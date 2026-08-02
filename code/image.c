@@ -507,7 +507,9 @@ uint8_t protect(const uint8 *gray_frame) {
 float Calculate_Error(void)
 {
     int i;
-    int end_row = car_params.lookhead;
+    int top_row = height - car_params.lookhead;
+    int near_row = height - 30;
+    int middle_row;
     float sum = 0;
     float weight_sum = 0;
     static float last_error = 0.;
@@ -516,25 +518,33 @@ float Calculate_Error(void)
 
 
 
-    if (end_row >= height) end_row = height - 1;
-    if (end_row < 30) return 0;
+    if (near_row >= height) near_row = height - 1;
+    if (near_row < 0) return 0;
+    if (top_row < 0) top_row = 0;
+    if (top_row > near_row) return 0;
+    middle_row = top_row + (near_row - top_row) / 2;
 
-    for (i = 30; i <= end_row; i += 5)
+    for (i = top_row; i <= near_row; i += 5)
     {
-        float weight = i - 20;
-        // float weight = 1;
-        // float weight;
-        // if (end_row == 90) {
-        //     weight = i-20;
-        // }
-        // else {
-        //     if (end_row <= 60) {
-        //         weight = i+20/(end_row-30)*i;
-        //     }
-        //     else {
-        //         weight = i-20;
-        //     }
-        // }
+        float weight;
+
+        if (i <= middle_row) {
+            if (middle_row > top_row) {
+                weight = car_params.path_weight_far +
+                    (car_params.path_weight_middle - car_params.path_weight_far) *
+                    (i - top_row) / (middle_row - top_row);
+            } else {
+                weight = car_params.path_weight_middle;
+            }
+        } else if (near_row > middle_row) {
+            weight = car_params.path_weight_middle +
+                (car_params.path_weight_near - car_params.path_weight_middle) *
+                (i - middle_row) / (near_row - middle_row);
+        } else {
+            weight = car_params.path_weight_near;
+        }
+
+        if (weight < 0.0) weight = 0.0;
         if (i < 60) filter_alpha = 0.85f;
         else filter_alpha = 0.6f;
 

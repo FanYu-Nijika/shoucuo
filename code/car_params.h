@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define CAR_PATH_WEIGHT_FAR       (0.30)
+#define CAR_PATH_WEIGHT_FAR       (0.40)
 #define CAR_PATH_WEIGHT_MIDDLE    (1.00)
 #define CAR_PATH_WEIGHT_NEAR      (1.50)
 #define CAR_STEERING_KP_DEFAULT   (3.0)

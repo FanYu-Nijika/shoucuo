@@ -30,6 +30,14 @@ static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_
     if (params->curve_enter_threshold > 1.0) params->curve_enter_threshold = 1.0;
     if (params->curve_enter_threshold < params->curve_exit_threshold)
         params->curve_enter_threshold = params->curve_exit_threshold;
+    if (params->path_weight_far < 0.0) params->path_weight_far = 0.0;
+    if (params->path_weight_middle < 0.0) params->path_weight_middle = 0.0;
+    if (params->path_weight_near < 0.0) params->path_weight_near = 0.0;
+    if (params->path_weight_far == 0.0 && params->path_weight_middle == 0.0 && params->path_weight_near == 0.0) {
+        params->path_weight_far = car_default_params.path_weight_far;
+        params->path_weight_middle = car_default_params.path_weight_middle;
+        params->path_weight_near = car_default_params.path_weight_near;
+    }
 }
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
@@ -68,9 +76,9 @@ const car_params_t car_default_params = {
     // .differential_limit = 0,
     // .wheelbase_cm = 20.0,
     // .wheel_angle_deg = CAR_WHEEL_ANGLE_MAX_DEG,
-    // .path_weight_far = CAR_PATH_WEIGHT_FAR,
-    // .path_weight_middle = CAR_PATH_WEIGHT_MIDDLE,
-    // .path_weight_near = CAR_PATH_WEIGHT_NEAR,
+    .path_weight_far = CAR_PATH_WEIGHT_FAR,
+    .path_weight_middle = CAR_PATH_WEIGHT_MIDDLE,
+    .path_weight_near = CAR_PATH_WEIGHT_NEAR,
     // .confidence_minimum = 0.35,
     // .control_row_far = 56,
     .control_row_near = 84,

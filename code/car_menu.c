@@ -142,7 +142,10 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "THRESHOLD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.threshold, 0, 255, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "EXPOSURE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.exposure, 1, 4000, 16, 0, CAR_MENU_APPLY_EXPOSURE, 0},
     {0, CAR_MENU_PAGE_VISION, "GAIN", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.gain, 0, 64, 1, 0, CAR_MENU_APPLY_GAIN, 0},
-    {0, CAR_MENU_PAGE_VISION, "LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 30, 119, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "PATH FAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_far, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "PATH MIDDLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_middle, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "PATH NEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_near, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 30, MT9V03X_H, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -806,6 +809,10 @@ static void car_menu_draw_image_pixels(void)
         car_menu_text(32, 84, "NO RAW FRAME", RGB565_WHITE, RGB565_BLACK);
         car_menu_text(194, 84, "NO BINARY", RGB565_WHITE, RGB565_BLACK);
     }
+
+    car_menu_fill(4, 164, 150, 20, RGB565_BLACK);
+    if (car_curve_mode != 0) car_menu_text(4, 166, "CURVE PID: ON", RGB565_WHITE, RGB565_BLACK);
+    else car_menu_text(4, 166, "CURVE PID: OFF", RGB565_WHITE, RGB565_BLACK);
 }
 
 static void car_menu_draw_image(void)
