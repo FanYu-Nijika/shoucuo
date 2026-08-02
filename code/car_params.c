@@ -58,14 +58,14 @@ const car_params_t car_default_params = {
     .lost_stop_frames = CAR_LOST_STOP_FRAMES,
 
     /* Simple PD units: us/pixel and us/pixel/frame. */
-    .steering_kp = 3.0,
+    .steering_kp = 2.0,
     // .steering_ki = 0.0,
-    .steering_kd = 3.8,
+    .steering_kd = 3.5,
     .curvature_scale = CAR_VARIANCE_SCALE_DEFAULT,
     .curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT,
     .curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT,
-    .curve_steering_kp = CAR_CURVE_STEERING_KP_DEFAULT,
-    .curve_steering_kd = CAR_CURVE_STEERING_KD_DEFAULT,
+    .curve_steering_kp = 2.7,
+    .curve_steering_kd = 3.0,
     // .stanley_heading_gain = CAR_STANLEY_HEADING_GAIN_DEFAULT,
     // .curve_feedforward_gain = CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT,
     // .curve_preview_base_cm = CAR_CURVE_PREVIEW_BASE_DEFAULT_CM,
