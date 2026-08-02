@@ -252,7 +252,10 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     car_set_servo(servo_command);
 
     error_abs = error >= 0 ? error : -error;
-    speed = motor_base_duty - error_abs * curve_slowdown;
+    if (car_curve_mode == CAR_CURVE_MODE_CURVE)
+        speed = 2800;
+    else
+        speed = motor_base_duty - error_abs * curve_slowdown;
     if (speed < 0) speed = 0;
     if (speed > motor_limit) speed = motor_limit;
     car_set_motor(speed, speed);
