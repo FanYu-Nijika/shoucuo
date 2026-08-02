@@ -683,7 +683,8 @@ static void car_menu_draw_value(const car_menu_item_t *item, float value, uint16
     } else if (item->value_type == CAR_MENU_VALUE_DIRECTION) {
         ips200_show_string(x, y, value < 0.0 ? "REV" : "FWD");
     } else if (item->value_type == CAR_MENU_VALUE_FLOAT) {
-        ips200_show_float(x, y, value, 7, item->decimals);
+        if (item->decimals == 0) ips200_show_int(x, y, (int32_t)value, 7);
+        else ips200_show_float(x, y, value, 7, item->decimals);
     } else if (item->value_type == CAR_MENU_VALUE_I16 || item->value_type == CAR_MENU_VALUE_I8) {
         ips200_show_int(x, y, (int32_t)value, 7);
     } else {
