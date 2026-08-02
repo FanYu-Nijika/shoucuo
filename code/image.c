@@ -580,6 +580,7 @@ static float Calculate_Curve_Variance(void)
     int top_row = height - car_params.lookhead;
     int near_row = height - 30;
     int middle_row;
+    int valid_top;
     int valid_count = 0;
     float weighted_sum = 0;
     float weight_sum = 0;
@@ -590,12 +591,15 @@ static float Calculate_Curve_Variance(void)
     if (near_row < 0) return 0;
     if (top_row < 0) top_row = 0;
     if (top_row > near_row) return 0;
+    valid_top = height - Search_Stop_Line;
+    if (valid_top < 0) valid_top = 0;
     middle_row = top_row + (near_row - top_row) / 2;
 
     for (i = top_row; i <= near_row; i += 5) {
         float weight;
 
-        if (Left_Lost_Flag[i] != 0 || Right_Lost_Flag[i] != 0) continue;
+        if (i < valid_top) continue;
+        if (Left_Lost_Flag[i] != 0 && Right_Lost_Flag[i] != 0) continue;
         weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
         if (weight <= 0.0) continue;
         weighted_sum += Center_Line[i] * weight;
@@ -610,7 +614,8 @@ static float Calculate_Curve_Variance(void)
         float weight;
         float difference;
 
-        if (Left_Lost_Flag[i] != 0 || Right_Lost_Flag[i] != 0) continue;
+        if (i < valid_top) continue;
+        if (Left_Lost_Flag[i] != 0 && Right_Lost_Flag[i] != 0) continue;
         weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
         if (weight <= 0.0) continue;
         difference = Center_Line[i] - mean;
