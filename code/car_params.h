@@ -10,7 +10,7 @@
 #define CAR_STEERING_KD_DEFAULT   (3.8)
 #define CAR_CURVE_STEERING_KP_DEFAULT         (3.0)
 #define CAR_CURVE_STEERING_KD_DEFAULT         (3.8)
-#define CAR_CURVATURE_SCALE_DEFAULT           (2.0)
+#define CAR_VARIANCE_SCALE_DEFAULT            (800.0)
 #define CAR_CURVE_EXIT_THRESHOLD_DEFAULT      (0.20)
 #define CAR_CURVE_ENTER_THRESHOLD_DEFAULT     (0.24)
 #define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.35)
@@ -43,6 +43,7 @@ typedef struct {
     float steering_kp;
     float steering_ki;
     float steering_kd;
+    /* Weighted center-line variance scale, retained in this field for Flash compatibility. */
     float curvature_scale;
     float curve_exit_threshold;
     float curve_enter_threshold;

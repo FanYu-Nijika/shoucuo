@@ -32,6 +32,8 @@ uint8 xieru_type;
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
+static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row);
+static float Calculate_Curve_Variance(void);
 uint8_t protect(const uint8 *gray_frame);
 
 // struct LEFT_EDGE  L_edge[140];
@@ -157,6 +159,11 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     result->right_edge = right;
     result->line_width = right - left;
     result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
+    result->curve_variance = Calculate_Curve_Variance();
+    if (car_params.curvature_scale > 0.0)
+        result->curvature = result->curve_variance / car_params.curvature_scale;
+    if (result->curvature < 0.0) result->curvature = 0.0;
+    if (result->curvature > 1.0) result->curvature = 1.0;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
     result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
@@ -526,25 +533,7 @@ float Calculate_Error(void)
 
     for (i = top_row; i <= near_row; i += 5)
     {
-        float weight;
-
-        if (i <= middle_row) {
-            if (middle_row > top_row) {
-                weight = car_params.path_weight_far +
-                    (car_params.path_weight_middle - car_params.path_weight_far) *
-                    (i - top_row) / (middle_row - top_row);
-            } else {
-                weight = car_params.path_weight_middle;
-            }
-        } else if (near_row > middle_row) {
-            weight = car_params.path_weight_middle +
-                (car_params.path_weight_near - car_params.path_weight_middle) *
-                (i - middle_row) / (near_row - middle_row);
-        } else {
-            weight = car_params.path_weight_near;
-        }
-
-        if (weight < 0.0) weight = 0.0;
+        float weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
         if (i < 60) filter_alpha = 0.85f;
         else filter_alpha = 0.6f;
 
@@ -559,6 +548,76 @@ float Calculate_Error(void)
     last_error = result;
 
     return result;
+}
+
+static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row)
+{
+    float weight;
+
+    if (row <= middle_row) {
+        if (middle_row > top_row) {
+            weight = car_params.path_weight_far +
+                (car_params.path_weight_middle - car_params.path_weight_far) *
+                (row - top_row) / (middle_row - top_row);
+        } else {
+            weight = car_params.path_weight_near;
+        }
+    } else if (near_row > middle_row) {
+        weight = car_params.path_weight_middle +
+            (car_params.path_weight_near - car_params.path_weight_middle) *
+            (row - middle_row) / (near_row - middle_row);
+    } else {
+        weight = car_params.path_weight_near;
+    }
+
+    if (weight < 0.0) weight = 0.0;
+    return weight;
+}
+
+static float Calculate_Curve_Variance(void)
+{
+    int i;
+    int top_row = height - car_params.lookhead;
+    int near_row = height - 30;
+    int middle_row;
+    int valid_count = 0;
+    float weighted_sum = 0;
+    float weight_sum = 0;
+    float variance_sum = 0;
+    float mean;
+
+    if (near_row >= height) near_row = height - 1;
+    if (near_row < 0) return 0;
+    if (top_row < 0) top_row = 0;
+    if (top_row > near_row) return 0;
+    middle_row = top_row + (near_row - top_row) / 2;
+
+    for (i = top_row; i <= near_row; i += 5) {
+        float weight;
+
+        if (Left_Lost_Flag[i] != 0 || Right_Lost_Flag[i] != 0) continue;
+        weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
+        if (weight <= 0.0) continue;
+        weighted_sum += Center_Line[i] * weight;
+        weight_sum += weight;
+        valid_count++;
+    }
+
+    if (valid_count < 2 || weight_sum <= 0.0) return 0;
+    mean = weighted_sum / weight_sum;
+
+    for (i = top_row; i <= near_row; i += 5) {
+        float weight;
+        float difference;
+
+        if (Left_Lost_Flag[i] != 0 || Right_Lost_Flag[i] != 0) continue;
+        weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
+        if (weight <= 0.0) continue;
+        difference = Center_Line[i] - mean;
+        variance_sum += difference * difference * weight;
+    }
+
+    return variance_sum / weight_sum;
 }
 
 void Center_Line_Calculate(void)
