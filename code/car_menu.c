@@ -120,6 +120,11 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_STEERING, "STEERING KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kp, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "STEERING KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kd, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "CURVE KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.curve_steering_kp, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "CURVE KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.curve_steering_kd, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "CURVATURE SCALE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.curvature_scale, 0.1, 100, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "CURVE EXIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.curve_exit_threshold, 0, 1, 0.01, 2, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_STEERING, "CURVE ENTER", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.curve_enter_threshold, 0, 1, 0.01, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "SERVO CENTER", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_center_us, 1400, 1600, 5, 0, CAR_MENU_APPLY_SERVO_CENTER, 0},
     {0, CAR_MENU_PAGE_STEERING, "SERVO TRAVEL", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.servo_travel_us, 0, 280, 5, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "SERVO REVERSE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &car_params.servo_reverse, 0, 1, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -150,6 +155,9 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_TELEMETRY, "THRESHOLD USED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &car_result.threshold_used, 0, 255, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "CENTER X", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.center_x, 0, 188, 1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "ERROR PIXELS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.error_pixels, -188, 188, 1, 1, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "CURVE RAW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.curve_variance, 0, 188, 1, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "CURVATURE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.curvature, 0, 1, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "CURVE PID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_curve_mode, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "SERVO US", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.servo_command_us, 0, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "LEFT CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.left_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "RIGHT CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.right_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -448,6 +456,9 @@ static void car_menu_save_flash(void)
         return;
     }
 
+    if (car_params.curve_enter_threshold < car_params.curve_exit_threshold)
+        car_params.curve_enter_threshold = car_params.curve_exit_threshold;
+    car_apply_menu_params(&car_params);
     car_params_flash_save(car_menu_current_gear);
     car_menu_error = CAR_MENU_ERROR_NONE;
     car_menu_dirty = 1;

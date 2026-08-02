@@ -23,7 +23,7 @@ minimum, maximum, step, decimals, apply, action
 
 菜单值的实际数据源始终是 `car_params` 或现有运行结果：编辑时的临时值只用于左键取消，不是参数副本。右键或停止状态下的中心键确认后，参数会直接写回并调用对应的应用动作。
 
-当前显示的可调项包括速度、PWM 限制、弯道减速、丢线停车帧数、普通 `steering_kp/kd`、舵机中心/行程/反向、自动阈值、固定阈值、曝光、增益和左右电机方向。遥测项为只读节点，直接读取 `car_result`、运行状态或丢帧统计。
+当前显示的可调项包括速度、PWM 限制、弯道减速、丢线停车帧数、直道/弯道两套 `KP/KD`、曲率比例和滞回阈值、舵机中心/行程/反向、自动阈值、固定阈值、曝光、增益和左右电机方向。遥测项为只读节点，直接读取 `car_result`、运行状态或丢帧统计。
 
 ## 2. 五个主按键
 
@@ -109,7 +109,9 @@ IPS200 的 `ips200_show_binary_image()` 要求每 8 个像素压缩成一个字�
 
 每帧开始时先把灰度帧复制到二值槽，随后无论 Otsu 判定是否丢线，都会先执行完整 `threshold_update()`，保证发布前每个像素都只有 0 或 1；视觉算法的提前返回只影响控制结果，不会把灰度值留在二值显示槽中。
 
-CPU1 发布的结果包含线有效标志、中心、误差、左右边界、线宽、丢线计数、使用阈值、帧序号和处理耗时；CPU0 只消费结果并执行控制。
+CPU1 发布的结果包含线有效标志、中心、误差、左右边界、线宽、丢线计数、使用阈值、曲率字段、帧序号和处理耗时；CPU0 收到结果后锁存 `error_pixels`、`curvature` 和有效标志，再由控制中断执行双 PD。
+
+直道 PD 使用 `STEERING KP/KD`，弯道 PD 使用 `CURVE KP/KD`。CPU0 对锁存的归一化曲率做一阶滤波，并使用 `CURVE ENTER` 和 `CURVE EXIT` 滞回切换；切换模式时会清零微分滤波状态，停车、重新启动和参数应用时也会重置模式。无效图像结果不会改变当前曲率模式。当前版本不改动 `image.c` 和 `image.h`，因此图像端没有发布曲率时会保持直道 PD。
 
 ## 6. 舵机参数
 
@@ -170,18 +172,19 @@ CPU1 发布的结果包含线有效标志、中心、误差、左右边界、线
 
 ## 11. 简单 DFLASH 档位参数
 
-参数 Flash 直接参考 `Camera/E08_eeprom_demo`，只使用 DFLASH 的 `sector = 0`、`page = 8` 和官方 `flash_union_buffer`，不增加参数缓存、版本表或校验表。
+参数 Flash 直接参考 `Camera/E08_eeprom_demo`，只使用 DFLASH 的 `sector = 0`、`page = 8` 和官方 `flash_union_buffer`。当前格式版本为 3；四个档位仍各保存一个完整的 `car_params_t`，字段位置和大小不变。
 
 第 0 个 Flash 数据单元保存当前档位，后面连续保存 4 个完整的 `car_params_t`：
 
 ```text
 flash_union_buffer[0]                              当前档位
-flash_union_buffer[1]                              第 1 档开始
-flash_union_buffer[1 + PROFILE_WORDS]              第 2 档开始
-flash_union_buffer[1 + PROFILE_WORDS * 2]          第 3 档开始
-flash_union_buffer[1 + PROFILE_WORDS * 3]          第 4 档开始
+flash_union_buffer[1]                              格式版本
+flash_union_buffer[2]                              第 1 档开始
+flash_union_buffer[2 + PROFILE_WORDS]              第 2 档开始
+flash_union_buffer[2 + PROFILE_WORDS * 2]          第 3 档开始
+flash_union_buffer[2 + PROFILE_WORDS * 3]          第 4 档开始
 ```
 
 `RUN CONTROL` 中的 `SWITCH GEAR` 会从对应 Flash 区域读取整套参数，直接覆盖当前 `car_params`，并立即更新控制、摄像头和舵机参数，不需要重启。`SAVE FLASH` 会先读取整页，只覆盖当前档位的结构体区域，再把整页写回，因此不会覆盖其他档位。
 
-第一次使用某个空档位时，如果该档位的 `base_speed` 为 0，就使用 `car_default_params`。调好当前档位后停车进入 `SAVE FLASH` 即可掉电保存；只切换档位但不保存时，掉电后启动仍使用 Flash 中上次保存的当前档位。由于这是最简的 E08 式布局，后续如果修改 `car_params_t` 字段顺序，需要重新保存四个档位。
+第一次使用某个空档位时，如果该档位为空，就使用 `car_default_params`。调好当前档位后停车进入 `SAVE FLASH` 即可掉电保存；保存前会修正 `CURVE EXIT <= CURVE ENTER`。启动时遇到版本 2 会保留原有速度、舵机和摄像头参数，并为新增双 PD 参数补入默认值后写回版本 3；未知格式才重新初始化四档。

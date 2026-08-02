@@ -6,12 +6,31 @@
 
 #define CAR_PARAMS_FLASH_SECTOR          (0)
 #define CAR_PARAMS_FLASH_PAGE            (8)
-#define CAR_PARAMS_FLASH_FORMAT_VERSION  (2)
+#define CAR_PARAMS_FLASH_FORMAT_VERSION  (3)
+#define CAR_PARAMS_FLASH_LEGACY_VERSION  (2)
 #define CAR_PARAMS_FLASH_PROFILE_COUNT   (4)
 #define CAR_PARAMS_FLASH_PROFILE_START   (2)
 #define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
 
 static void car_params_flash_factory_init(void);
+
+static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_zero)
+{
+    if (params == 0) return;
+    if (params->curvature_scale <= 0.0) params->curvature_scale = car_default_params.curvature_scale;
+    if (fill_zero != 0 && params->curve_steering_kp <= 0.0) params->curve_steering_kp = car_default_params.curve_steering_kp;
+    if (fill_zero != 0 && params->curve_steering_kd <= 0.0) params->curve_steering_kd = car_default_params.curve_steering_kd;
+    if (params->curve_steering_kp < 0.0) params->curve_steering_kp = 0.0;
+    if (params->curve_steering_kd < 0.0) params->curve_steering_kd = 0.0;
+    if (fill_zero != 0 && params->curve_exit_threshold <= 0.0) params->curve_exit_threshold = car_default_params.curve_exit_threshold;
+    if (fill_zero != 0 && params->curve_enter_threshold <= 0.0) params->curve_enter_threshold = car_default_params.curve_enter_threshold;
+    if (params->curve_exit_threshold < 0.0) params->curve_exit_threshold = 0.0;
+    if (params->curve_exit_threshold > 1.0) params->curve_exit_threshold = 1.0;
+    if (params->curve_enter_threshold < 0.0) params->curve_enter_threshold = 0.0;
+    if (params->curve_enter_threshold > 1.0) params->curve_enter_threshold = 1.0;
+    if (params->curve_enter_threshold < params->curve_exit_threshold)
+        params->curve_enter_threshold = params->curve_exit_threshold;
+}
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
 const car_params_t car_default_params = {
@@ -33,11 +52,11 @@ const car_params_t car_default_params = {
     .steering_kp = 3.0,
     // .steering_ki = 0.0,
     .steering_kd = 3.8,
-    // .curve_variance_threshold = CAR_CURVE_VARIANCE_DEFAULT,
-    // .curve_blend_threshold1 = CAR_CURVE_BLEND_THRESHOLD1_DEFAULT,
-    // .curve_blend_threshold2 = CAR_CURVE_BLEND_THRESHOLD2_DEFAULT,
-    // .curve_steering_kp = CAR_CURVE_STEERING_KP_DEFAULT,
-    // .curve_steering_kd = CAR_CURVE_STEERING_KD_DEFAULT,
+    .curvature_scale = CAR_CURVATURE_SCALE_DEFAULT,
+    .curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT,
+    .curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT,
+    .curve_steering_kp = CAR_CURVE_STEERING_KP_DEFAULT,
+    .curve_steering_kd = CAR_CURVE_STEERING_KD_DEFAULT,
     // .stanley_heading_gain = CAR_STANLEY_HEADING_GAIN_DEFAULT,
     // .curve_feedforward_gain = CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT,
     // .curve_preview_base_cm = CAR_CURVE_PREVIEW_BASE_DEFAULT_CM,
@@ -159,18 +178,41 @@ static uint8_t car_params_flash_profile_empty(uint32_t offset)
     return all_ff != 0 || all_zero != 0;
 }
 
+static void car_params_flash_migrate_v2(void)
+{
+    uint8_t gear;
+    uint32_t offset;
+    car_params_t stored_params;
+
+    for (gear = 1; gear <= CAR_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+        offset = car_params_flash_profile_offset(gear);
+        if (car_params_flash_profile_empty(offset) != 0) {
+            stored_params = car_default_params;
+        } else {
+            memcpy(&stored_params, &flash_union_buffer[offset], sizeof(car_params_t));
+            car_params_sanitize_curve_params(&stored_params, 1);
+        }
+        stored_params.running = 0;
+        memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
+    }
+    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
+    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+}
+
 uint8_t car_params_flash_load(void)
 {
     uint8_t gear = 1;
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-    if (car_params_flash_buffer_empty() != 0 ||
-        flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION) {
+    if (car_params_flash_buffer_empty() != 0) {
         car_params_flash_factory_init();
-    } else {
-        gear = flash_union_buffer[0].uint8_type;
-        if (car_params_flash_gear_valid(gear) == 0) gear = 1;
+    } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_LEGACY_VERSION) {
+        car_params_flash_migrate_v2();
+    } else if (flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION) {
+        car_params_flash_factory_init();
     }
 
+    gear = flash_union_buffer[0].uint8_type;
+    if (car_params_flash_gear_valid(gear) == 0) gear = 1;
     car_params_flash_switch(gear);
     return gear;
 }
@@ -192,6 +234,7 @@ void car_params_flash_switch(uint8_t gear)
         if (stored_params.servo_center_us == 1400 && stored_params.servo_travel_us == 200)
             stored_params.servo_center_us = 1520;
     }
+    car_params_sanitize_curve_params(&stored_params, 0);
     stored_params.running = 0;
     __dsync();
     car_params = stored_params;
@@ -208,6 +251,7 @@ void car_params_flash_save(uint8_t gear)
     profile_offset = car_params_flash_profile_offset(gear);
     if (profile_offset + CAR_PARAMS_FLASH_PROFILE_WORDS > EEPROM_PAGE_LENGTH) return;
 
+    car_params_sanitize_curve_params(&stored_params, 0);
     stored_params.running = 0;
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
     flash_union_buffer[0].uint32_type = 0;

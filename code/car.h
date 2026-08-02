@@ -25,13 +25,16 @@ extern int16 car_right_command;
 
 extern float steering_kp;
 extern float steering_kd;
+extern uint8 car_curve_mode;
+extern float curve_steering_kp;
+extern float curve_steering_kd;
 
 void car_init(void);
 void car_set_camera_ready(uint8 ready);
 void car_set_running(uint8 running);
 void car_toggle_running(void);
 void car_stop(void);
-void car_track_update(float error, uint8 valid, uint8 new_result);
+void car_track_update(float error, float curvature, uint8 valid, uint8 new_result);
 void car_apply_menu_params(const volatile car_params_t *params);
 void car_control_clear_latched_result(void);
 

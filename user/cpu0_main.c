@@ -55,6 +55,7 @@
 
 volatile uint32 car_time_ms = 0;
 volatile float control_error = 0;
+volatile float control_curvature = 0;
 volatile uint8 control_valid = 0;
 volatile uint8 control_result_new = 0;
 volatile uint32 control_result_age_ms = 0;
@@ -62,6 +63,7 @@ volatile uint32 control_result_age_ms = 0;
 void car_control_clear_latched_result(void)
 {
     control_error = 0;
+    control_curvature = 0;
     control_valid = 0;
     control_result_new = 0;
     control_result_age_ms = 0;
@@ -155,6 +157,7 @@ int core0_main(void)
             __dsync();
 
             control_error = result.error_pixels;
+            control_curvature = result.curvature;
             control_valid = result.line_valid;
             control_result_age_ms = 0;
             control_result_new = 1;
@@ -188,7 +191,7 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
         car_control_clear_latched_result();
         car_stop();
     } else {
-        car_track_update(control_error, control_valid, control_result_new);
+        car_track_update(control_error, control_curvature, control_valid, control_result_new);
         control_result_new = 0;
     }
 }

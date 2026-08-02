@@ -6,13 +6,13 @@
 #define CAR_PATH_WEIGHT_FAR       (0.30)
 #define CAR_PATH_WEIGHT_MIDDLE    (1.00)
 #define CAR_PATH_WEIGHT_NEAR      (1.50)
-#define CAR_STEERING_KP_DEFAULT   (5.50)
-#define CAR_STEERING_KD_DEFAULT   (18.88)
-#define CAR_CURVE_STEERING_KP_DEFAULT         (5.50)
-#define CAR_CURVE_STEERING_KD_DEFAULT         (680.00)
-#define CAR_CURVE_VARIANCE_DEFAULT             (8.00)
-#define CAR_CURVE_BLEND_THRESHOLD1_DEFAULT    (0.15)
-#define CAR_CURVE_BLEND_THRESHOLD2_DEFAULT    (0.45)
+#define CAR_STEERING_KP_DEFAULT   (3.0)
+#define CAR_STEERING_KD_DEFAULT   (3.8)
+#define CAR_CURVE_STEERING_KP_DEFAULT         (3.0)
+#define CAR_CURVE_STEERING_KD_DEFAULT         (3.8)
+#define CAR_CURVATURE_SCALE_DEFAULT           (2.0)
+#define CAR_CURVE_EXIT_THRESHOLD_DEFAULT      (0.20)
+#define CAR_CURVE_ENTER_THRESHOLD_DEFAULT     (0.24)
 #define CAR_STANLEY_HEADING_GAIN_DEFAULT      (0.35)
 #define CAR_CURVE_FEEDFORWARD_GAIN_DEFAULT    (0.10)
 #define CAR_CURVE_PREVIEW_BASE_DEFAULT_CM     (8.0)
@@ -43,9 +43,9 @@ typedef struct {
     float steering_kp;
     float steering_ki;
     float steering_kd;
-    float curve_variance_threshold;
-    float curve_blend_threshold1;
-    float curve_blend_threshold2;
+    float curvature_scale;
+    float curve_exit_threshold;
+    float curve_enter_threshold;
 
     /* The bend uses separate PD values so straight tuning stays independent. */
     float curve_steering_kp;
