@@ -28,6 +28,10 @@ int a, stop_cnt;
 uint8 Cross_Flag;
 uint8 Cross_Count;
 uint8 xieru_type;
+static int current_preview_length = 60;
+static int last_preview_max_length = 60;
+static float filtered_preview_variance = 0;
+static uint8 curve_variance_valid = 0;
 
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
@@ -63,6 +67,10 @@ void image_init(void) {
     Cross_Count = 0;
     left_index = right_index = 0;
     stop_cnt = 10;
+    current_preview_length = 60;
+    last_preview_max_length = 60;
+    filtered_preview_variance = 0;
+    curve_variance_valid = 0;
     // Search_Stop_Line = 0;
 }
 
@@ -164,6 +172,12 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
         result->curvature = result->curve_variance / car_params.curvature_scale;
     if (result->curvature < 0.0) result->curvature = 0.0;
     if (result->curvature > 1.0) result->curvature = 1.0;
+    if (curve_variance_valid != 0) {
+        filtered_preview_variance += 0.5 * (result->curvature - filtered_preview_variance);
+        if (filtered_preview_variance < 0.0) filtered_preview_variance = 0.0;
+        if (filtered_preview_variance > 1.0) filtered_preview_variance = 1.0;
+    }
+    result->preview_length = current_preview_length;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
     result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
@@ -511,43 +525,80 @@ uint8_t protect(const uint8 *gray_frame) {
     return 0;
 }
 
+static int Calculate_Max_Preview_Length(void)
+{
+    int max_length = car_params.lookhead;
+
+    if (max_length < 60) max_length = 60;
+    if (max_length > height) max_length = height;
+    return max_length;
+}
+
+static int Calculate_Used_Preview_Length(int max_length)
+{
+    int min_length = max_length - 30;
+    int used_length;
+    float factor;
+    float enter_threshold = car_params.curve_enter_threshold;
+    float exit_threshold = car_params.curve_exit_threshold;
+
+    if (min_length < 45) min_length = 45;
+    if (min_length > max_length) min_length = max_length;
+    if (enter_threshold < exit_threshold) enter_threshold = exit_threshold;
+
+    if (enter_threshold > exit_threshold) {
+        factor = (filtered_preview_variance - exit_threshold) / (enter_threshold - exit_threshold);
+    } else if (filtered_preview_variance >= enter_threshold) {
+        factor = 1.0;
+    } else {
+        factor = 0.0;
+    }
+    if (factor < 0.0) factor = 0.0;
+    if (factor > 1.0) factor = 1.0;
+
+    used_length = (int)(max_length - (max_length - min_length) * factor);
+    used_length = used_length / 5 * 5;
+    if (used_length < min_length) used_length = min_length;
+    if (used_length > max_length) used_length = max_length;
+    return used_length;
+}
+
 float Calculate_Error(void)
 {
     int i;
-    int top_row = height - car_params.lookhead;
+    int max_length = Calculate_Max_Preview_Length();
+    int top_row;
     int near_row = height - 30;
     int middle_row;
-    float sum = 0;
+    int valid_top;
+    float weighted_sum = 0;
     float weight_sum = 0;
-    static float last_error = 0.;
-    static float filtered_center[MT9V03X_H];
-    float filter_alpha;
 
-
-
+    if (max_length != last_preview_max_length) {
+        last_preview_max_length = max_length;
+        filtered_preview_variance = 0;
+    }
+    current_preview_length = Calculate_Used_Preview_Length(max_length);
+    top_row = height - current_preview_length;
     if (near_row >= height) near_row = height - 1;
-    if (near_row < 0) return 0;
-    if (top_row < 0) top_row = 0;
-    if (top_row > near_row) return 0;
+    if (near_row < 0 || top_row < 0 || top_row > near_row) return 0;
+    valid_top = height - Search_Stop_Line;
+    if (valid_top < 0) valid_top = 0;
     middle_row = top_row + (near_row - top_row) / 2;
 
-    for (i = top_row; i <= near_row; i += 5)
-    {
-        float weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
-        if (i < 60) filter_alpha = 0.85f;
-        else filter_alpha = 0.6f;
+    for (i = top_row; i <= near_row; i += 5) {
+        float weight;
 
-        filtered_center[i] = filter_alpha * Center_Line[i] + (1.0f - filter_alpha) * filtered_center[i];
-        sum += filtered_center[i] * weight;
+        if (i < valid_top) continue;
+        if (Left_Lost_Flag[i] != 0 && Right_Lost_Flag[i] != 0) continue;
+        weight = Calculate_Preview_Weight(i, top_row, middle_row, near_row);
+        if (weight <= 0.0) continue;
+        weighted_sum += Center_Line[i] * weight;
         weight_sum += weight;
     }
 
-    if(weight_sum == 0) return 0;
-    float error = sum / weight_sum - MT9V03X_W * 0.5;
-    float result = error*0.9 + last_error*0.1;
-    last_error = result;
-
-    return result;
+    if (weight_sum <= 0.0) return 0;
+    return weighted_sum / weight_sum - MT9V03X_W * 0.5;
 }
 
 static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row)
@@ -577,7 +628,8 @@ static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int 
 static float Calculate_Curve_Variance(void)
 {
     int i;
-    int top_row = height - car_params.lookhead;
+    int max_length = Calculate_Max_Preview_Length();
+    int top_row = height - max_length;
     int near_row = height - 30;
     int middle_row;
     int valid_top;
@@ -587,6 +639,7 @@ static float Calculate_Curve_Variance(void)
     float variance_sum = 0;
     float mean;
 
+    curve_variance_valid = 0;
     if (near_row >= height) near_row = height - 1;
     if (near_row < 0) return 0;
     if (top_row < 0) top_row = 0;
@@ -622,6 +675,7 @@ static float Calculate_Curve_Variance(void)
         variance_sum += difference * difference * weight;
     }
 
+    curve_variance_valid = 1;
     return variance_sum / weight_sum;
 }
 

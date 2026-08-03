@@ -47,6 +47,7 @@ typedef struct {
     uint8_t frame_slot;
     uint32_t frame_sequence;
     uint32_t processing_time_us;
+    uint16_t preview_length;
     // int16_t error_pixels;
 } car_result_t;
 
