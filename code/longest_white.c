@@ -23,6 +23,16 @@ int16 Both_Lost_Time;
 void Longest_White_Column(void)//最长白列巡线
 {
     int i, j;
+    /* The previous column is used as the next search center because it cannot jump far between frames. */
+    /* The first frame keeps the original range because no previous center is available. */
+    int search_radius = 20;
+    int previous_left_column = Longest_White_Column_Left[1];
+    int previous_right_column = Longest_White_Column_Right[1];
+    int left_search_start = 20;
+    int left_search_end = MT9V03X_W - 20;
+    int right_search_start = 20;
+    int right_search_end = MT9V03X_W - 20;
+
     int start_column=20;//最长白列的搜索区间
     int end_column=MT9V03X_W-20;
     int left_border = 0, right_border = 0;//临时存储赛道位置
@@ -48,6 +58,33 @@ void Longest_White_Column(void)//最长白列巡线
         White_Column[i] = 0;
     }
  
+    if ((previous_left_column >= start_column && previous_left_column <= end_column) ||
+        (previous_right_column >= start_column && previous_right_column <= end_column)) {
+        start_column = 0;
+        end_column = MT9V03X_W - 1;
+    }
+    if (previous_left_column >= 20 && previous_left_column <= MT9V03X_W - 20) {
+        left_search_start = previous_left_column - search_radius;
+        left_search_end = previous_left_column + search_radius;
+        if (left_search_start < 0) left_search_start = 0;
+        if (left_search_end > MT9V03X_W - 1) left_search_end = MT9V03X_W - 1;
+        Longest_White_Column_Left[1] = previous_left_column;
+    } else {
+        left_search_start = start_column;
+        left_search_end = end_column;
+        Longest_White_Column_Left[1] = 0;
+    }
+    if (previous_right_column >= 20 && previous_right_column <= MT9V03X_W - 20) {
+        right_search_start = previous_right_column - search_radius;
+        right_search_end = previous_right_column + search_radius;
+        if (right_search_start < 0) right_search_start = 0;
+        if (right_search_end > MT9V03X_W - 1) right_search_end = MT9V03X_W - 1;
+        Longest_White_Column_Right[1] = previous_right_column;
+    } else {
+        right_search_start = start_column;
+        right_search_end = end_column;
+        Longest_White_Column_Right[1] = 0;
+    }
     /* The old island branch depended on removed state variables. The current
      * shoucuo pipeline keeps the normal search window and handles cross repair
      * in image.c, so no island-specific range is applied here. */
@@ -55,6 +92,7 @@ void Longest_White_Column(void)//最长白列巡线
     //从左到右，从下往上，遍历全图记录范围内的每一列白点数量
     for (j =start_column; j<=end_column; j++)
     {
+        if ((j < left_search_start || j > left_search_end) && (j < right_search_start || j > right_search_end)) continue;
         for (i = MT9V03X_H - 1; i >= 0; i--)
         {
             if(binary_image[i * MT9V03X_W + j] == 0)
@@ -68,6 +106,7 @@ void Longest_White_Column(void)//最长白列巡线
     Longest_White_Column_Left[0] =0;
     for(i=start_column;i<=end_column;i++)
     {
+        if (i < left_search_start || i > left_search_end) continue;
         if (Longest_White_Column_Left[0] < White_Column[i])//找最长的那一列
         {
             Longest_White_Column_Left[0] = White_Column[i];//【0】是白列长度
@@ -78,6 +117,7 @@ void Longest_White_Column(void)//最长白列巡线
     Longest_White_Column_Right[0] = 0;//【0】是白列长度
     for(i=end_column;i>=start_column;i--)//从右往左，注意条件，找到左边最长白列位置就可以停了
     {
+        if (i < right_search_start || i > right_search_end) continue;
         if (Longest_White_Column_Right[0] < White_Column[i])//找最长的那一列
         {
             Longest_White_Column_Right[0] = White_Column[i];//【0】是白列长度
