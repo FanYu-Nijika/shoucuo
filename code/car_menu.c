@@ -145,7 +145,8 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "PATH FAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_far, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH MIDDLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_middle, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH NEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_near, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_VISION, "LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 60, MT9V03X_H, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "PRE-SIGHT ROW", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.control_row_near, 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "VAR LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 60, MT9V03X_H, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -161,7 +162,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_TELEMETRY, "VAR RAW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.curve_variance, 0, 10000, 1, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "VARIANCE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.curvature, 0, 1, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "CURVE PID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_curve_mode, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_TELEMETRY, "PREVIEW ROWS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U16, &car_result.preview_length, 0, MT9V03X_H, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "PRE-SIGHT ROW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U16, &car_result.preview_row, 0, MT9V03X_H - 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "SERVO US", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.servo_command_us, 0, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "LEFT CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.left_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "RIGHT CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &car_result.right_command, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -815,8 +816,8 @@ static void car_menu_draw_image_pixels(void)
     car_menu_fill(4, 164, 316, 20, RGB565_BLACK);
     if (car_curve_mode != 0) car_menu_text(4, 166, "CURVE PID: ON", RGB565_WHITE, RGB565_BLACK);
     else car_menu_text(4, 166, "CURVE PID: OFF", RGB565_WHITE, RGB565_BLACK);
-    car_menu_text(160, 166, "PREVIEW:", RGB565_WHITE, RGB565_BLACK);
-    ips200_show_uint(244, 166, car_result.preview_length, 3);
+    car_menu_text(160, 166, "ROW:", RGB565_WHITE, RGB565_BLACK);
+    ips200_show_uint(244, 166, car_result.preview_row, 3);
 }
 
 static void car_menu_draw_image(void)

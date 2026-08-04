@@ -39,6 +39,8 @@ static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_
         params->path_weight_middle = car_default_params.path_weight_middle;
         params->path_weight_near = car_default_params.path_weight_near;
     }
+    if (params->control_row_near < 3 || params->control_row_near > MT9V03X_H - 3)
+        params->control_row_near = car_default_params.control_row_near;
 }
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
