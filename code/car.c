@@ -42,7 +42,6 @@ static uint8 had_valid_track = 0;
 static float last_error = 0;
 static float last_valid_error = 0;
 static float d_filter = 0;
-static float filtered_curvature = 0;
 static float curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT;
 static float curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT;
 static const uint8 car_line_loss_protection_enabled = 0;
@@ -54,7 +53,6 @@ static void car_reset_track_state(void)
     last_error = 0;
     last_valid_error = 0;
     d_filter = 0;
-    filtered_curvature = 0;
     car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
 }
 
@@ -217,14 +215,12 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     }
 
     if (valid) {
-        filtered_curvature += 0.5 * (curvature - filtered_curvature);
-
-        /* 滞回区间内保持当前模式，避免曲率临界值附近反复切换。 */
-        if (car_curve_mode == CAR_CURVE_MODE_STRAIGHT && filtered_curvature >= curve_enter_threshold) {
+        /* 直接使用当前帧偏方差，避免弯道内部数值变化被时间滤波延迟。 */
+        if (car_curve_mode == CAR_CURVE_MODE_STRAIGHT && curvature >= curve_enter_threshold) {
             car_curve_mode = CAR_CURVE_MODE_CURVE;
             d_filter = 0;
             last_error = error;
-        } else if (car_curve_mode == CAR_CURVE_MODE_CURVE && filtered_curvature <= curve_exit_threshold) {
+        } else if (car_curve_mode == CAR_CURVE_MODE_CURVE && curvature <= curve_exit_threshold) {
             car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
             d_filter = 0;
             last_error = error;
