@@ -14,39 +14,29 @@ int16 Right_Lost_Time;
 int16 Both_Lost_Time;
 
 /*-------------------------------------------------------------------------------------------------------------------
-  @brief     双最长白列巡线
+  @brief     ??????????
   @param     null
   @return    null
   Sample     Longest_White_Column_Left();
-  @note      最长白列巡线，寻找初始边界，丢线，最长白列等基础元素，后续读取这些变量来进行赛道识别
+  @note      ?????????????????磬??????????е?????????????????Щ?????????????????
 -------------------------------------------------------------------------------------------------------------------*/
-void Longest_White_Column(void)//最长白列巡线
+void Longest_White_Column(void)//?????????
 {
     int i, j;
-    /* The previous column is used as the next search center because it cannot jump far between frames. */
-    /* The first frame keeps the original range because no previous center is available. */
-    int search_radius = 20;
-    int previous_left_column = Longest_White_Column_Left[1];
-    int previous_right_column = Longest_White_Column_Right[1];
-    int left_search_start = 20;
-    int left_search_end = MT9V03X_W - 20;
-    int right_search_start = 20;
-    int right_search_end = MT9V03X_W - 20;
-
-    int start_column=20;//最长白列的搜索区间
+    int start_column=20;//?????е?????????
     int end_column=MT9V03X_W-20;
-    int left_border = 0, right_border = 0;//临时存储赛道位置
-    Longest_White_Column_Left[0] = 0;//最长白列,[0]是最长白列的长度，[1】是第某列
-    Longest_White_Column_Left[1] = 0;//最长白列,[0]是最长白列的长度，[1】是第某列
-    Longest_White_Column_Right[0] = 0;//最长白列,[0]是最长白列的长度，[1】是第某列
-    Longest_White_Column_Right[1] = 0;//最长白列,[0]是最长白列的长度，[1】是第某列
-    Right_Lost_Time = 0;    //边界丢线数
+    int left_border = 0, right_border = 0;//????洢????λ??
+    Longest_White_Column_Left[0] = 0;//??????,[0]???????е?????[1????????
+    Longest_White_Column_Left[1] = 0;//??????,[0]???????е?????[1????????
+    Longest_White_Column_Right[0] = 0;//??????,[0]???????е?????[1????????
+    Longest_White_Column_Right[1] = 0;//??????,[0]???????е?????[1????????
+    Right_Lost_Time = 0;    //??綪????
     Left_Lost_Time  = 0;
-    Boundry_Start_Left  = 0;//第一个非丢线点,常规边界起始点
+    Boundry_Start_Left  = 0;//???????????,???????????
     Boundry_Start_Right = 0;
-    Both_Lost_Time = 0;//两边同时丢线数
+    Both_Lost_Time = 0;//????????????
  
-    for (i = 0; i <=MT9V03X_H-1; i++)//数据清零
+    for (i = 0; i <=MT9V03X_H-1; i++)//????????
     {
         Right_Lost_Flag[i] = 0;
         Left_Lost_Flag[i] = 0;
@@ -58,41 +48,13 @@ void Longest_White_Column(void)//最长白列巡线
         White_Column[i] = 0;
     }
  
-    if ((previous_left_column >= start_column && previous_left_column <= end_column) ||
-        (previous_right_column >= start_column && previous_right_column <= end_column)) {
-        start_column = 0;
-        end_column = MT9V03X_W - 1;
-    }
-    if (previous_left_column >= 20 && previous_left_column <= MT9V03X_W - 20) {
-        left_search_start = previous_left_column - search_radius;
-        left_search_end = previous_left_column + search_radius;
-        if (left_search_start < 0) left_search_start = 0;
-        if (left_search_end > MT9V03X_W - 1) left_search_end = MT9V03X_W - 1;
-        Longest_White_Column_Left[1] = previous_left_column;
-    } else {
-        left_search_start = start_column;
-        left_search_end = end_column;
-        Longest_White_Column_Left[1] = 0;
-    }
-    if (previous_right_column >= 20 && previous_right_column <= MT9V03X_W - 20) {
-        right_search_start = previous_right_column - search_radius;
-        right_search_end = previous_right_column + search_radius;
-        if (right_search_start < 0) right_search_start = 0;
-        if (right_search_end > MT9V03X_W - 1) right_search_end = MT9V03X_W - 1;
-        Longest_White_Column_Right[1] = previous_right_column;
-    } else {
-        right_search_start = start_column;
-        right_search_end = end_column;
-        Longest_White_Column_Right[1] = 0;
-    }
     /* The old island branch depended on removed state variables. The current
      * shoucuo pipeline keeps the normal search window and handles cross repair
      * in image.c, so no island-specific range is applied here. */
  
-    //从左到右，从下往上，遍历全图记录范围内的每一列白点数量
+    //???????????????????????????Χ??????а??????
     for (j =start_column; j<=end_column; j++)
     {
-        if ((j < left_search_start || j > left_search_end) && (j < right_search_start || j > right_search_end)) continue;
         for (i = MT9V03X_H - 1; i >= 0; i--)
         {
             if(binary_image[i * MT9V03X_W + j] == 0)
@@ -102,110 +64,108 @@ void Longest_White_Column(void)//最长白列巡线
         }
     }
  
-    //从左到右找左边最长白列
+    //?????????????????
     Longest_White_Column_Left[0] =0;
     for(i=start_column;i<=end_column;i++)
     {
-        if (i < left_search_start || i > left_search_end) continue;
-        if (Longest_White_Column_Left[0] < White_Column[i])//找最长的那一列
+        if (Longest_White_Column_Left[0] < White_Column[i])//???????????
         {
-            Longest_White_Column_Left[0] = White_Column[i];//【0】是白列长度
-            Longest_White_Column_Left[1] = i;              //【1】是下标，第j列
+            Longest_White_Column_Left[0] = White_Column[i];//??0??????г???
+            Longest_White_Column_Left[1] = i;              //??1?????±???j??
         }
     }
-    //从右到左找右左边最长白列
-    Longest_White_Column_Right[0] = 0;//【0】是白列长度
-    for(i=end_column;i>=start_column;i--)//从右往左，注意条件，找到左边最长白列位置就可以停了
+    //????????????????????
+    Longest_White_Column_Right[0] = 0;//??0??????г???
+    for(i=end_column;i>=start_column;i--)//?????????????????????????????λ?????????
     {
-        if (i < right_search_start || i > right_search_end) continue;
-        if (Longest_White_Column_Right[0] < White_Column[i])//找最长的那一列
+        if (Longest_White_Column_Right[0] < White_Column[i])//???????????
         {
-            Longest_White_Column_Right[0] = White_Column[i];//【0】是白列长度
-            Longest_White_Column_Right[1] = i;              //【1】是下标，第j列
+            Longest_White_Column_Right[0] = White_Column[i];//??0??????г???
+            Longest_White_Column_Right[1] = i;              //??1?????±???j??
         }
     }
  
-    Search_Stop_Line = Longest_White_Column_Left[0];//搜索截止行选取左或者右区别不大，他们两个理论上是一样的
+    Search_Stop_Line = Longest_White_Column_Left[0];//????????????????????????????????????????????
     if(Search_Stop_Line < 5) {
         Search_Stop_Line = 5;
     }
     if(Search_Stop_Line > MT9V03X_H) {
         Search_Stop_Line = MT9V03X_H;
     }
-    for (i = MT9V03X_H - 1; i >=MT9V03X_H-Search_Stop_Line; i--)//常规巡线
+    for (i = MT9V03X_H - 1; i >=MT9V03X_H-Search_Stop_Line; i--)//???????
     {
         for (j = Longest_White_Column_Right[1]; j <= MT9V03X_W - 1 - 2; j++)
         {
             if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j + 1] == 0 &&
-                binary_image[i * MT9V03X_W + j + 2] == 0)//白黑黑，找到右边界
+                binary_image[i * MT9V03X_W + j + 2] == 0)//????????????
             {
                 right_border = j;
-                Right_Lost_Flag[i] = 0; //右丢线数组，丢线置1，不丢线置0
+                Right_Lost_Flag[i] = 0; //????????飬??????1??????????0
                 break;
             }
-            else if(j>=MT9V03X_W-1-2)//没找到右边界，把屏幕最右赋值给右边界
+            else if(j>=MT9V03X_W-1-2)//???????磬?????????????????
             {
                 right_border = j;
-                Right_Lost_Flag[i] = 1; //右丢线数组，丢线置1，不丢线置0
+                Right_Lost_Flag[i] = 1; //????????飬??????1??????????0
                 break;
             }
         }
-        for (j = Longest_White_Column_Left[1]; j >= 0 + 2; j--)//往左边扫描
+        for (j = Longest_White_Column_Left[1]; j >= 0 + 2; j--)//????????
         {
             if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j - 1] == 0 &&
-                binary_image[i * MT9V03X_W + j - 2] == 0)//黑黑白认为到达左边界
+                binary_image[i * MT9V03X_W + j - 2] == 0)//???????????????
             {
                 left_border = j;
-                Left_Lost_Flag[i] = 0; //左丢线数组，丢线置1，不丢线置0
+                Left_Lost_Flag[i] = 0; //???????飬??????1??????????0
                 break;
             }
             else if(j<=0+2)
             {
-                left_border = j;//找到头都没找到边，就把屏幕最左右当做边界
-                Left_Lost_Flag[i] = 1; //左丢线数组，丢线置1，不丢线置0
+                left_border = j;//???????????????????????????????
+                Left_Lost_Flag[i] = 1; //???????飬??????1??????????0
                 break;
             }
         }
-        Left_Line [i] = left_border;       //左边线线数组
-        Right_Line[i] = right_border;      //右边线线数组
+        Left_Line [i] = left_border;       //???????????
+        Right_Line[i] = right_border;      //???????????
     }
  
-    for (i = MT9V03X_H - 1; i >= 0; i--)//赛道数据初步分析
+    for (i = MT9V03X_H - 1; i >= 0; i--)//???????????????
     {
-        if (Left_Lost_Flag[i]  == 1)//单边丢线数
+        if (Left_Lost_Flag[i]  == 1)//?????????
             Left_Lost_Time++;
         if (Right_Lost_Flag[i] == 1)
             Right_Lost_Time++;
-        if (Left_Lost_Flag[i] == 1 && Right_Lost_Flag[i] == 1)//双边丢线数
+        if (Left_Lost_Flag[i] == 1 && Right_Lost_Flag[i] == 1)//????????
             Both_Lost_Time++;
-        if (Boundry_Start_Left ==  0 && Left_Lost_Flag[i]  != 1)//记录第一个非丢线点，边界起始点
+        if (Boundry_Start_Left ==  0 && Left_Lost_Flag[i]  != 1)//??????????????????????
             Boundry_Start_Left = i;
         if (Boundry_Start_Right == 0 && Right_Lost_Flag[i] != 1)
             Boundry_Start_Right = i;
         Road_Wide[i]=Right_Line[i]-Left_Line[i];
     }
  
-    // //环岛3状态改变边界，看情况而定，我认为理论上的最优情况是不需要这些处理的
+    // //????3??????磬??????????????????????????????????????Щ??????
     // if(Island_State==3||Island_State==4)
     // {
-    //     if(Right_Island_Flag==1)//右环
+    //     if(Right_Island_Flag==1)//???
     //     {
-    //         for (i = MT9V03X_H - 1; i >= 0; i--)//右边直接写在边上
+    //         for (i = MT9V03X_H - 1; i >= 0; i--)//??????д?????
     //         {
     //             Right_Line[i]=MT9V03X_W-1;
     //         }
     //     }
-    //     else if(Left_Island_Flag==1)//左环
+    //     else if(Left_Island_Flag==1)//??
     //     {
-    //         for (i = MT9V03X_H - 1; i >= 0; i--)//左边直接写在边上
+    //         for (i = MT9V03X_H - 1; i >= 0; i--)//??????д?????
     //         {
-    //             Left_Line[i]=0;      //右边线线数组
+    //             Left_Line[i]=0;      //???????????
     //         }
     //     }
     // }
-    //debug使用，屏幕显示相关参数
-//    ips200_showint16(0,0, Longest_White_Column_Right[0]);//【0】是白列长度
-//    ips200_showint16(0,1, Longest_White_Column_Right[1]);//【1】是下标，第j列)
-//    ips200_showint16(0,2, Longest_White_Column_Left[0]);//【0】是白列长度
-//    ips200_showint16(0,3, Longest_White_Column_Left[1]);//【1】是下标，第j列)
+    //debug????????????????
+//    ips200_showint16(0,0, Longest_White_Column_Right[0]);//??0??????г???
+//    ips200_showint16(0,1, Longest_White_Column_Right[1]);//??1?????±???j??)
+//    ips200_showint16(0,2, Longest_White_Column_Left[0]);//??0??????г???
+//    ips200_showint16(0,3, Longest_White_Column_Left[1]);//??1?????±???j??)
 }

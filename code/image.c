@@ -31,6 +31,7 @@ uint8 xieru_type;
 static int current_preview_length = 60;
 static int last_preview_max_length = 60;
 static float filtered_preview_variance = 0;
+static float filtered_error = 0;
 static uint8 curve_variance_valid = 0;
 
 uint8 ostu_deal_threshold(void);
@@ -70,6 +71,7 @@ void image_init(void) {
     current_preview_length = 60;
     last_preview_max_length = 60;
     filtered_preview_variance = 0;
+    filtered_error = 0;
     curve_variance_valid = 0;
     // Search_Stop_Line = 0;
 }
@@ -573,6 +575,7 @@ float Calculate_Error(void)
     int valid_top;
     float weighted_sum = 0;
     float weight_sum = 0;
+    float raw_error;
 
     if (max_length != last_preview_max_length) {
         last_preview_max_length = max_length;
@@ -581,7 +584,7 @@ float Calculate_Error(void)
     current_preview_length = Calculate_Used_Preview_Length(max_length);
     top_row = height - current_preview_length;
     if (near_row >= height) near_row = height - 1;
-    if (near_row < 0 || top_row < 0 || top_row > near_row) return 0;
+    if (near_row < 0 || top_row < 0 || top_row > near_row) return filtered_error;
     valid_top = height - Search_Stop_Line;
     if (valid_top < 0) valid_top = 0;
     middle_row = top_row + (near_row - top_row) / 2;
@@ -597,8 +600,13 @@ float Calculate_Error(void)
         weight_sum += weight;
     }
 
-    if (weight_sum <= 0.0) return 0;
-    return weighted_sum / weight_sum - MT9V03X_W * 0.5;
+    if (weight_sum <= 0.0) return filtered_error;
+    raw_error = weighted_sum / weight_sum - MT9V03X_W * 0.5;
+
+    /* Keep one-frame boundary noise from causing a sudden steering error. */
+    filtered_error += 0.35 * (raw_error - filtered_error);
+
+    return filtered_error;
 }
 
 static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row)
