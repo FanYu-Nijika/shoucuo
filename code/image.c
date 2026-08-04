@@ -525,11 +525,14 @@ static int Calculate_Max_Preview_Length(void)
 float Calculate_Error(void)
 {
     int i;
+    int search_row;
     int pre_sight = car_params.control_row_near;
     int start_row;
     int end_row;
     int valid_top = height - Search_Stop_Line;
     int valid_count = 0;
+    int last_center = 0;
+    uint8 has_last_center = 0;
     float center_sum = 0;
 
     if (pre_sight < 3) pre_sight = 3;
@@ -538,11 +541,21 @@ float Calculate_Error(void)
     start_row = pre_sight - 3;
     end_row = pre_sight + 3;
 
-    /* 六行空间平均抑制单行边界噪声，同时不增加跨帧延迟。 */
-    for (i = start_row; i < end_row; i++) {
-        if (i < valid_top) continue;
-        if (Left_Lost_Flag[i] != 0 && Right_Lost_Flag[i] != 0) continue;
-        center_sum += Center_Line[i];
+    /* 先找窗口下方最近的有效中线，窗口全部位于黑区时也能向上延长。 */
+    for (search_row = end_row - 1; search_row < height; search_row++) {
+        if (search_row < valid_top) continue;
+        if (Left_Lost_Flag[search_row] != 0 && Right_Lost_Flag[search_row] != 0) continue;
+        last_center = Center_Line[search_row];
+        has_last_center = 1;
+        break;
+    }
+
+    if (has_last_center == 0) return 0;
+
+    /* 从近端向远端计算，无效行使用下方最近的有效中线，不修改原中线。 */
+    for (i = end_row - 1; i >= start_row; i--) {
+        if (i >= valid_top && (Left_Lost_Flag[i] == 0 || Right_Lost_Flag[i] == 0)) last_center = Center_Line[i];
+        center_sum += last_center;
         valid_count++;
     }
 
