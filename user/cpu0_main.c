@@ -194,6 +194,14 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
         car_track_update(control_error, control_curvature, control_valid, control_result_new);
         control_result_new = 0;
     }
+
+    if (car_running != 0 && car_curve_mode != 0) {
+        gpio_set_level(BOARD_BUZZER_PIN, GPIO_HIGH);
+    }
+    else {
+        gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
+    }
+
 }
 
 #pragma section all restore

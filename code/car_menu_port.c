@@ -139,9 +139,9 @@ void cc_tc264_menu_servo_write_us(int16_t pulse_us)
     pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_duty(pulse_us));
 }
 
-int32_t cc_tc264_encoder_read(uint8_t wheel_index)
-{
-    /* The current board has no encoder input. */
-    (void)wheel_index;
-    return 0;
-}
+//int32_t cc_tc264_encoder_read(uint8_t wheel_index)
+//{
+//    /* The current board has no encoder input. */
+//    (void)wheel_index;
+//    return 0;
+//}
