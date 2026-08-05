@@ -12,6 +12,8 @@ int16 Road_Wide[MT9V03X_H];
 int16 Left_Lost_Time;
 int16 Right_Lost_Time;
 int16 Both_Lost_Time;
+static int16 Previous_Longest_White_X;
+static uint8 Previous_Longest_White_Valid;
 
 /*-------------------------------------------------------------------------------------------------------------------
   @brief     ??????????
@@ -25,6 +27,13 @@ void Longest_White_Column(void)//?????????
     int i, j;
     int start_column=20;//?????§Ö?????????
     int end_column=MT9V03X_W-20;
+    int search_radius = 20;
+    int reference_x = MT9V03X_W / 2;
+    int longest_x = reference_x;
+    int boundary_seed;
+    int current_distance;
+    int longest_distance;
+    uint16 longest_length = 0;
     int left_border = 0, right_border = 0;//????›¥????¦Ë??
     Longest_White_Column_Left[0] = 0;//??????,[0]???????§Ö?????[1????????
     Longest_White_Column_Left[1] = 0;//??????,[0]???????§Ö?????[1????????
@@ -47,6 +56,16 @@ void Longest_White_Column(void)//?????????
     {
         White_Column[i] = 0;
     }
+
+    /* A valid previous column is the only center used after the first frame. */
+    if (Previous_Longest_White_Valid != 0) {
+        reference_x = Previous_Longest_White_X;
+        start_column = reference_x - search_radius;
+        end_column = reference_x + search_radius;
+        if (start_column < 0) start_column = 0;
+        if (end_column > MT9V03X_W - 1) end_column = MT9V03X_W - 1;
+    }
+    longest_x = reference_x;
  
     /* The old island branch depended on removed state variables. The current
      * shoucuo pipeline keeps the normal search window and handles cross repair
@@ -64,27 +83,34 @@ void Longest_White_Column(void)//?????????
         }
     }
  
-    //?????????????????
-    Longest_White_Column_Left[0] =0;
-    for(i=start_column;i<=end_column;i++)
-    {
-        if (Longest_White_Column_Left[0] < White_Column[i])//???????????
-        {
-            Longest_White_Column_Left[0] = White_Column[i];//??0??????§Ô???
-            Longest_White_Column_Left[1] = i;              //??1?????¡À???j??
+    /* Equal maxima stay as close as possible to the previous column. */
+    for (i = start_column; i <= end_column; i++) {
+        current_distance = abs(i - reference_x);
+        longest_distance = abs(longest_x - reference_x);
+        if (White_Column[i] > longest_length ||
+            (White_Column[i] == longest_length && White_Column[i] > 0 &&
+             (current_distance < longest_distance ||
+              (current_distance == longest_distance && i < longest_x)))) {
+            longest_length = White_Column[i];
+            longest_x = i;
         }
     }
-    //????????????????????
-    Longest_White_Column_Right[0] = 0;//??0??????§Ô???
-    for(i=end_column;i>=start_column;i--)//?????????????????????????????¦Ë?????????
-    {
-        if (Longest_White_Column_Right[0] < White_Column[i])//???????????
-        {
-            Longest_White_Column_Right[0] = White_Column[i];//??0??????§Ô???
-            Longest_White_Column_Right[1] = i;              //??1?????¡À???j??
-        }
+
+    if (longest_length > 0) {
+        Previous_Longest_White_X = longest_x;
+        Previous_Longest_White_Valid = 1;
     }
- 
+
+    Longest_White_Column_Left[0] = longest_length;
+    Longest_White_Column_Left[1] = longest_x;
+    Longest_White_Column_Right[0] = longest_length;
+    Longest_White_Column_Right[1] = longest_x;
+
+    /* Boundary scans need two neighboring pixels on each side. */
+    boundary_seed = longest_x;
+    if (boundary_seed < 2) boundary_seed = 2;
+    if (boundary_seed > MT9V03X_W - 3) boundary_seed = MT9V03X_W - 3;
+
     Search_Stop_Line = Longest_White_Column_Left[0];//????????????????????????????????????????????
     if(Search_Stop_Line < 5) {
         Search_Stop_Line = 5;
@@ -94,7 +120,7 @@ void Longest_White_Column(void)//?????????
     }
     for (i = MT9V03X_H - 1; i >=MT9V03X_H-Search_Stop_Line; i--)//???????
     {
-        for (j = Longest_White_Column_Right[1]; j <= MT9V03X_W - 1 - 2; j++)
+        for (j = boundary_seed; j <= MT9V03X_W - 1 - 2; j++)
         {
             if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j + 1] == 0 &&
                 binary_image[i * MT9V03X_W + j + 2] == 0)//????????????
@@ -110,7 +136,7 @@ void Longest_White_Column(void)//?????????
                 break;
             }
         }
-        for (j = Longest_White_Column_Left[1]; j >= 0 + 2; j--)//????????
+        for (j = boundary_seed; j >= 0 + 2; j--)//????????
         {
             if (binary_image[i * MT9V03X_W + j] == 1 && binary_image[i * MT9V03X_W + j - 1] == 0 &&
                 binary_image[i * MT9V03X_W + j - 2] == 0)//???????????????
