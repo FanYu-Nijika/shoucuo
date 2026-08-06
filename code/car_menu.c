@@ -700,11 +700,11 @@ static void car_menu_draw_footer(void)
 
     car_menu_fill(0, 216, 320, 24, RGB565_BLACK);
     if (car_menu_error != CAR_MENU_ERROR_NONE && car_menu_editing == 0) text = car_menu_error_text();
-    else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT SAVE LEFT CANCEL";
-    else if (car_menu_page == CAR_MENU_PAGE_IMAGE) text = "LEFT BACK";
-    else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
-    else if (car_menu_start_pending != 0) text = "WAIT 3S CENTER STOP LEFT BACK";
-    else text = "UP/DN MOVE RIGHT/CENTER ENTER LEFT BACK";
+    // else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT SAVE LEFT CANCEL";
+    // else if (car_menu_page == CAR_MENU_PAGE_IMAGE) text = "LEFT BACK";
+    // else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
+    // else if (car_menu_start_pending != 0) text = "WAIT 3S CENTER STOP LEFT BACK";
+    // else text = "UP/DN MOVE RIGHT/CENTER ENTER LEFT BACK";
     car_menu_text(2, 220, text, RGB565_WHITE, RGB565_BLACK);
 }
 

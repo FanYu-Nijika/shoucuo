@@ -218,8 +218,8 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
 //     if (max_x >= width - 1) max_x = width - 2;
 
 //     /*
-//      * 从底部向上逐行扫描。
-//      * 每一行都以 max_x 为中心，分别寻找左右边界。
+//      * 从底部向上逐�?�扫描�?
+//      * 每一行都�? max_x 为中心，分别寻找左右边界�?
 //      */
 //     for (y = bottom_row - 1; y > top_row; y--)
 //     {
@@ -668,11 +668,11 @@ void Center_Line_Calculate(void)
 
 // // Legacy edge-following helpers are disabled until their removed interfaces are restored.
 // /*-------------------------------------------------------------------------------------------------------------------
-//   @brief     左下角点检测
-//   @param     起始行，终止行
+//   @brief     左下角点检�?
+//   @param     起�?��?�，终�?��??
 //   @return    返回角点所在的行数，找不到返回0
 //   Sample     left_down_guai[0]=Find_Left_Down_Point(MT9V03X_H-1,20);
-//   @note      角点检测阈值可根据实际值更改
+//   @note      角点检测阈值可根据实际值更�?
 // -------------------------------------------------------------------------------------------------------------------*/
 static void cross_prepare_search_range(int *start, int *end)
 {
@@ -1001,7 +1001,7 @@ void shizibuxian(uint8 xieru_type)
     bottom_row = MT9V03X_H - 1;
 
     /*
-     * 斜入十字仍使用你现在的逻辑。
+     * 斜入十字仍使用你现在的逻辑�?
      */
     if (xieru_type == CROSS_SKEW_LEFT)
     {
@@ -1028,7 +1028,7 @@ void shizibuxian(uint8 xieru_type)
     }
 
     /*
-     * 以下为正入十字。
+     * 以下为�?�入十字�?
      */
     left_up = Find_Left_Up_Point(search_start, search_end);
     right_up = Find_Right_Up_Point(search_start, search_end);
@@ -1036,8 +1036,8 @@ void shizibuxian(uint8 xieru_type)
     if (left_up <= 0 || right_up <= 0) return;
 
     /*
-     * 用底部道路中心确认两个上拐点确实分布在中线两侧。
-     * 加3像素容差，避免边界抖动导致漏检。
+     * 用底部道�?�?心确认两�?上拐点确实分布在�?线两侧�?
+     * �?3像素容差，避免边界抖动�?�致漏�?��?
      */
     if (Left_Lost_Flag[bottom_row] == 0 &&
         Right_Lost_Flag[bottom_row] == 0 &&
@@ -1054,7 +1054,7 @@ void shizibuxian(uint8 xieru_type)
     if (Right_Line[right_up] < center - 3) return;
 
     /*
-     * 正入时左右上拐点不能相差太远。
+     * 正入时左右上拐点不能相差�?远�?
      */
     if (abs(left_up - right_up) >
         car_params.cross_corner_row_gap_max)
@@ -1063,7 +1063,7 @@ void shizibuxian(uint8 xieru_type)
     }
 
     /*
-     * 下拐点必须在上拐点的近车方向，即行号更大。
+     * 下拐点必须在上拐点的近车方向，即行号更大�?
      */
     down_end = (left_up > right_up ? left_up : right_up) + 2;
 
@@ -1084,8 +1084,8 @@ void shizibuxian(uint8 xieru_type)
     }
 
     /*
-     * 四个角点均存在：
-     * 上下角点直接连线。
+     * 四个角点均存�?�?
+     * 上下角点直接连线�?
      */
     if (left_down > 0 && right_down > 0)
     {
@@ -1093,8 +1093,8 @@ void shizibuxian(uint8 xieru_type)
         Add_Right_Line(right_up, right_down);
     }
     /*
-     * 只有左下角点：
-     * 左侧连线，右侧延长。
+     * �?有左下�?�点�?
+     * 左侧连线，右侧延长�?
      */
     else if (left_down > 0)
     {
@@ -1105,8 +1105,8 @@ void shizibuxian(uint8 xieru_type)
             MT9V03X_H - 1);
     }
     /*
-     * 只有右下角点：
-     * 右侧连线，左侧延长。
+     * �?有右下�?�点�?
+     * 右侧连线，左侧延长�?
      */
     else if (right_down > 0)
     {
@@ -1117,8 +1117,8 @@ void shizibuxian(uint8 xieru_type)
         Add_Right_Line(right_up, right_down);
     }
     /*
-     * 两个下角点都找不到：
-     * 才退化为延长两条上边界。
+     * 两个下�?�点都找不到�?
+     * 才退化为延长两条上边界�?
      */
     else
     {
@@ -1132,7 +1132,7 @@ void shizibuxian(uint8 xieru_type)
     }
 
     /*
-     * 补线后的区域重新标为有效边界。
+     * 补线后的区域重新标为有效边界�?
      */
     for (i = left_up; i < MT9V03X_H; i++)
     {
@@ -1314,12 +1314,12 @@ void get_highest(void)
         {
             for(int y = height-1; y >= 0; y--)
             {
-                // 白黑黑跳变
+                // 白黑黑跳�?
                 if(binary_image[y*width+x] == 1 &&
                    binary_image[(y-1)*width+x] == 0 &&
                    binary_image[(y-2)*width+x] == 0)
                 {
-                    // 找最长白列
+                    // 找最长白�?
                     if(y < lw)
                     {
                         lw = y;
@@ -1330,7 +1330,7 @@ void get_highest(void)
                 }
 
 
-                // 防止越界
+                // 防�?�越�?
                 if(y <= 2)
                 {
                     if(y < lw)
@@ -1345,21 +1345,21 @@ void get_highest(void)
     }
 }
 
-float Last_Curvature_Value = 0;     //防止
+float Last_Curvature_Value = 0;     //防�??
 /**
-* 函数功能：      计算中线曲率，作为控制速度的一个数据
-* 特殊说明：      无
-* 形  参：        uint8 *line      中线
-*                 uint8 start      爬线相遇点的Y值，或最大有效行
-*                 uint8 end        爬线起始行（或图像最底端）
+* 函数功能�?      计算�?线曲率，作为控制速度的一�?数据
+* 特殊说明�?      �?
+* �?  参：        uint8 *line      �?�?
+*                 uint8 start      �?线相遇点的Y值，或最大有效�??
+*                 uint8 end        �?线起始�?�（或图像最底�??�?
 *
-* 示例：          Calculate_Curvature_2(C_Line, Y_Meet, L_Start_Point[1]);
-* 返回值：        Last_Curvature_Value      所得曲率
+* 示例�?          Calculate_Curvature_2(C_Line, Y_Meet, L_Start_Point[1]);
+* 返回值：        Last_Curvature_Value      所得曲�?
 */
 // float Calculate_Curvature_2(uint8 *line, uint8 start, uint8 end)
 // {
-//     int16 Sum_Difference_Value = 0;     //用于X坐标差值的累积
-//     int16 Sum_Weight = 0;               //用于权值相加
+//     int16 Sum_Difference_Value = 0;     //用于X坐标�?值的�?�?
+//     int16 Sum_Weight = 0;               //用于权值相�?
 //     uint8 i = 0;
  
 //     // uint8 Base_Curvature_Weight[60] = {0, 0, 1, 0, 1, 0, 1, 0, 1, 0,
@@ -1372,24 +1372,24 @@ float Last_Curvature_Value = 0;     //防止
 //     for (i = 0; i < 120; ++i) {
 //         Base_Curvature_Weight[i] = i&1;
 //     }
-//     uint8 Trends_Curvature_Weight[19] = {4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 7, 7, 6, 6, 5, 5, 4};      //动态权值，高权值放中间
+//     uint8 Trends_Curvature_Weight[19] = {4, 5, 5, 6, 6, 7, 7, 8, 8, 8, 8, 8, 7, 7, 6, 6, 5, 5, 4};      //动态权值，高权值放�?�?
  
-//     uint8 Start_Line = (uint8)((float)(Y_Meet - 2) / 18.0f * 16.0f + 24.0f);    //动态权替换固定权起始行，我图像为60行，最低从24行向上替换，最高为40行向上替换，Y_Meet最大值为20
+//     uint8 Start_Line = (uint8)((float)(Y_Meet - 2) / 18.0f * 16.0f + 24.0f);    //动态权替换固定权起始�?�，我图像为60行，最低从24行向上替�?，最高为40行向上替�?，Y_Meet最大值为20
  
-//     //将动态权值赋值给固定权值数组
+//     //将动态权值赋值给固定权值数�?
 //     for(i = 0; i < 19; i ++) {
 //         Base_Curvature_Weight[Start_Line - i] = Trends_Curvature_Weight[i];
 //     }
  
-//     for(i = start; i < end - 1; i++)    //求差值和并求出权值
+//     for(i = start; i < end - 1; i++)    //求差值和并求出权�?
 //     {
 //         Sum_Difference_Value += (int16)(My_ABS((int)line[i] - (int)line[i + 1]) * (int)Base_Curvature_Weight[i]);
 //         Sum_Weight += (int16)Base_Curvature_Weight[i];
 //     }
  
-//     if(Sum_Weight != 0)     //防止权值为0，但好像不会出现，当时不知道为啥要写这个
+//     if(Sum_Weight != 0)     //防�?�权值为0，但好像不会出现，当时不知道为啥要写这个
 //     {
-//         Last_Curvature_Value = (float)Sum_Difference_Value / (float)Sum_Weight;     //求加权平均值，归一化放在了另一个函数里
+//         Last_Curvature_Value = (float)Sum_Difference_Value / (float)Sum_Weight;     //求加权平均值，归一化放在了另一�?函数�?
 //         return Last_Curvature_Value;
 //     }
 //     else
