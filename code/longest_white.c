@@ -20,7 +20,7 @@ void Longest_White_Column(void)//?????????
     int i, j;
     int start_column=20;//?????§Ö?????????
     int end_column=MT9V03X_W-20;
-    int search_radius = 20;
+    int search_radius = 40;
     int reference_x = MT9V03X_W / 2;
     int longest_x = reference_x;
     int boundary_seed;

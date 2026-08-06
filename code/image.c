@@ -8,6 +8,14 @@
 #include "zf_device_ips200.h"
 #include <string.h>
 
+#define CROSS_SKEW_SPAN_MIN 18
+#define CROSS_SKEW_SPAN_MAX 60
+#define CROSS_SKEW_LOST_MIN 3
+#define CROSS_SKEW_CROSS_MIN 4
+#define CROSS_SKEW_TURN_WINDOW 14
+#define CROSS_SKEW_TURN_GAP 5
+#define CROSS_SKEW_TURN_DIFF 6
+
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
 // #define CROSS_SKEW_RIGHT 14
@@ -108,7 +116,6 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     }
     // Longest_White_Column();
     Longest_White_Column();
-    Build_Dynamic_Center_Line();
     xieru_type = Judge_xierushizi_type();
 
     if (Longest_White_Column_Left[0] < 10) already_line_lost = 1;
@@ -402,97 +409,188 @@ int Find_xierushizi_up_point(uint8 type)
 
 //     return CROSS_SKEW_NONE;
 // }
+static uint8 Skew_Pair_Is_Valid(const int16 *line, const uint8 *lost_flag, int up_point, int down_point, uint8 left_side)
+{
+    int i;
+    int expected;
+    int deviation;
+    int max_deviation = 0;
+    int lost_count = 0;
+
+    /* 顶部碎片也会形成短双点，真实补线还必须有足够跨度和正确的左右方向。 */
+    if (up_point <= 5 || down_point - up_point < CROSS_SKEW_SPAN_MIN) return 0;
+    if (down_point - up_point > CROSS_SKEW_SPAN_MAX) return 0;
+    if (left_side != 0 && line[up_point] <= line[down_point] + CROSS_SKEW_MARGIN) return 0;
+    if (left_side == 0 && line[up_point] >= line[down_point] - CROSS_SKEW_MARGIN) return 0;
+
+    for (i = up_point + 1; i < down_point; i++) {
+        if (lost_flag[i] != 0) lost_count++;
+        expected = line[up_point] + (line[down_point] - line[up_point]) * (i - up_point) / (down_point - up_point);
+        deviation = abs(line[i] - expected);
+        if (deviation > max_deviation) max_deviation = deviation;
+    }
+
+    return lost_count >= CROSS_SKEW_LOST_MIN || max_deviation >= CROSS_SKEW_JUMP;
+}
+
+static int Find_Skew_Turn_Point(const int16 *line, const uint8 *lost_flag, int up_point, uint8 left_side)
+{
+    int i;
+    int search_start = up_point + CROSS_SKEW_SPAN_MIN;
+    int search_end = up_point + CROSS_SKEW_SPAN_MAX;
+    int upper_start;
+    int upper_end;
+    int lower_end;
+    int candidate = 0;
+    int candidate_value = left_side != 0 ? -1 : MT9V03X_W;
+    int upper_value = left_side != 0 ? MT9V03X_W : 0;
+    int lower_value = left_side != 0 ? MT9V03X_W : 0;
+    uint8 upper_found = 0;
+    uint8 lower_found = 0;
+
+    /* 斜入下口常是圆滑回头而不是边界撕裂，只有峰值两侧都明显退回时才接受。 */
+    if (up_point <= 5) return 0;
+    if (search_end > MT9V03X_H - 12) search_end = MT9V03X_H - 12;
+    if (search_start > search_end) return 0;
+
+    for (i = search_start; i <= search_end; i++) {
+        if (lost_flag[i] != 0) continue;
+        if ((left_side != 0 && line[i] > candidate_value) || (left_side == 0 && line[i] < candidate_value)) {
+            candidate = i;
+            candidate_value = line[i];
+        }
+    }
+    if (candidate == 0) return 0;
+
+    upper_start = candidate - CROSS_SKEW_TURN_WINDOW;
+    if (upper_start < up_point + CROSS_SKEW_TURN_GAP) upper_start = up_point + CROSS_SKEW_TURN_GAP;
+    upper_end = candidate - CROSS_SKEW_TURN_GAP;
+    lower_end = candidate + CROSS_SKEW_TURN_WINDOW;
+    if (lower_end > MT9V03X_H - 6) lower_end = MT9V03X_H - 6;
+
+    for (i = upper_start; i <= upper_end; i++) {
+        if (lost_flag[i] != 0) continue;
+        if (left_side != 0 && line[i] < upper_value) upper_value = line[i];
+        if (left_side == 0 && line[i] > upper_value) upper_value = line[i];
+        upper_found = 1;
+    }
+    for (i = candidate + CROSS_SKEW_TURN_GAP; i <= lower_end; i++) {
+        if (lost_flag[i] != 0) continue;
+        if (left_side != 0 && line[i] < lower_value) lower_value = line[i];
+        if (left_side == 0 && line[i] > lower_value) lower_value = line[i];
+        lower_found = 1;
+    }
+    if (upper_found == 0 || lower_found == 0) return 0;
+
+    if (left_side != 0 && line[candidate] - upper_value >= CROSS_SKEW_TURN_DIFF &&
+            line[candidate] - lower_value >= CROSS_SKEW_TURN_DIFF) return candidate;
+    if (left_side == 0 && upper_value - line[candidate] >= CROSS_SKEW_TURN_DIFF &&
+            lower_value - line[candidate] >= CROSS_SKEW_TURN_DIFF) return candidate;
+    return 0;
+}
+
+static int Find_Skew_Down_Point(const int16 *line, const uint8 *lost_flag, int up_point, int down_point, uint8 left_side)
+{
+    if (Skew_Pair_Is_Valid(line, lost_flag, up_point, down_point, left_side) != 0) return down_point;
+
+    down_point = Find_Skew_Turn_Point(line, lost_flag, up_point, left_side);
+    if (Skew_Pair_Is_Valid(line, lost_flag, up_point, down_point, left_side) == 0) return 0;
+    return down_point;
+}
+
 uint8 Judge_xierushizi_type(void)
 {
-    int i, left_cnt = 0, right_cnt = 0, start_row = 15, end_row = 55, valid_top = MT9V03X_H - Search_Stop_Line;
+    int i;
+    int start_row = 15;
+    int end_row = 55;
+    int valid_top = MT9V03X_H - Search_Stop_Line;
+    int search_start = MT9V03X_H - 6;
+    int bottom_row = MT9V03X_H - 1;
+    int bottom_center;
+    int normal_left_count = 0;
+    int normal_right_count = 0;
+    int left_cross_count = 0;
+    int right_cross_count = 0;
+    int left_up;
+    int left_down;
+    int right_up;
+    int right_down;
+    uint8 skew_signal;
+    uint8 repair_left;
+    uint8 repair_right;
+
+    if (Left_Lost_Flag[bottom_row] == 0 && Right_Lost_Flag[bottom_row] == 0 &&
+            Left_Line[bottom_row] < Right_Line[bottom_row]) {
+        bottom_center = (Left_Line[bottom_row] + Right_Line[bottom_row]) / 2;
+    } else {
+        bottom_center = (MT9V03X_W - 1) / 2;
+    }
 
     if (start_row < valid_top) start_row = valid_top;
     if (end_row > MT9V03X_H - 2) end_row = MT9V03X_H - 2;
 
     for (i = start_row; i < end_row; i++) {
-        if (Left_Lost_Flag[i] == 0 &&
-            Left_Line[i] > Dynamic_Center_Line[i] + CROSS_SKEW_MARGIN) {
-            left_cnt++;
+        if (Left_Lost_Flag[i] == 0) {
+            if (Left_Line[i] < bottom_center - CROSS_SKEW_MARGIN) normal_left_count++;
+            if (Left_Line[i] > bottom_center) left_cross_count++;
         }
-
-        if (Right_Lost_Flag[i] == 0 &&
-            Right_Line[i] < Dynamic_Center_Line[i] - CROSS_SKEW_MARGIN) {
-            right_cnt++;
+        if (Right_Lost_Flag[i] == 0) {
+            if (Right_Line[i] > bottom_center + CROSS_SKEW_MARGIN) normal_right_count++;
+            if (Right_Line[i] < bottom_center) right_cross_count++;
         }
     }
 
-    if (left_cnt >= CROSS_SKEW_COUNT_MIN && right_cnt < CROSS_SKEW_COUNT_MIN) {
-        if (Find_xierushizi_up_point(CROSS_SKEW_LEFT) > 5) return CROSS_SKEW_LEFT;
+    left_up = Find_Left_Up_Point(search_start, valid_top);
+    left_down = Find_Left_Down_Point(search_start, valid_top);
+    right_up = Find_Right_Up_Point(search_start, valid_top);
+    right_down = Find_Right_Down_Point(search_start, valid_top);
+
+    /* 两侧上拐点齐全且边界分布均衡时，优先交给原来的正入十字逻辑。 */
+    if (normal_left_count >= CROSS_SKEW_COUNT_MIN && normal_right_count >= CROSS_SKEW_COUNT_MIN &&
+            abs(normal_left_count - normal_right_count) <= CROSS_SKEW_COUNT_MIN && left_up > 0 && right_up > 0) {
+        return CROSS_SKEW_NONE;
     }
 
-    if (right_cnt >= CROSS_SKEW_COUNT_MIN && left_cnt < CROSS_SKEW_COUNT_MIN) {
-        if (Find_xierushizi_up_point(CROSS_SKEW_RIGHT) > 5) return CROSS_SKEW_RIGHT;
-    }
+    left_down = Find_Skew_Down_Point(Left_Line, Left_Lost_Flag, left_up, left_down, 1);
+    right_down = Find_Skew_Down_Point(Right_Line, Right_Lost_Flag, right_up, right_down, 0);
+    /* 越线只证明存在斜入特征，最终补哪侧仍完全由本侧有效双锚点决定。 */
+    skew_signal = left_cross_count >= CROSS_SKEW_CROSS_MIN || right_cross_count >= CROSS_SKEW_CROSS_MIN;
+    repair_left = skew_signal != 0 && left_down > 0 && Left_Line[left_down] < bottom_center - CROSS_SKEW_MARGIN;
+    repair_right = skew_signal != 0 && right_down > 0 && Right_Line[right_down] > bottom_center + CROSS_SKEW_MARGIN;
 
-    return CROSS_SKEW_NONE;
+    if (repair_left == repair_right) return CROSS_SKEW_NONE;
+    if (repair_right != 0) return CROSS_SKEW_LEFT;
+    return CROSS_SKEW_RIGHT;
 }
 
-static void Repair_Left_Skew(int skew_up)
+static uint8 Repair_Left_Skew(int skew_up)
 {
     int i;
-    int left;
-    int right;
-    int start_row = MT9V03X_H - Search_Stop_Line;
+    int search_start = MT9V03X_H - 6;
+    int search_end = MT9V03X_H - Search_Stop_Line;
+    int skew_down = Find_Right_Down_Point(search_start, search_end);
 
-    if (start_row < 5) start_row = 5;
+    skew_down = Find_Skew_Down_Point(Right_Line, Right_Lost_Flag, skew_up, skew_down, 0);
+    if (skew_down == 0) return 0;
 
-    for (i = start_row; i < MT9V03X_H; i++) {
-        if (i <= skew_up && Left_Lost_Flag[i] == 0 &&
-            Left_Line[i] > Dynamic_Center_Line[i] + CROSS_SKEW_MARGIN) {
-            right = Left_Line[i];
-        } else {
-            right = Right_Line[i];
-        }
-
-        if (right <= Dynamic_Center_Line[i]) right = Dynamic_Center_Line[i] + 1;
-        if (right >= MT9V03X_W) right = MT9V03X_W - 1;
-
-        left = 2 * Dynamic_Center_Line[i] - right;
-
-        if (left < 0) left = 0;
-        if (left >= Dynamic_Center_Line[i]) left = Dynamic_Center_Line[i] - 1;
-
-        Left_Line[i] = left;
-        Right_Line[i] = right;
-        Left_Lost_Flag[i] = 0;
-        Right_Lost_Flag[i] = 0;
-    }
+    Add_Right_Line(skew_up, skew_down);
+    for (i = skew_up; i <= skew_down; i++) Right_Lost_Flag[i] = 0;
+    return 1;
 }
-static void Repair_Right_Skew(int skew_up)
+
+static uint8 Repair_Right_Skew(int skew_up)
 {
     int i;
-    int left;
-    int right;
-    int start_row = MT9V03X_H - Search_Stop_Line;
+    int search_start = MT9V03X_H - 6;
+    int search_end = MT9V03X_H - Search_Stop_Line;
+    int skew_down = Find_Left_Down_Point(search_start, search_end);
 
-    if (start_row < 5) start_row = 5;
+    skew_down = Find_Skew_Down_Point(Left_Line, Left_Lost_Flag, skew_up, skew_down, 1);
+    if (skew_down == 0) return 0;
 
-    for (i = start_row; i < MT9V03X_H; i++) {
-        if (i <= skew_up && Right_Lost_Flag[i] == 0 &&
-            Right_Line[i] < Dynamic_Center_Line[i] - CROSS_SKEW_MARGIN) {
-            left = Right_Line[i];
-        } else {
-            left = Left_Line[i];
-        }
-
-        if (left >= Dynamic_Center_Line[i]) left = Dynamic_Center_Line[i] - 1;
-        if (left < 0) left = 0;
-
-        right = 2 * Dynamic_Center_Line[i] - left;
-
-        if (right >= MT9V03X_W) right = MT9V03X_W - 1;
-        if (right <= Dynamic_Center_Line[i]) right = Dynamic_Center_Line[i] + 1;
-
-        Left_Line[i] = left;
-        Right_Line[i] = right;
-        Left_Lost_Flag[i] = 0;
-        Right_Lost_Flag[i] = 0;
-    }
+    Add_Left_Line(skew_up, skew_down);
+    for (i = skew_up; i <= skew_down; i++) Left_Lost_Flag[i] = 0;
+    return 1;
 }
 
 
@@ -656,11 +754,7 @@ void Center_Line_Calculate(void)
             Right_Line[i] = temp;
         }
 
-        if (xieru_type != CROSS_SKEW_NONE) {
-            Center_Line[i] = Dynamic_Center_Line[i];
-        } else {
-            Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
-        }
+        Center_Line[i] = (Left_Line[i] + Right_Line[i]) / 2;
 
         binary_image[i * MT9V03X_W + Center_Line[i]] = 0;
     }
@@ -1000,15 +1094,12 @@ void shizibuxian(uint8 xieru_type)
     search_end = MT9V03X_H - Search_Stop_Line;
     bottom_row = MT9V03X_H - 1;
 
-    /*
-     * 斜入十字仍使用你现在的逻辑�?
-     */
+    /* 斜入只连接确认侧的上下锚点，另一侧边界保持原样。 */
     if (xieru_type == CROSS_SKEW_LEFT)
     {
-        skew_up = Find_xierushizi_up_point(CROSS_SKEW_LEFT);
+        skew_up = Find_Right_Up_Point(search_start, search_end);
         if (skew_up <= 5) return;
-
-        Repair_Left_Skew(skew_up);
+        if (Repair_Left_Skew(skew_up) == 0) return;
 
         Cross_Flag = 1;
         Cross_Count = 3;
@@ -1017,10 +1108,9 @@ void shizibuxian(uint8 xieru_type)
 
     if (xieru_type == CROSS_SKEW_RIGHT)
     {
-        skew_up = Find_xierushizi_up_point(CROSS_SKEW_RIGHT);
+        skew_up = Find_Left_Up_Point(search_start, search_end);
         if (skew_up <= 5) return;
-
-        Repair_Right_Skew(skew_up);
+        if (Repair_Right_Skew(skew_up) == 0) return;
 
         Cross_Flag = 1;
         Cross_Count = 3;
