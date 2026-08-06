@@ -46,7 +46,7 @@ float cc_moving_average_update(cc_moving_average_t *filter, float input)
 //-------------------------------------------------------------------------------------------------------------------
 float cc_moving_average_value(const cc_moving_average_t *filter)
 {
-    if (filter == 0 || filter->count == 0) return 0.0f;
+    if (filter == 0 || filter->count == 0) return 0.0;
     return filter->sum / (float)filter->count;
 }
 
@@ -75,7 +75,7 @@ void cc_moving_average_reset(cc_moving_average_t *filter, float value)
 void cc_ema_init(cc_ema_t *filter, float alpha, float initial_value)
 {
     if (filter == 0) return;
-    filter->alpha = cc_math_clamp_f32(alpha, 0.0f, 1.0f);
+    filter->alpha = cc_math_clamp_f32(alpha, 0.0, 1.0);
     filter->value = initial_value;
     filter->initialized = 1;
 }
@@ -159,8 +159,8 @@ void cc_slew_filter_init(cc_slew_filter_t *filter, float rise_per_second,
                          float fall_per_second, float initial_value)
 {
     if (filter == 0) return;
-    filter->rise_per_second = rise_per_second < 0.0f ? -rise_per_second : rise_per_second;
-    filter->fall_per_second = fall_per_second < 0.0f ? -fall_per_second : fall_per_second;
+    filter->rise_per_second = rise_per_second < 0.0 ? -rise_per_second : rise_per_second;
+    filter->fall_per_second = fall_per_second < 0.0 ? -fall_per_second : fall_per_second;
     filter->value = initial_value;
     filter->initialized = 1;
 }
@@ -180,7 +180,7 @@ float cc_slew_filter_update(cc_slew_filter_t *filter, float input, float dt)
         filter->initialized = 1;
         return input;
     }
-    if (dt <= 0.0f) return filter->value;
+    if (dt <= 0.0) return filter->value;
     limit = (input >= filter->value ? filter->rise_per_second : filter->fall_per_second) * dt;
     filter->value = cc_math_approach(filter->value, input, limit);
     return filter->value;

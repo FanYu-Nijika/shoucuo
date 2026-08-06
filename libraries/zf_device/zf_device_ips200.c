@@ -589,6 +589,21 @@ void ips200_draw_line (uint16 x_start, uint16 y_start, uint16 x_end, uint16 y_en
         }
     }while(0);
 }
+void ips200_fill_rect (uint16 x, uint16 y, uint16 width, uint16 height, const uint16 color)
+{
+    uint16 color_buffer[320];
+    uint16 row;
+    uint16 column;
+
+    if (width == 0 || height == 0) return;
+    zf_assert((uint32)x + width <= ips200_width_max);
+    zf_assert((uint32)y + height <= ips200_height_max);
+    for (column = 0; column < width; column++) color_buffer[column] = color;
+    if (IPS200_TYPE_SPI == ips200_display_type) IPS200_CS(0);
+    ips200_set_region(x, y, x + width - 1, y + height - 1);
+    for (row = 0; row < height; row++) ips200_write_16bit_data_array(color_buffer, width);
+    if (IPS200_TYPE_SPI == ips200_display_type) IPS200_CS(1);
+}
 
 //-------------------------------------------------------------------------------------------------------------------
 // º¯Êı¼ò½é     IPS200 ÏÔÊ¾×Ö·û
