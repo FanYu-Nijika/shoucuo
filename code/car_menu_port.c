@@ -5,17 +5,17 @@
 #include "zf_common_headfile.h"
 
 #define CC_MOTOR_PWM_FREQUENCY_HZ   (17000)
-#define CC_SERVO_PWM_FREQUENCY_HZ   (50)
-#define CC_SERVO_PERIOD_US          (20000)
+#define CC_SERVO_PWM_FREQUENCY_HZ   (200)
+#define CC_SERVO_PERIOD_US          (5000)
 
-/* Servo calibration for PWM_DUTY_MAX=10000 at 50 Hz:
- * 620 -> lower limit -> 1240 us
- * 760 -> center      -> 1520 us
- * 900 -> upper limit -> 1800 us
+/* Servo calibration for PWM_DUTY_MAX=10000 at 200 Hz:
+ * 2480 -> lower limit -> 1240 us
+ * 3040 -> center      -> 1520 us
+ * 3600 -> upper limit -> 1800 us
  */
-#define CC_SERVO_MIN_DUTY           (620)
-#define CC_SERVO_CENTER_DUTY        (760)
-#define CC_SERVO_MAX_DUTY           (900)
+#define CC_SERVO_MIN_DUTY           (2480)
+#define CC_SERVO_CENTER_DUTY        (3040)
+#define CC_SERVO_MAX_DUTY           (3600)
 
 static uint8_t camera_online;
 static uint8_t actuator_ready;

@@ -4,9 +4,12 @@
 #include "image.h"
 #include "math_utils.h"
 
-#define CAR_SERVO_MIN_DUTY (620)
-#define CAR_SERVO_CENTER_DUTY (760)
-#define CAR_SERVO_MAX_DUTY (900)
+#define CAR_SERVO_PWM_FREQUENCY_HZ (200)
+#define CAR_SERVO_PERIOD_US (5000)
+#define CAR_SERVO_DUTY_SCALE (4)
+#define CAR_SERVO_MIN_DUTY (2480)
+#define CAR_SERVO_CENTER_DUTY (3040)
+#define CAR_SERVO_MAX_DUTY (3600)
 
 enum {
     CAR_CURVE_MODE_STRAIGHT = 0,
@@ -77,9 +80,9 @@ void car_apply_menu_params(const volatile car_params_t *params)
     left_motor_reverse = params->left_direction < 0 ? 1 : 0;
     right_motor_reverse = params->right_direction < 0 ? 1 : 0;
 
-    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000 / 20000;
-    minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / 20000;
-    maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / 20000;
+    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000 / CAR_SERVO_PERIOD_US;
+    minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / CAR_SERVO_PERIOD_US;
+    maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / CAR_SERVO_PERIOD_US;
     servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
     servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
     servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
@@ -129,7 +132,7 @@ static void car_set_motor(int16 left, int16 right)
 
 void car_init(void)
 {
-    pwm_init(BOARD_SERVO_PWM_PIN, 50, servo_center_duty);
+    pwm_init(BOARD_SERVO_PWM_PIN, CAR_SERVO_PWM_FREQUENCY_HZ, servo_center_duty);
     pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, 17000, 0);
     pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, 17000, 0);
     pwm_init(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, 17000, 0);
@@ -202,6 +205,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         else
             steering = steering_kp * last_valid_error;
         if (servo_reverse) steering = -steering;
+        steering *= CAR_SERVO_DUTY_SCALE;
         servo_command = servo_center_duty + steering;
         servo_command = cc_f64_max(servo_command, servo_min_duty);
         servo_command = cc_f64_min(servo_command, servo_max_duty);
@@ -235,6 +239,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     else
         steering = steering_kp * error + steering_kd * d_error;
     if (servo_reverse) steering = -steering;
+    steering *= CAR_SERVO_DUTY_SCALE;
 
     servo_command = servo_center_duty + steering;
     servo_command = cc_f64_max(servo_command, servo_min_duty);

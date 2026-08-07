@@ -89,8 +89,8 @@ const car_params_t car_default_params = {
     .control_row_near = 84,
 
     /*
-     * Measured with PWM_DUTY_MAX=10000 at 50 Hz:
-     * PWM duty 660/760/860 corresponds to about 1320/1520/1720 us at 50 Hz.
+     * Measured with PWM_DUTY_MAX=10000 at 200 Hz:
+     * PWM duty 2640/3040/3440 corresponds to about 1320/1520/1720 us at 200 Hz.
      * Positive image error means track is right, so servo output is reversed.
      */
     .servo_center_us = 1540,
