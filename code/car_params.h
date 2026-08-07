@@ -20,6 +20,8 @@
 #define CAR_WHEEL_ANGLE_MAX_DEG   (40.0)
 #define CAR_MAXIMUM_STEERING_US    (280)
 #define CAR_LOST_STOP_FRAMES       (50)
+#define CAR_STOP_TIME_DEFAULT      (25)
+#define CAR_STOP_TIME_MAX          (600)
 #define CAR_CONTROL_ROW_FAR_DEFAULT  (56)
 #define CAR_CONTROL_ROW_NEAR_DEFAULT (84)
 
@@ -88,7 +90,7 @@ typedef struct {
     uint8_t dark_is_line;
     uint8_t minimum_line_pixels;
     uint8_t row_step;
-    uint16_t roi_top;
+    uint16_t stop_time;
     uint16_t roi_bottom;
     int16_t center_offset_pixels;
     uint8_t otsu_row_step;

@@ -18,6 +18,8 @@ static void car_params_flash_factory_init(void);
 static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_zero)
 {
     if (params == 0) return;
+    if (params->stop_time == 0 || params->stop_time > CAR_STOP_TIME_MAX)
+        params->stop_time = car_default_params.stop_time;
     if (params->curvature_scale <= 0.0) params->curvature_scale = car_default_params.curvature_scale;
     if (fill_zero != 0 && params->curve_steering_kp <= 0.0) params->curve_steering_kp = car_default_params.curve_steering_kp;
     if (fill_zero != 0 && params->curve_steering_kd <= 0.0) params->curve_steering_kd = car_default_params.curve_steering_kd;
@@ -109,7 +111,7 @@ const car_params_t car_default_params = {
     .center_offset_pixels = 0,
     // .dark_is_line = 0,
     // .row_step = 1,
-    // .roi_top = 32,
+    .stop_time = CAR_STOP_TIME_DEFAULT,
     // .roi_bottom = 0,
     // .otsu_row_step = 2,
     // .otsu_column_step = 2,

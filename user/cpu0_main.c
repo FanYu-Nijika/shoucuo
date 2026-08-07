@@ -185,7 +185,12 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 
     pit_clear_flag(CCU60_CH0);
 
-    car_time_ms += 20;
+    if (car_running != 0) {
+        car_time_ms += 20;
+        if (car_time_ms >= car_params.stop_time * 1000) car_center_stop_request = 1;
+    } else {
+        car_time_ms = 0;
+    }
     if (control_result_age_ms < CAR_CONTROL_RESULT_TIMEOUT_MS) control_result_age_ms += 20;
     if (car_running != 0 && control_result_age_ms >= CAR_CONTROL_RESULT_TIMEOUT_MS) {
         car_control_clear_latched_result();
