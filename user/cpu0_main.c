@@ -50,6 +50,7 @@
 // �?例程�?开源库空工�? �?用作移�?�或者测试各类内外�??
 
 #define PIT_NUM                 (CCU60_CH0 )
+#define CAR_CONTROL_PERIOD_MS   (5)
 #define CAR_CONTROL_RESULT_TIMEOUT_MS (200)
 
 
@@ -109,7 +110,7 @@ int core0_main(void)
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
 
     car_menu_init();
-    pit_ms_init(PIT_NUM, 20);
+    pit_ms_init(PIT_NUM, CAR_CONTROL_PERIOD_MS);
 
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
@@ -186,12 +187,12 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     pit_clear_flag(CCU60_CH0);
 
     if (car_running != 0) {
-        car_time_ms += 20;
+        car_time_ms += CAR_CONTROL_PERIOD_MS;
         if (car_time_ms >= car_params.stop_time * 1000) car_center_stop_request = 1;
     } else {
         car_time_ms = 0;
     }
-    if (control_result_age_ms < CAR_CONTROL_RESULT_TIMEOUT_MS) control_result_age_ms += 20;
+    if (control_result_age_ms < CAR_CONTROL_RESULT_TIMEOUT_MS) control_result_age_ms += CAR_CONTROL_PERIOD_MS;
     if (car_running != 0 && control_result_age_ms >= CAR_CONTROL_RESULT_TIMEOUT_MS) {
         car_control_clear_latched_result();
         car_stop();
