@@ -46,7 +46,7 @@ extern int16 Center_Line[MT9V03X_H];
 
 void Center_Line_Calculate(void);
 void image_init(void);
-void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *binary_frame, car_result_t *result);
+void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_frame, car_result_t *result);
 float Calculate_Error(void);
 uint8 ostu_deal_threshold();
 void threshold_update();

@@ -15,6 +15,9 @@
 #define CROSS_SKEW_TURN_WINDOW 14
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
+#define DYNAMIC_PREVIEW_SPEED_THRESHOLD 4000
+#define DYNAMIC_PREVIEW_ROW_OFFSET 3
+#define DYNAMIC_PREVIEW_TIME_MS 1000
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -36,10 +39,16 @@ int a, stop_cnt;
 uint8 Cross_Flag;
 uint8 Cross_Count;
 uint8 xieru_type;
+static int current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
+static int last_preview_base_row = -1;
+static uint32 straight_preview_time_ms = 0;
+static uint8 preview_curve_mode = 0;
+static uint8 curve_variance_valid = 0;
 
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
+static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid);
 static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row);
 static float Calculate_Curve_Variance(void);
 uint8_t protect(const uint8 *gray_frame);
@@ -71,10 +80,15 @@ void image_init(void) {
     Cross_Count = 0;
     left_index = right_index = 0;
     stop_cnt = 10;
+    current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
+    last_preview_base_row = -1;
+    straight_preview_time_ms = 0;
+    preview_curve_mode = 0;
+    curve_variance_valid = 0;
     // Search_Stop_Line = 0;
 }
 
-void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *binary_frame, car_result_t *result)
+void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_frame, car_result_t *result)
 {
     uint16 row = car_params.control_row_near;
     uint16 valid_rows = 0;
@@ -82,6 +96,7 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     int16 left;
     int16 right;
     uint8 threshold_lost = 0;
+    uint8 line_valid;
     float image_center = (width - 1) * 0.5;
 
 
@@ -166,18 +181,22 @@ void image_deal(uint8 start_y, uint8 end_y, const uint8 *gray_frame, uint8 *bina
     result->left_edge = left;
     result->right_edge = right;
     result->line_width = right - left;
-    result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
+    line_valid = already_line_lost == 0 && Left_Lost_Flag[row] == 0 && Right_Lost_Flag[row] == 0 &&
+        Longest_White_Column_Left[0] >= car_params.minimum_line_pixels;
     result->curve_variance = Calculate_Curve_Variance();
     if (car_params.curvature_scale > 0.0)
         result->curvature = result->curve_variance / car_params.curvature_scale;
     if (result->curvature < 0.0) result->curvature = 0.0;
     if (result->curvature > 1.0) result->curvature = 1.0;
-    result->preview_row = row;
+    result->preview_row = Update_Dynamic_Preview_Row(result->curvature, line_valid);
+    result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
     result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
-    if (already_line_lost != 0 || Left_Lost_Flag[row] != 0 || Right_Lost_Flag[row] != 0 ||
-        Longest_White_Column_Left[0] < car_params.minimum_line_pixels) return;
+    /* Draw after all calculations so the marker cannot alter current frame detection. */
+    for (index = 0; index < MT9V03X_W - 1; index++)
+        gray_frame[result->preview_row * MT9V03X_W + index] = 0;
+    if (line_valid == 0) return;
 
     result->line_valid = 1;
 }
@@ -620,11 +639,66 @@ static int Calculate_Max_Preview_Length(void)
     return max_length;
 }
 
+static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
+{
+    int base_row = car_params.control_row_near;
+    int far_row;
+    int offset;
+    uint32 frame_period_ms;
+
+    if (base_row < 3) base_row = 3;
+    if (base_row > height - 3) base_row = height - 3;
+    far_row = base_row - DYNAMIC_PREVIEW_ROW_OFFSET;
+    if (far_row < 3) far_row = 3;
+
+    if (base_row != last_preview_base_row) {
+        last_preview_base_row = base_row;
+        straight_preview_time_ms = 0;
+        preview_curve_mode = 0;
+        current_preview_row = base_row;
+    }
+
+    if (car_params.running == 0 || car_params.base_speed <= DYNAMIC_PREVIEW_SPEED_THRESHOLD) {
+        straight_preview_time_ms = 0;
+        preview_curve_mode = 0;
+        current_preview_row = base_row;
+        return current_preview_row;
+    }
+
+    if (line_valid == 0 || curve_variance_valid == 0) {
+        straight_preview_time_ms = 0;
+        current_preview_row = base_row;
+        return current_preview_row;
+    }
+
+    /* Match steering hysteresis so preview and PD select the curve on the same valid frame. */
+    if (preview_curve_mode == 0 && curvature >= car_params.curve_enter_threshold) {
+        preview_curve_mode = 1;
+    } else if (preview_curve_mode != 0 && curvature <= car_params.curve_exit_threshold) {
+        preview_curve_mode = 0;
+    }
+
+    if (preview_curve_mode != 0) {
+        straight_preview_time_ms = 0;
+        current_preview_row = base_row;
+        return current_preview_row;
+    }
+
+    frame_period_ms = car_frame_period_ms;
+    if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
+    straight_preview_time_ms += frame_period_ms;
+    if (straight_preview_time_ms > DYNAMIC_PREVIEW_TIME_MS) straight_preview_time_ms = DYNAMIC_PREVIEW_TIME_MS;
+    offset = straight_preview_time_ms * DYNAMIC_PREVIEW_ROW_OFFSET / DYNAMIC_PREVIEW_TIME_MS;
+    current_preview_row = base_row - offset;
+    if (current_preview_row < far_row) current_preview_row = far_row;
+    return current_preview_row;
+}
+
 float Calculate_Error(void)
 {
     int i;
     int search_row;
-    int pre_sight = car_params.control_row_near;
+    int pre_sight = current_preview_row;
     int start_row;
     int end_row;
     int valid_top = height - Search_Stop_Line;
@@ -699,6 +773,7 @@ static float Calculate_Curve_Variance(void)
     float variance_sum = 0;
     float mean;
 
+    curve_variance_valid = 0;
     if (near_row >= height) near_row = height - 1;
     if (near_row < 0) return 0;
     if (top_row < 0) top_row = 0;
@@ -734,6 +809,7 @@ static float Calculate_Curve_Variance(void)
         variance_sum += difference * difference * weight;
     }
 
+    curve_variance_valid = 1;
     return variance_sum / weight_sum;
 }
 
