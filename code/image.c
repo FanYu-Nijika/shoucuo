@@ -16,8 +16,9 @@
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
 #define DYNAMIC_PREVIEW_SPEED_THRESHOLD 4000
-#define DYNAMIC_PREVIEW_ROW_OFFSET 3
-#define DYNAMIC_PREVIEW_TIME_MS 1000
+#define DYNAMIC_PREVIEW_ROW_OFFSET 5
+#define DYNAMIC_PREVIEW_TIME_MS 2000
+#define DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES 3
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -43,6 +44,8 @@ static int current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
 static int last_preview_base_row = -1;
 static uint32 straight_preview_time_ms = 0;
 static uint8 preview_curve_mode = 0;
+static uint8 curve_preview_hold_frames = 0;
+static int curve_preview_hold_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
 static uint8 curve_variance_valid = 0;
 
 uint8 ostu_deal_threshold(void);
@@ -84,6 +87,8 @@ void image_init(void) {
     last_preview_base_row = -1;
     straight_preview_time_ms = 0;
     preview_curve_mode = 0;
+    curve_preview_hold_frames = 0;
+    curve_preview_hold_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
     curve_variance_valid = 0;
     // Search_Stop_Line = 0;
 }
@@ -655,27 +660,47 @@ static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
         last_preview_base_row = base_row;
         straight_preview_time_ms = 0;
         preview_curve_mode = 0;
+        curve_preview_hold_frames = 0;
+        curve_preview_hold_row = base_row;
         current_preview_row = base_row;
     }
 
     if (car_params.running == 0 || car_params.base_speed <= DYNAMIC_PREVIEW_SPEED_THRESHOLD) {
         straight_preview_time_ms = 0;
         preview_curve_mode = 0;
+        curve_preview_hold_frames = 0;
+        curve_preview_hold_row = base_row;
         current_preview_row = base_row;
         return current_preview_row;
     }
 
     if (line_valid == 0 || curve_variance_valid == 0) {
         straight_preview_time_ms = 0;
+        preview_curve_mode = 0;
+        curve_preview_hold_frames = 0;
+        curve_preview_hold_row = base_row;
         current_preview_row = base_row;
         return current_preview_row;
     }
 
-    /* Match steering hysteresis so preview and PD select the curve on the same valid frame. */
+    /* Hold the entry row for three valid frames before the curve switches back to the near row. */
     if (preview_curve_mode == 0 && curvature >= car_params.curve_enter_threshold) {
         preview_curve_mode = 1;
-    } else if (preview_curve_mode != 0 && curvature <= car_params.curve_exit_threshold) {
+        straight_preview_time_ms = 0;
+        curve_preview_hold_frames = DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES;
+        curve_preview_hold_row = current_preview_row;
+        if (curve_preview_hold_row < far_row) curve_preview_hold_row = far_row;
+        if (curve_preview_hold_row > base_row) curve_preview_hold_row = base_row;
+    } else if (preview_curve_mode != 0 && curve_preview_hold_frames == 0 &&
+        curvature <= car_params.curve_exit_threshold) {
         preview_curve_mode = 0;
+    }
+
+    if (curve_preview_hold_frames > 0) {
+        straight_preview_time_ms = 0;
+        current_preview_row = curve_preview_hold_row;
+        curve_preview_hold_frames--;
+        return current_preview_row;
     }
 
     if (preview_curve_mode != 0) {
