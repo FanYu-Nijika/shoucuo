@@ -46,6 +46,7 @@ static float last_error = 0;
 static float last_valid_error = 0;
 static float curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT;
 static float curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT;
+static float curve_blend = 0;
 static const uint8 car_line_loss_protection_enabled = 0;
 
 static void car_reset_track_state(void)
@@ -55,6 +56,7 @@ static void car_reset_track_state(void)
     last_error = 0;
     last_valid_error = 0;
     car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
+    curve_blend = 0;
 }
 
 void car_apply_menu_params(const volatile car_params_t *params)
@@ -176,6 +178,8 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     float steering;
     float servo_command;
     float d_error;
+    float kp;
+    float kd;
 
     if (!car_running) {
         car_set_motor(0, 0);
@@ -200,10 +204,8 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
             return;
         }
 
-        if (car_curve_mode == CAR_CURVE_MODE_CURVE)
-            steering = curve_steering_kp * last_valid_error;
-        else
-            steering = steering_kp * last_valid_error;
+        kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
+        steering = kp * last_valid_error;
         if (servo_reverse) steering = -steering;
         steering *= CAR_SERVO_DUTY_SCALE;
         servo_command = servo_center_duty + steering;
@@ -225,6 +227,14 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
             car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
             last_error = error;
         }
+
+        if (car_curve_mode == CAR_CURVE_MODE_CURVE) {
+            curve_blend += 0.5;
+            if (curve_blend > 1.0) curve_blend = 1.0;
+        } else {
+            curve_blend -= 0.5;
+            if (curve_blend < 0.0) curve_blend = 0.0;
+        }
     }
 
     if (!valid) valid = 1;
@@ -234,10 +244,9 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     last_valid_error = error;
     d_error = error - last_error;
     last_error = error;
-    if (car_curve_mode == CAR_CURVE_MODE_CURVE)
-        steering = curve_steering_kp * error + curve_steering_kd * d_error;
-    else
-        steering = steering_kp * error + steering_kd * d_error;
+    kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
+    kd = steering_kd + (curve_steering_kd - steering_kd) * curve_blend;
+    steering = kp * error + kd * d_error;
     if (servo_reverse) steering = -steering;
     steering *= CAR_SERVO_DUTY_SCALE;
 
