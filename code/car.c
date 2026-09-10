@@ -150,7 +150,7 @@ void car_set_camera_ready(uint8 ready)
 
 void car_set_running(uint8 running)
 {
-    if (running && car_camera_ready) {
+    if (running) {
         car_running = 1;
         car_reset_track_state();
     } else {

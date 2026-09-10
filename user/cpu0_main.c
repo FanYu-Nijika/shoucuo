@@ -39,6 +39,9 @@
 
 #include "car_menu.h"
 #include "car.h"
+#include "car_menu_port.h"
+#include "balance_control.h"
+#include "balance_runtime.h"
 #include "car_shared.h"
 #include "image.h"
 
@@ -51,7 +54,6 @@
 
 #define PIT_NUM                 (CCU60_CH0 )
 #define CAR_CONTROL_PERIOD_MS   (5)
-#define CAR_CONTROL_RESULT_TIMEOUT_MS (200)
 
 
 volatile uint32 car_time_ms = 0;
@@ -110,10 +112,13 @@ int core0_main(void)
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
 
     car_menu_init();
-    pit_ms_init(PIT_NUM, CAR_CONTROL_PERIOD_MS);
+
 
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
+    /* All slow peripheral/UI initialization is complete before automatic balancing. */
+    balance_runtime_init();
+    pit_ms_init(PIT_NUM, CAR_CONTROL_PERIOD_MS);
     while (TRUE) {
         // 此�?�编写需要循�?执�?�的代码
 
@@ -182,32 +187,41 @@ int core0_main(void)
 
 IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 {
-    interrupt_global_enable(0);
+    static uint32 previous_tick;
+    uint32 start_ticks = system_getval();
+    uint32 elapsed_us;
 
     pit_clear_flag(CCU60_CH0);
-
-    if (car_running != 0) {
-        car_time_ms += CAR_CONTROL_PERIOD_MS;
-        if (car_time_ms >= car_params.stop_time * 1000) car_center_stop_request = 1;
-    } else {
-        car_time_ms = 0;
+    if (car_balance_timing_reset != 0) {
+        previous_tick = 0;
+        car_balance_timing_reset = 0;
     }
-    if (control_result_age_ms < CAR_CONTROL_RESULT_TIMEOUT_MS) control_result_age_ms += CAR_CONTROL_PERIOD_MS;
-    if (car_running != 0 && control_result_age_ms >= CAR_CONTROL_RESULT_TIMEOUT_MS) {
-        car_control_clear_latched_result();
-        car_stop();
-    } else {
-        car_track_update(control_error, control_curvature, control_valid, control_result_new);
-        control_result_new = 0;
+    if (previous_tick != 0) {
+        car_balance_period_us = (start_ticks - previous_tick) / 100;
+        if (car_balance_period_us > 6000 && car_running != 0) {
+            car_balance_overruns++;
+            balance_runtime_stop();
+            balance_state.fault = BALANCE_FAULT_TIMING;
+        }
     }
-
-    if (car_running != 0 && car_curve_mode != 0) {
-        gpio_set_level(BOARD_BUZZER_PIN, GPIO_HIGH);
+    previous_tick = start_ticks;
+    car_uptime_ms += CAR_CONTROL_PERIOD_MS;
+    /* Sample emergency stop in the control ISR, not after a slow TFT frame. */
+    if (car_running != 0 && (cc_tc264_menu_key_mask() & CC_KEY_CENTER_MASK) != 0) {
+        balance_runtime_stop();
+        car_center_stop_request = 1;
     }
-    else {
-        gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
+    balance_runtime_update_5ms();
+    if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
+    else car_time_ms = 0;
+    gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
+    elapsed_us = (system_getval() - start_ticks) / 100;
+    if (elapsed_us > car_balance_max_us) car_balance_max_us = elapsed_us;
+    if (elapsed_us >= 5000) {
+        car_balance_overruns++;
+        balance_runtime_stop();
+        balance_state.fault = BALANCE_FAULT_TIMING;
     }
-
 }
 
 #pragma section all restore
