@@ -57,14 +57,18 @@ static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reve
 void cc_tc264_board_init(void)
 {
 
+    gpio_init(BOARD_LED1_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    gpio_init(BOARD_LED2_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+#if BOARD_BUZZER_ENABLE
     gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
+#else
+    /* The base already has a hardware pull-down; input pull-down guarantees silence during bring-up. */
+    gpio_init(BOARD_BUZZER_PIN, GPI, GPIO_LOW, GPI_PULL_DOWN);
+#endif
     gpio_init(BOARD_KEY_UP_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_DOWN_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_LEFT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_RIGHT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_KEY_CENTER_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_KEY_AUX1_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
-    gpio_init(BOARD_KEY_AUX2_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
     pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
     pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
@@ -88,7 +92,9 @@ uint8_t cc_tc264_menu_key_mask(void)
     if (gpio_get_level(BOARD_KEY_DOWN_PIN) == GPIO_LOW) mask |= CC_KEY_DOWN_MASK;
     if (gpio_get_level(BOARD_KEY_LEFT_PIN) == GPIO_LOW) mask |= CC_KEY_LEFT_MASK;
     if (gpio_get_level(BOARD_KEY_RIGHT_PIN) == GPIO_LOW) mask |= CC_KEY_RIGHT_MASK;
+#if BOARD_KEY_CENTER_ENABLE
     if (gpio_get_level(BOARD_KEY_CENTER_PIN) == GPIO_LOW) mask |= CC_KEY_CENTER_MASK;
+#endif
     return mask;
 }
 

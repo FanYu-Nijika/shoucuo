@@ -214,7 +214,9 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     balance_runtime_update_5ms();
     if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
     else car_time_ms = 0;
+#if BOARD_BUZZER_ENABLE
     gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
+#endif
     elapsed_us = (system_getval() - start_ticks) / 100;
     if (elapsed_us > car_balance_max_us) car_balance_max_us = elapsed_us;
     if (elapsed_us >= 5000) {
