@@ -7,6 +7,8 @@
 #include "car.h"
 #include "car_menu_port.h"
 #include "qd_device_icm42688.h"
+#include "zf_driver_gpio.h"
+#include "zf_driver_spi.h"
 
 volatile uint32 car_balance_max_us;
 volatile uint32 car_balance_period_us;
@@ -15,6 +17,23 @@ volatile uint32 car_uptime_ms;
 volatile uint8 car_balance_timing_reset = 1;
 
 static uint8 imu_initialized;
+
+static uint8 balance_runtime_probe_imu(void)
+{
+    uint8 model = 0;
+    uint8 attempt;
+
+    spi_init(ICM42688_SPI, SPI_MODE0, ICM42688_SPI_SPEED, ICM42688_SPC_PIN, ICM42688_SDI_PIN, ICM42688_SDO_PIN, SPI_CS_NULL);
+    gpio_init(ICM42688_CS_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
+    for (attempt = 0; attempt < 50; attempt++) {
+        gpio_low(ICM42688_CS_PIN);
+        spi_read_8bit_registers(ICM42688_SPI, 0x75 | 0x80, &model, 1);
+        gpio_high(ICM42688_CS_PIN);
+        if (model == 0x47) return 1;
+        system_delay_ms(10);
+    }
+    return 0;
+}
 
 static uint8 balance_runtime_read_imu(float *angle, float *rate)
 {
@@ -43,6 +62,12 @@ void balance_runtime_init(void)
 {
     balance_init();
     cc_tc264_balance_encoder_init();
+    if (balance_runtime_probe_imu() == 0) {
+        car_running = 0;
+        balance_update_5ms(0.0f, 0.0f, 0, 0, 0);
+        cc_tc264_menu_motor_stop();
+        return;
+    }
     Init_ICM42688();
     imu_initialized = 1;
     car_running = 1;
