@@ -54,10 +54,10 @@
 #define BOARD_BALANCE_AXIS_X               (0)
 #define BOARD_BALANCE_AXIS_Y               (1)
 #define BOARD_BALANCE_AXIS_Z               (2)
-#define BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS (BOARD_BALANCE_AXIS_Y)
+#define BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS (BOARD_BALANCE_AXIS_X)
 #define BOARD_BALANCE_ACCEL_VERTICAL_AXIS  (BOARD_BALANCE_AXIS_Z)
-#define BOARD_BALANCE_GYRO_AXIS            (BOARD_BALANCE_AXIS_X)
-#define BOARD_BALANCE_ACCEL_SIGN           (1)
+#define BOARD_BALANCE_GYRO_AXIS            (BOARD_BALANCE_AXIS_Y)
+#define BOARD_BALANCE_ACCEL_SIGN           (-1)
 #define BOARD_BALANCE_ACCEL_VERTICAL_SIGN  (1)
 #define BOARD_BALANCE_GYRO_SIGN            (1)
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
@@ -98,7 +98,7 @@
 #define BOARD_ANGLE_ENCODER_MISO_PIN       (SPI0_MISO_P20_12)
 #define BOARD_ANGLE_ENCODER_CS_PIN         (P00_8)
 
-#define BOARD_CAMERA_ENABLE                (0)
+#define BOARD_CAMERA_ENABLE                (1)
 #define BOARD_SERVO_ENABLE                 (0)
 
 // D0-D7 必须占用同一 GPIO 端口内连续的八位，以便 DMA 一次读取完整像素。

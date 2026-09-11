@@ -3,14 +3,24 @@
 #include <string.h>
 #include <math.h>
 
+#include "zf_driver_flash.h"
+
 static const float balance_dt_s = 0.005f;
 static const float balance_tilt_limit_deg = 40.0f;
+
+#define BALANCE_PARAMS_FLASH_SECTOR        (0)
+#define BALANCE_PARAMS_FLASH_PAGE          (9)
+#define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
+#define BALANCE_PARAMS_FLASH_VERSION       (1u)
+#define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
+#define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
+#define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
 
 /* The speed loop follows the reference controller's count-sample units.
  * These small values are unverified tuning starting points: speed_kp
  * is PWM/count per 10 ms and speed_ki is PWM/(count-sample) per 10 ms. */
 const balance_params_t balance_default_params = {
-    .balance_kp = 375.0f,
+    .balance_kp = 1000.0f,
     .balance_kd = 25.0556f,
     .middle_angle = 0.0f,
     .speed_kp = 0.25f,
@@ -37,6 +47,16 @@ static uint8_t kalman_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t speed_sample_phase;
+
+static uint8_t balance_params_profile_valid(uint8_t gear)
+{
+    return gear >= 1 && gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT ? 1 : 0;
+}
+
+static uint32_t balance_params_profile_offset(uint8_t gear)
+{
+    return BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_PROFILE_WORDS;
+}
 
 static uint8_t balance_is_finite(float value)
 {
@@ -107,6 +127,70 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
     return 1;
 }
 
+static void balance_params_flash_factory_init(void)
+{
+    uint32_t index;
+    uint32_t offset;
+    uint8_t gear;
+
+    for (index = 0; index < EEPROM_PAGE_LENGTH; index++) flash_union_buffer[index].uint32_type = 0xFFFFFFFFu;
+    flash_union_buffer[0].uint32_type = BALANCE_PARAMS_FLASH_MAGIC;
+    flash_union_buffer[1].uint32_type = BALANCE_PARAMS_FLASH_VERSION;
+    for (gear = 1; gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+        offset = balance_params_profile_offset(gear);
+        memcpy(&flash_union_buffer[offset], &balance_default_params, sizeof(balance_params_t));
+    }
+    flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+}
+
+void balance_params_reset(void)
+{
+    balance_params = balance_default_params;
+    if (balance_state.running == 0) applied_params = balance_default_params;
+}
+
+void balance_params_flash_switch(uint8_t gear)
+{
+    uint32_t offset;
+    balance_params_t stored_params;
+
+    if (balance_params_profile_valid(gear) == 0 || balance_state.running != 0) return;
+    flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    if (flash_union_buffer[0].uint32_type != BALANCE_PARAMS_FLASH_MAGIC ||
+        flash_union_buffer[1].uint32_type != BALANCE_PARAMS_FLASH_VERSION) {
+        balance_params_flash_factory_init();
+    }
+    offset = balance_params_profile_offset(gear);
+    memcpy(&stored_params, &flash_union_buffer[offset], sizeof(balance_params_t));
+    if (balance_params_are_valid(&stored_params) == 0) stored_params = balance_default_params;
+    balance_params = stored_params;
+    applied_params = stored_params;
+    balance_clear_outputs();
+    balance_reset_speed();
+}
+
+void balance_params_flash_load(uint8_t gear)
+{
+    if (balance_params_profile_valid(gear) == 0) gear = 1;
+    balance_params_flash_switch(gear);
+}
+
+void balance_params_flash_save(uint8_t gear)
+{
+    uint32_t offset;
+
+    if (balance_params_profile_valid(gear) == 0 || balance_state.running != 0) return;
+    if (balance_params_are_valid(&balance_params) == 0) return;
+    flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    if (flash_union_buffer[0].uint32_type != BALANCE_PARAMS_FLASH_MAGIC ||
+        flash_union_buffer[1].uint32_type != BALANCE_PARAMS_FLASH_VERSION) {
+        balance_params_flash_factory_init();
+    }
+    offset = balance_params_profile_offset(gear);
+    memcpy(&flash_union_buffer[offset], &balance_params, sizeof(balance_params_t));
+    flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+}
+
 static uint8_t balance_update_kalman(float accel_angle, float gyro_rate)
 {
     float rate;
@@ -125,9 +209,9 @@ static uint8_t balance_update_kalman(float accel_angle, float gyro_rate)
         return 0;
     }
 
-    balance_state.gyro_rate = gyro_rate;
     if (!kalman_initialized) {
         balance_state.angle = accel_angle;
+        balance_state.gyro_rate = gyro_rate;
         balance_state.gyro_bias = 0.0f;
         kalman_p00 = 1.0f;
         kalman_p01 = 0.0f;
@@ -165,8 +249,11 @@ static uint8_t balance_update_kalman(float accel_angle, float gyro_rate)
     kalman_p11 = kalman_p11 - kalman_gain_bias * old_p01;
     balance_state.angle += kalman_gain_angle * innovation;
     balance_state.gyro_bias += kalman_gain_bias * innovation;
+    /* The D term must use the residual-bias-corrected rate estimated by Kalman. */
+    balance_state.gyro_rate = gyro_rate - balance_state.gyro_bias;
 
-    if (!balance_is_finite(balance_state.angle) || !balance_is_finite(balance_state.gyro_bias) ||
+    if (!balance_is_finite(balance_state.angle) || !balance_is_finite(balance_state.gyro_rate) ||
+        !balance_is_finite(balance_state.gyro_bias) ||
         !balance_is_finite(kalman_p00) || !balance_is_finite(kalman_p01) ||
         !balance_is_finite(kalman_p10) || !balance_is_finite(kalman_p11)) {
         return 0;

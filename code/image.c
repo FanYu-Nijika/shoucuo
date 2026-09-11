@@ -129,11 +129,8 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
 
     threshold_update();
-    if (protect(gray_frame) != 0) {
-        if (car_params.running != 0 && stop_cnt <= 0) car_center_stop_request = 1;
-    } else {
-        stop_cnt = 10;
-    }
+    /* Keep image protection state for display, but do not let it stop the balance controller. */
+    if (protect(gray_frame) == 0) stop_cnt = 10;
     // Longest_White_Column();
     Longest_White_Column();
     xieru_type = Judge_xierushizi_type();

@@ -14,5 +14,6 @@ void car_menu_result_accepted(void);
 void car_menu_task(void);
 void car_menu_display(void);
 void car_menu_handle_center(void);
+uint8_t car_menu_current_profile(void);
 
 #endif

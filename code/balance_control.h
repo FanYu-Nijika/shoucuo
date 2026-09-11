@@ -9,7 +9,8 @@ typedef enum {
     BALANCE_FAULT_IMU,
     BALANCE_FAULT_TILT,
     BALANCE_FAULT_NUMERIC,
-    BALANCE_FAULT_TIMING
+    BALANCE_FAULT_TIMING,
+    BALANCE_FAULT_CALIBRATION
 } balance_fault_t;
 
 typedef struct {
@@ -52,6 +53,10 @@ extern volatile balance_state_t balance_state;
 extern const balance_params_t balance_default_params;
 
 void balance_init(void);
+void balance_params_reset(void);
+void balance_params_flash_load(uint8_t gear);
+void balance_params_flash_switch(uint8_t gear);
+void balance_params_flash_save(uint8_t gear);
 uint8_t balance_start(void);
 void balance_stop(void);
 uint8_t balance_apply_params(void);

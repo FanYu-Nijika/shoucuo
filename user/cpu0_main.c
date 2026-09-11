@@ -108,6 +108,8 @@ int core0_main(void)
     uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
+    /* P11.11 drives the buzzer transistor; hold it low before slower peripheral initialization. */
+    gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
     debug_init();                   // 初�?�化默�?�调试串�?
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
 
@@ -179,6 +181,7 @@ int core0_main(void)
             __dsync();
             car_menu_handle_center();
         }
+        balance_runtime_task();
         car_menu_task();
 
         // 此�?�编写需要循�?执�?�的代码
@@ -188,21 +191,25 @@ int core0_main(void)
 IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
 {
     static uint32 previous_tick;
+    static uint8 late_tick_count;
     uint32 start_ticks = system_getval();
     uint32 elapsed_us;
 
     pit_clear_flag(CCU60_CH0);
     if (car_balance_timing_reset != 0) {
         previous_tick = 0;
+        late_tick_count = 0;
         car_balance_timing_reset = 0;
     }
     if (previous_tick != 0) {
         car_balance_period_us = (start_ticks - previous_tick) / 100;
-        if (car_balance_period_us > 6000 && car_running != 0) {
+        if (car_balance_period_us > 6000 && balance_state.running != 0) {
             car_balance_overruns++;
-            balance_runtime_stop();
-            balance_state.fault = BALANCE_FAULT_TIMING;
-        }
+            if (++late_tick_count >= 3) {
+                balance_runtime_stop();
+                balance_state.fault = BALANCE_FAULT_TIMING;
+            }
+        } else late_tick_count = 0;
     }
     previous_tick = start_ticks;
     car_uptime_ms += CAR_CONTROL_PERIOD_MS;
@@ -214,9 +221,7 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     balance_runtime_update_5ms();
     if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
     else car_time_ms = 0;
-#if BOARD_BUZZER_ENABLE
     gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
-#endif
     elapsed_us = (system_getval() - start_ticks) / 100;
     if (elapsed_us > car_balance_max_us) car_balance_max_us = elapsed_us;
     if (elapsed_us >= 5000) {
