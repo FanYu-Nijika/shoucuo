@@ -69,7 +69,7 @@
 #include "board_pins.h"
 
 //==================================================定义 IPS200 基本配置================================================
-#define IPS200_USE_SOFT_SPI             (0 )                                    // 默认使用硬件 SPI 方式驱动 建议使用硬件 SPI 方式驱动
+#define IPS200_USE_SOFT_SPI             (0 )                                    // 使用硬件 SPI 方式驱动
 #if IPS200_USE_SOFT_SPI                                                         // 这两段 颜色正常的才是正确的 颜色灰的就是没有用的
 //====================================================软件 SPI 驱动====================================================
 // 如果使用的是SPI 串口的两寸屏幕 SPI 驱动控制引脚 可以修改
@@ -172,7 +172,8 @@ void    ips200_set_dir                  (ips200_dir_enum dir);                  
 void    ips200_set_font                 (ips200_font_size_enum font);                                                          // IPS200 设置显示字体
 void    ips200_set_color                (const uint16 pen, const uint16 bgcolor);                                              // IPS200 设置显示颜色
 void    ips200_draw_point               (uint16 x, uint16 y, const uint16 color);                                              // IPS200 画点函数
-void    ips200_draw_line                (uint16 x_start, uint16 y_start, uint16 x_end, uint16 y_end, const uint16 color);      // IPS200 画线函数
+void    ips200_draw_line                (uint16 x_start, uint16 y_start, uint16 x_end, uint16 y_end, const uint16 color);
+void    ips200_fill_rect                (uint16 x, uint16 y, uint16 width, uint16 height, const uint16 color);
 
 void    ips200_show_char                (uint16 x, uint16 y, const char dat);
 void    ips200_show_string              (uint16 x, uint16 y, const char dat[]);
