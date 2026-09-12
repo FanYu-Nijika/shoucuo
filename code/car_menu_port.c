@@ -64,6 +64,8 @@ void cc_tc264_board_init(void)
     gpio_init(BOARD_KEY_DOWN_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_LEFT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
     gpio_init(BOARD_KEY_RIGHT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    // SW7 的公共端在原理图中未接地，持续输出低电平才能读取四个方向键。
+    gpio_init(BOARD_KEY_COMMON_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
 
     pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
     pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);

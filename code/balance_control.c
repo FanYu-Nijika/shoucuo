@@ -11,23 +11,23 @@ static const float balance_tilt_limit_deg = 40.0f;
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
 #define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
-#define BALANCE_PARAMS_FLASH_VERSION       (1u)
+#define BALANCE_PARAMS_FLASH_VERSION       (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
 #define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
 
 /* The speed loop follows the reference controller's count-sample units.
  * These small values are unverified tuning starting points: speed_kp
- * is PWM/count per 10 ms and speed_ki is PWM/(count-sample) per 10 ms. */
+ * is degrees/count per 10 ms and speed_ki is degrees/(count-sample). */
 const balance_params_t balance_default_params = {
     .balance_kp = 1000.0f,
     .balance_kd = 25.0556f,
     .middle_angle = 0.0f,
-    .speed_kp = 0.25f,
-    .speed_ki = 0.005f,
+    .speed_kp = 0.00025f,
+    .speed_ki = 0.000005f,
     .speed_filter = 0.16f,
     .speed_integral_limit = 30000.0f,
-    .speed_output_limit = 1500.0f,
+    .speed_output_limit = 1.5f,
     .q_angle = 0.001f,
     .q_bias = 0.003f,
     .r_angle = 0.5f,
@@ -82,6 +82,7 @@ static void balance_reset_speed(void)
     right_count_sum = 0;
     speed_sample_phase = 0;
     balance_state.speed_output = 0.0f;
+    balance_state.target_angle = applied_params.middle_angle;
     balance_state.speed_integral = 0.0f;
     balance_state.speed_error = 0.0f;
     balance_state.speed_filtered = 0.0f;
@@ -89,6 +90,7 @@ static void balance_reset_speed(void)
 
 static void balance_clear_outputs(void)
 {
+    balance_state.target_angle = applied_params.middle_angle;
     balance_state.balance_output = 0.0f;
     balance_state.speed_output = 0.0f;
     balance_state.speed_integral = 0.0f;
@@ -118,20 +120,58 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         !balance_is_finite(params->r_angle)) return 0;
     if (params->balance_kp < 0 || params->balance_kp > 2000 || params->balance_kd < 0 ||
         params->balance_kd > 200 || fabsf(params->middle_angle) > 30 ||
-        params->speed_kp < 0 || params->speed_kp > 1000 || params->speed_ki < 0 || params->speed_ki > 1000 ||
+        params->speed_kp < 0 || params->speed_kp > 0.1f || params->speed_ki < 0 || params->speed_ki > 0.01f ||
         params->speed_filter < 0 || params->speed_filter > 1 || params->speed_integral_limit <= 0 ||
         params->speed_integral_limit > 100000 || params->speed_output_limit <= 0 ||
-        params->speed_output_limit > 10000 || params->q_angle <= 0 || params->q_angle > 1 ||
+        params->speed_output_limit > 5 || params->q_angle <= 0 || params->q_angle > 1 ||
         params->q_bias <= 0 || params->q_bias > 1 || params->r_angle <= 0 || params->r_angle > 100 ||
         params->pwm_limit <= 0 || params->pwm_limit > 10000 || params->speed_enabled > 1) return 0;
     return 1;
 }
 
-static void balance_params_flash_factory_init(void)
+/* Prepare all four profiles in the shared buffer; only explicit SAVE writes Flash. */
+static void balance_params_flash_prepare(void)
 {
     uint32_t index;
     uint32_t offset;
     uint8_t gear;
+    uint32_t version = flash_union_buffer[1].uint32_type;
+    balance_params_t stored;
+
+    if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC &&
+        (version == 1u || version == BALANCE_PARAMS_FLASH_VERSION)) {
+        for (gear = 1; gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+            offset = balance_params_profile_offset(gear);
+            memcpy(&stored, &flash_union_buffer[offset], sizeof(stored));
+            if (version == 1u) {
+                if (balance_is_finite(stored.balance_kp) && stored.balance_kp > 0 &&
+                    balance_is_finite(stored.speed_kp) && stored.speed_kp >= 0 && stored.speed_kp <= 1000 &&
+                    balance_is_finite(stored.speed_ki) && stored.speed_ki >= 0 && stored.speed_ki <= 1000 &&
+                    balance_is_finite(stored.speed_output_limit) &&
+                    stored.speed_output_limit > 0 && stored.speed_output_limit <= 10000) {
+                    stored.speed_kp /= stored.balance_kp;
+                    stored.speed_ki /= stored.balance_kp;
+                    stored.speed_output_limit /= stored.balance_kp;
+                    if (stored.speed_output_limit > 1.5f) stored.speed_output_limit = 1.5f;
+                } else {
+                    stored.speed_kp = balance_default_params.speed_kp;
+                    stored.speed_ki = balance_default_params.speed_ki;
+                    stored.speed_output_limit = balance_default_params.speed_output_limit;
+                }
+                if (!balance_is_finite(stored.speed_kp) || stored.speed_kp > 0.1f ||
+                    !balance_is_finite(stored.speed_ki) || stored.speed_ki > 0.01f) {
+                    stored.speed_kp = balance_default_params.speed_kp;
+                    stored.speed_ki = balance_default_params.speed_ki;
+                    stored.speed_output_limit = balance_default_params.speed_output_limit;
+                }
+                stored.speed_enabled = 0;
+            }
+            if (!balance_params_are_valid(&stored)) stored = balance_default_params;
+            memcpy(&flash_union_buffer[offset], &stored, sizeof(stored));
+        }
+        flash_union_buffer[1].uint32_type = BALANCE_PARAMS_FLASH_VERSION;
+        return;
+    }
 
     for (index = 0; index < EEPROM_PAGE_LENGTH; index++) flash_union_buffer[index].uint32_type = 0xFFFFFFFFu;
     flash_union_buffer[0].uint32_type = BALANCE_PARAMS_FLASH_MAGIC;
@@ -140,7 +180,6 @@ static void balance_params_flash_factory_init(void)
         offset = balance_params_profile_offset(gear);
         memcpy(&flash_union_buffer[offset], &balance_default_params, sizeof(balance_params_t));
     }
-    flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
 }
 
 void balance_params_reset(void)
@@ -156,10 +195,7 @@ void balance_params_flash_switch(uint8_t gear)
 
     if (balance_params_profile_valid(gear) == 0 || balance_state.running != 0) return;
     flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
-    if (flash_union_buffer[0].uint32_type != BALANCE_PARAMS_FLASH_MAGIC ||
-        flash_union_buffer[1].uint32_type != BALANCE_PARAMS_FLASH_VERSION) {
-        balance_params_flash_factory_init();
-    }
+    balance_params_flash_prepare();
     offset = balance_params_profile_offset(gear);
     memcpy(&stored_params, &flash_union_buffer[offset], sizeof(balance_params_t));
     if (balance_params_are_valid(&stored_params) == 0) stored_params = balance_default_params;
@@ -182,10 +218,7 @@ void balance_params_flash_save(uint8_t gear)
     if (balance_params_profile_valid(gear) == 0 || balance_state.running != 0) return;
     if (balance_params_are_valid(&balance_params) == 0) return;
     flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
-    if (flash_union_buffer[0].uint32_type != BALANCE_PARAMS_FLASH_MAGIC ||
-        flash_union_buffer[1].uint32_type != BALANCE_PARAMS_FLASH_VERSION) {
-        balance_params_flash_factory_init();
-    }
+    balance_params_flash_prepare();
     offset = balance_params_profile_offset(gear);
     memcpy(&flash_union_buffer[offset], &balance_params, sizeof(balance_params_t));
     flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
@@ -291,6 +324,7 @@ static uint8_t balance_run_control(void)
     float integral_delta_output;
     float combined_output;
     float clipped_speed;
+    float pwm_delta;
 
     balance_state.balance_output = applied_params.balance_kp * (balance_state.angle - applied_params.middle_angle) +
         applied_params.balance_kd * balance_state.gyro_rate;
@@ -303,29 +337,36 @@ static uint8_t balance_run_control(void)
         balance_state.speed_output = 0;
     } else {
         balance_state.speed_error = -(left_count_sum + right_count_sum);
-        filtered_error = balance_state.speed_filtered * (1.0f - applied_params.speed_filter) +
-            balance_state.speed_error * applied_params.speed_filter;
+        balance_state.speed_filtered = balance_state.speed_filtered * (1.0f - applied_params.speed_filter) +
+            (left_count_sum + right_count_sum) * applied_params.speed_filter;
+        filtered_error = -balance_state.speed_filtered;
         candidate_integral = balance_clamp(balance_state.speed_integral + filtered_error, applied_params.speed_integral_limit);
-        candidate_output = -(applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral);
-        integral_delta_output = -applied_params.speed_ki * (candidate_integral - balance_state.speed_integral);
+        candidate_output = applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral;
+        integral_delta_output = applied_params.speed_ki * (candidate_integral - balance_state.speed_integral);
         clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
-        combined_output = balance_state.balance_output + clipped_speed;
+        /* Two degrees/second at the existing 10 ms control period. */
+        clipped_speed = balance_state.speed_output + balance_clamp(clipped_speed - balance_state.speed_output, 0.02f);
+        combined_output = balance_state.balance_output - applied_params.balance_kp * clipped_speed;
+        pwm_delta = -applied_params.balance_kp * integral_delta_output;
         if (!balance_is_finite(filtered_error) || !balance_is_finite(candidate_integral) ||
             !balance_is_finite(candidate_output) || !balance_is_finite(combined_output)) return 0;
         /* Freeze only integration that makes saturation worse; always allow unwinding. */
-        if ((integral_delta_output > 0 && (candidate_output > applied_params.speed_output_limit ||
-             combined_output > applied_params.pwm_limit)) ||
-            (integral_delta_output < 0 && (candidate_output < -applied_params.speed_output_limit ||
-             combined_output < -applied_params.pwm_limit))) {
+        if ((integral_delta_output > 0 && candidate_output > clipped_speed) ||
+            (integral_delta_output < 0 && candidate_output < clipped_speed) ||
+            (pwm_delta > 0 && combined_output > applied_params.pwm_limit) ||
+            (pwm_delta < 0 && combined_output < -applied_params.pwm_limit)) {
             candidate_integral = balance_state.speed_integral;
-            candidate_output = -(applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral);
+            candidate_output = applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral;
         }
-        balance_state.speed_filtered = filtered_error;
         balance_state.speed_integral = candidate_integral;
-        balance_state.speed_output = balance_clamp(candidate_output, applied_params.speed_output_limit);
+        clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
+        balance_state.speed_output += balance_clamp(clipped_speed - balance_state.speed_output, 0.02f);
     }
-    combined_output = balance_state.balance_output + balance_state.speed_output;
+    balance_state.target_angle = applied_params.middle_angle + balance_state.speed_output;
+    combined_output = applied_params.balance_kp * (balance_state.angle - balance_state.target_angle) +
+        applied_params.balance_kd * balance_state.gyro_rate;
     if (!balance_is_finite(combined_output)) return 0;
+    balance_state.balance_output = combined_output;
     balance_state.left_pwm = balance_pwm_from_float(combined_output);
     balance_state.right_pwm = balance_state.left_pwm;
     return 1;

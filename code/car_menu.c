@@ -195,18 +195,22 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_BALANCE, "MIDDLE ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.middle_angle, -30, 30, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "PWM LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &balance_params.pwm_limit, 1, 10000, 100, 0, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "SPEED ENABLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &balance_params.speed_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "SPEED KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_kp, 0, 1000, 0.05, 2, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "SPEED KI", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_ki, 0, 1000, 0.001, 3, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_kp, 0, 0.1, 0.00005, 5, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED KI", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_ki, 0, 0.01, 0.000001, 6, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "SPEED FILTER", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_filter, 0, 1, 0.01, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "SPEED INT LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_integral_limit, 1, 100000, 100, 0, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "SPEED OUT LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_output_limit, 1, 10000, 50, 0, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "ANGLE LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_output_limit, 0.01, 5, 0.1, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "Q ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.q_angle, 0.0001, 1, 0.0001, 4, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "Q BIAS", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.q_bias, 0.0001, 1, 0.0001, 4, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "R ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.r_angle, 0.01, 100, 0.01, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "BAL OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.balance_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "SPEED OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_output, -5, 5, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "LEFT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "RIGHT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.right_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "LEFT COUNT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_count, -32768, 32767, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "RIGHT COUNT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.right_count, -32768, 32767, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED FILTERED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_filtered, -65536, 65534, 1, 1, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "TARGET ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.target_angle, -35, 35, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_IMU, "ACC X", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_imu_status.accel_x, -4, 4, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "ACC Y", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_imu_status.accel_y, -4, 4, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
@@ -625,10 +629,10 @@ static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t
     uint8_t action_keys = short_keys | long_keys;
     uint8_t adjust_keys = short_keys | repeat_keys;
     uint8_t center = action_keys & CC_KEY_CENTER_MASK;
-    uint8_t left = action_keys & CC_KEY_RIGHT_MASK;
-    uint8_t right = action_keys & CC_KEY_LEFT_MASK;
-    uint8_t up = adjust_keys & CC_KEY_DOWN_MASK;
-    uint8_t down = adjust_keys & CC_KEY_UP_MASK;
+    uint8_t left = action_keys & CC_KEY_LEFT_MASK;
+    uint8_t right = action_keys & CC_KEY_RIGHT_MASK;
+    uint8_t up = adjust_keys & CC_KEY_UP_MASK;
+    uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
 
     if ((car_running != 0 || car_menu_start_pending != 0) && center != 0) {
         car_menu_emergency_stop();

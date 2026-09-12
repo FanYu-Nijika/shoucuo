@@ -34,7 +34,8 @@ typedef struct {
     float gyro_rate;
     float gyro_bias;
     float balance_output;
-    float speed_output;
+    float speed_output; /* Applied target-angle correction in degrees. */
+    float target_angle;
     float speed_integral;
     float speed_error;
     float speed_filtered;
