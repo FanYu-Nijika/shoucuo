@@ -29,6 +29,7 @@ volatile balance_imu_status_t balance_imu_status;
 #define BALANCE_IMU_RETRY_INTERVAL_MS           (500)
 
 static uint8 imu_initialized;
+static volatile uint8 motor_test_active;
 static uint32 imu_retry_ms;
 static float calibration_accel_sum[3];
 static float calibration_accel_square_sum[3];
@@ -253,6 +254,7 @@ void balance_runtime_init(void)
 {
     car_follow_stop();
     balance_init();
+    motor_test_active = 0;
     balance_params_flash_load(car_menu_current_profile());
     cc_tc264_balance_encoder_init();
     imu_initialized = 0;
@@ -277,6 +279,7 @@ void balance_runtime_task(void)
 {
     uint32 now;
 
+    if (motor_test_active != 0) return;
     if (imu_initialized != 0 || balance_imu_status.calibration_error != BALANCE_CAL_ERROR_IMU) return;
     now = system_getval_ms();
     if (now - imu_retry_ms < BALANCE_IMU_RETRY_INTERVAL_MS) return;
@@ -294,6 +297,7 @@ void balance_runtime_task(void)
 
 void balance_runtime_request_start(void)
 {
+    if (motor_test_active != 0) return;
     car_follow_stop();
     if (imu_initialized == 0) {
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
@@ -321,6 +325,13 @@ void balance_runtime_update_5ms(void)
     uint8 was_running = balance_state.running;
     uint8 valid;
 
+    if (motor_test_active != 0) {
+        car_running = 0;
+        if (balance_state.running != 0) balance_stop();
+        car_left_command = 0;
+        car_right_command = 0;
+        return;
+    }
     cc_tc264_balance_encoder_read(&left_count, &right_count);
     balance_sample_encoders_5ms(left_count, right_count);
     valid = balance_runtime_read_imu(&angle, &rate);
@@ -395,4 +406,10 @@ void balance_runtime_stop(void)
     car_left_command = 0;
     car_right_command = 0;
     cc_tc264_menu_motor_stop();
+}
+
+void balance_runtime_set_motor_test(uint8 enabled)
+{
+    motor_test_active = enabled != 0 ? 1 : 0;
+    if (motor_test_active != 0) balance_runtime_stop();
 }

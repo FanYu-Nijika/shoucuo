@@ -32,6 +32,8 @@ enum {
     CAR_MENU_ACTION_STOP,
     CAR_MENU_ACTION_FOLLOW_START,
     CAR_MENU_ACTION_FOLLOW_STOP,
+    CAR_MENU_ACTION_MOTOR_TEST_START,
+    CAR_MENU_ACTION_MOTOR_TEST_STOP,
     CAR_MENU_ACTION_SAVE_FLASH,
     CAR_MENU_ACTION_LCD_TEST,
     CAR_MENU_ACTION_RESET_DEFAULTS,
@@ -64,7 +66,8 @@ enum {
     CAR_MENU_APPLY_EXPOSURE,
     CAR_MENU_APPLY_GAIN,
     CAR_MENU_APPLY_BALANCE,
-    CAR_MENU_APPLY_PROFILE
+    CAR_MENU_APPLY_PROFILE,
+    CAR_MENU_APPLY_MOTOR_TEST
 };
 
 enum {
@@ -105,6 +108,9 @@ typedef struct {
 } car_menu_item_t;
 
 static uint8_t car_menu_current_gear = 1;
+static volatile uint8_t car_menu_motor_test_active;
+static volatile int16_t car_menu_test_left_pwm;
+static volatile int16_t car_menu_test_right_pwm;
 
 /*
  * Menu maintenance is intentionally a flat list. Add or remove one row here;
@@ -166,8 +172,13 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_MOTORS, "LEFT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_MOTORS, "RIGHT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.right_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "TEST START", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_MOTOR_TEST_START},
+    {0, CAR_MENU_PAGE_MOTORS, "TEST STOP", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_MOTOR_TEST_STOP},
+    {0, CAR_MENU_PAGE_MOTORS, "TEST ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_menu_motor_test_active, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "TEST LEFT PWM", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_menu_test_left_pwm, -10000, 10000, 100, 0, CAR_MENU_APPLY_MOTOR_TEST, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "TEST RIGHT PWM", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_menu_test_right_pwm, -10000, 10000, 100, 0, CAR_MENU_APPLY_MOTOR_TEST, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "BAL LEFT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_MOTORS, "BAL RIGHT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.right_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_TELEMETRY, "LINE VALID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_result.line_valid, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "CROSS FLAG", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_result.cross_detected, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -389,6 +400,10 @@ static void car_menu_apply_value(const car_menu_item_t *item, float value)
         return;
     }
     car_menu_write_value(item, value);
+    if (item->apply == CAR_MENU_APPLY_MOTOR_TEST) {
+        if (car_menu_motor_test_active != 0) cc_tc264_menu_motor_write(car_menu_test_left_pwm, car_menu_test_right_pwm);
+        return;
+    }
     if (item->apply == CAR_MENU_APPLY_NONE) return;
 
     if (item->apply == CAR_MENU_APPLY_BALANCE) {
@@ -449,9 +464,43 @@ static void car_menu_finish_edit(uint8_t save)
     car_menu_footer_dirty = 1;
 }
 
+static void car_menu_motor_test_start(void)
+{
+    if (cc_tc264_motor_ready() == 0) {
+        car_menu_error = CAR_MENU_ERROR_MOTOR;
+        car_menu_dirty = 1;
+        return;
+    }
+    car_menu_start_pending = 0;
+    car_control_clear_latched_result();
+    balance_runtime_set_motor_test(1);
+    car_params.running = 0;
+    car_menu_motor_test_active = 1;
+    cc_tc264_menu_motor_write(car_menu_test_left_pwm, car_menu_test_right_pwm);
+    car_menu_error = CAR_MENU_ERROR_NONE;
+    car_menu_dirty = 1;
+}
+
+static void car_menu_motor_test_stop(void)
+{
+    car_menu_motor_test_active = 0;
+    balance_runtime_set_motor_test(0);
+    cc_tc264_menu_motor_stop();
+    car_menu_test_left_pwm = 0;
+    car_menu_test_right_pwm = 0;
+    car_left_command = 0;
+    car_right_command = 0;
+    car_menu_error = CAR_MENU_ERROR_NONE;
+    car_menu_dirty = 1;
+}
+
 static void car_menu_stop(void)
 {
     car_menu_start_pending = 0;
+    car_menu_motor_test_active = 0;
+    balance_runtime_set_motor_test(0);
+    car_menu_test_left_pwm = 0;
+    car_menu_test_right_pwm = 0;
     car_control_clear_latched_result();
     balance_runtime_stop();
     car_follow_stop();
@@ -464,6 +513,11 @@ static void car_menu_stop(void)
 
 static void car_menu_start(void)
 {
+    if (car_menu_motor_test_active != 0) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+        car_menu_dirty = 1;
+        return;
+    }
     if (car_running != 0) {
         car_menu_error = CAR_MENU_ERROR_RUNNING;
         car_menu_dirty = 1;
@@ -562,13 +616,18 @@ static void car_menu_execute_action(uint8_t action)
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
     else if (action == CAR_MENU_ACTION_STOP) car_menu_stop();
     else if (action == CAR_MENU_ACTION_FOLLOW_START) {
-        car_menu_error = car_follow_start() != 0 ? CAR_MENU_ERROR_NONE : CAR_MENU_ERROR_LINE_LOST;
+        if (car_follow_start() != 0) car_menu_error = CAR_MENU_ERROR_NONE;
+        else if (car_follow_status == CAR_FOLLOW_NO_BALANCE) car_menu_error = CAR_MENU_ERROR_FOLLOW_NO_BALANCE;
+        else if (car_follow_status == CAR_FOLLOW_SPEED_DISABLED) car_menu_error = CAR_MENU_ERROR_FOLLOW_SPEED_DISABLED;
+        else if (car_follow_status == CAR_FOLLOW_TARGET_ZERO) car_menu_error = CAR_MENU_ERROR_FOLLOW_TARGET_ZERO;
+        else car_menu_error = CAR_MENU_ERROR_FOLLOW_NO_LINE;
         car_menu_dirty = 1;
     } else if (action == CAR_MENU_ACTION_FOLLOW_STOP) {
         car_follow_stop();
         car_menu_error = CAR_MENU_ERROR_NONE;
         car_menu_dirty = 1;
-    }
+    } else if (action == CAR_MENU_ACTION_MOTOR_TEST_START) car_menu_motor_test_start();
+    else if (action == CAR_MENU_ACTION_MOTOR_TEST_STOP) car_menu_motor_test_stop();
     else if (action == CAR_MENU_ACTION_SAVE_FLASH) car_menu_save_flash();
     else if (action == CAR_MENU_ACTION_RESET_DEFAULTS) car_menu_reset_defaults();
     else if (action == CAR_MENU_ACTION_LCD_TEST) {
@@ -655,7 +714,7 @@ static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t
     uint8_t up = adjust_keys & CC_KEY_UP_MASK;
     uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
 
-    if ((car_running != 0 || car_menu_start_pending != 0) && center != 0) {
+    if ((car_running != 0 || car_menu_start_pending != 0 || car_menu_motor_test_active != 0) && center != 0) {
         car_menu_emergency_stop();
         return;
     }
@@ -723,6 +782,7 @@ static const char *car_menu_status_text(void)
 {
     if (car_running != 0) return "RUN";
     if (car_menu_start_pending != 0) return "ARMING";
+    if (car_menu_motor_test_active != 0) return "MTEST";
     if (car_menu_error != CAR_MENU_ERROR_NONE) return "ERROR";
     return "STOP";
 }
@@ -779,7 +839,8 @@ static void car_menu_draw_value(const car_menu_item_t *item, float value, uint16
             ips200_show_float(x, y, value, integer_digits, item->decimals);
         }
     } else if (item->value_type == CAR_MENU_VALUE_I32) {
-        ips200_show_int(x, y, (int32_t)value, 11);
+        /* Four int16 samples fit in seven signed display characters. */
+        ips200_show_int(x, y, (int32_t)value, 7);
     } else if (item->value_type == CAR_MENU_VALUE_I16 || item->value_type == CAR_MENU_VALUE_I8) {
         ips200_show_int(x, y, (int32_t)value, 7);
     } else {
@@ -793,11 +854,11 @@ static void car_menu_draw_footer(void)
 
     car_menu_fill(0, 216, 320, 24, RGB565_BLACK);
     if (car_menu_error != CAR_MENU_ERROR_NONE && car_menu_editing == 0) text = car_menu_error_text();
-    // else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT SAVE LEFT CANCEL";
-    // else if (car_menu_page == CAR_MENU_PAGE_IMAGE) text = "LEFT BACK";
-    // else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
-    // else if (car_menu_start_pending != 0) text = "WAIT 3S CENTER STOP LEFT BACK";
-    // else text = "UP/DN MOVE RIGHT/CENTER ENTER LEFT BACK";
+    else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT OK LEFT CANCEL";
+    else if (car_menu_motor_test_active != 0) text = "CENTER STOP LEFT BACK";
+    else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
+    else if (car_menu_start_pending != 0) text = "WAIT 3S CENTER STOP LEFT BACK";
+    else text = "UP/DN MOVE RIGHT ENTER LEFT BACK";
     car_menu_text(2, 220, text, RGB565_WHITE, RGB565_BLACK);
 }
 
@@ -981,6 +1042,9 @@ void car_menu_init(void)
     car_menu_lcd_test_drawn = 0;
     car_menu_start_pending = 0;
     car_menu_start_ms = 0;
+    car_menu_motor_test_active = 0;
+    car_menu_test_left_pwm = 0;
+    car_menu_test_right_pwm = 0;
     car_control_clear_latched_result();
     key_mask = cc_tc264_menu_key_mask();
     car_menu_previous_keys = key_mask;

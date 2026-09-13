@@ -168,8 +168,9 @@ IFX_INTERRUPT(dma_ch5_isr, 0, DMA_INT_PRIO)
     interrupt_global_enable(0);                     // ¿ªÆôÖÐ¶ÏÇ¶Ì×
     camera_dma_handler();
     if (mt9v03x_lost_flag == 0 && mt9v03x_finish_flag != 0) {
-        car_camera_completed_generation = car_camera_capture_generation;
         car_camera_completed_time_ms = car_camera_capture_time_ms;
+        __dsync();
+        car_camera_completed_generation = car_camera_capture_generation;
         __dsync();
     }
 }

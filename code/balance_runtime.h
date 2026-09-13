@@ -62,5 +62,6 @@ void balance_runtime_task(void);
 void balance_runtime_request_start(void);
 void balance_runtime_update_5ms(void);
 void balance_runtime_stop(void);
+void balance_runtime_set_motor_test(uint8 enabled);
 
 #endif

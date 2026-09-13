@@ -203,4 +203,14 @@ test('V1/V2 four-profile expansion and V3 roundtrip preserve other profiles', ()
         const before = Buffer.from(page); c.balance_params_flash_prepare(); assert.deepEqual(page, before);
     }
 });
+test('menu display bounds, stopped-only edits and capture generation checks', () => {
+    const menu = read('code/car_menu.c');
+    for (const call of menu.matchAll(/ips200_show_int\([^;]*,\s*(\d+)\);/g)) assert(+call[1] <= 10);
+    assert(menu.includes('car_running == 0 && car_menu_start_pending == 0'));
+    const main = read('user/cpu0_main.c');
+    assert.equal((main.match(/car_camera_capture_generation == generation_before/g) || []).length, 2);
+    assert(!main.includes('mt9v03x_finish_flag = 0'));
+    assert(!read('code/car_menu_port.c').includes('servo_write'));
+    assert(!car.includes('pwm_set_duty'));
+});
 console.log(`${groups} groups passed; source-level numerical checks only, no firmware compilation.`);

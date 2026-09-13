@@ -45,8 +45,6 @@
 #include "car_shared.h"
 #include "image.h"
 
-extern uint8 mt9v03x_lost_flag;
-
 #pragma section all "cpu0_dsram"
 // 将本�?句与#pragma section all restore�?句之间的全局变量都放在CPU0的RAM�?
 
@@ -138,14 +136,14 @@ int core0_main(void)
             capture_time_ms = car_camera_completed_time_ms;
             __dsync();
             generation_after = car_camera_completed_generation;
-            if (generation_before == generation_after &&
+            if (generation_before == generation_after && car_camera_capture_generation == generation_before &&
                 generation_before != last_consumed_capture_generation) {
                 slot = find_free_frame_slot(next_frame_slot);
                 if (slot >= 0) {
                     memcpy(&car_gray_frames[(uint8_t)slot][0][0], &mt9v03x_image[0][0], sizeof(car_gray_frames[0]));
                     __dsync();
                     generation_after = car_camera_completed_generation;
-                    if (generation_after == generation_before && mt9v03x_lost_flag == 0) {
+                    if (generation_after == generation_before && car_camera_capture_generation == generation_before) {
                         frame_period_ms = last_frame_ms == 0 ? 20 : capture_time_ms - last_frame_ms;
                         if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
                         last_frame_ms = capture_time_ms;
@@ -162,7 +160,6 @@ int core0_main(void)
                         __dsync();
                         next_frame_slot = (uint8_t)(((uint8_t)slot + 1) % CAR_FRAME_SLOT_COUNT);
                         last_consumed_capture_generation = generation_before;
-                        mt9v03x_finish_flag = 0;
                         car_menu_frame_accepted(frame_period_ms);
                     }
                 } else {
@@ -172,7 +169,6 @@ int core0_main(void)
                     car_camera_last_frame_ms = capture_time_ms;
                     car_camera_age_ms = 0;
                     car_capture_drop_count++;
-                    mt9v03x_finish_flag = 0;
                 }
             }
         }
