@@ -13,6 +13,7 @@ volatile uint32_t car_frame_period_ms;
 volatile car_frame_state_t car_frame_state[CAR_FRAME_SLOT_COUNT];
 volatile uint32_t car_frame_slot_sequence[CAR_FRAME_SLOT_COUNT];
 volatile uint32_t car_frame_slot_period_ms[CAR_FRAME_SLOT_COUNT];
+volatile uint32_t car_frame_slot_capture_time_ms[CAR_FRAME_SLOT_COUNT];
 volatile uint8_t car_result_ready;
 volatile uint32_t car_capture_drop_count;
 volatile uint32_t car_processing_drop_count;
@@ -31,7 +32,13 @@ volatile uint8_t car_display_pending_free_slot;
 volatile uint32_t car_camera_frame_count;
 volatile uint32_t car_camera_last_frame_ms;
 volatile uint32_t car_camera_age_ms;
+volatile uint32_t car_camera_capture_generation;
+volatile uint32_t car_camera_capture_time_ms;
+volatile uint32_t car_camera_completed_generation;
+volatile uint32_t car_camera_completed_time_ms;
 volatile uint8_t car_center_stop_request;
+volatile car_control_snapshot_t car_control_snapshots[2];
+volatile uint8_t car_control_snapshot_index;
 
 #pragma section all restore
 
@@ -53,14 +60,21 @@ void car_shared_clear(void)
     car_display_drop_count = 0;
     car_result_drop_count = 0;
     car_vision_max_us = 0;
+    memset((void *)car_control_snapshots, 0, sizeof(car_control_snapshots));
+    car_control_snapshot_index = 0;
     car_camera_frame_count = 0;
     car_camera_last_frame_ms = 0;
     car_camera_age_ms = 0;
+    car_camera_capture_generation = 0;
+    car_camera_capture_time_ms = 0;
+    car_camera_completed_generation = 0;
+    car_camera_completed_time_ms = 0;
     car_center_stop_request = 0;
     for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
         car_frame_state[slot] = CAR_FRAME_FREE;
         car_frame_slot_sequence[slot] = 0;
         car_frame_slot_period_ms[slot] = 20;
+        car_frame_slot_capture_time_ms[slot] = 0;
     }
     __dsync();
 }

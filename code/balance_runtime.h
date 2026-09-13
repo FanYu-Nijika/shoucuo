@@ -3,6 +3,11 @@
 
 #include "zf_common_typedef.h"
 
+/* The startup calibration window is sampled by the 5 ms control tick.  Keep
+ * these values public so the IMU menu cannot drift away from the runtime. */
+#define BALANCE_CALIBRATION_SAMPLES   (200)
+#define BALANCE_CALIBRATION_VALID_MIN (190)
+
 typedef enum {
     BALANCE_IMU_CALIBRATING = 0,
     BALANCE_IMU_READY,

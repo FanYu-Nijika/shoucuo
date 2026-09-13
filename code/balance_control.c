@@ -1,6 +1,7 @@
 #include "balance_control.h"
 
 #include <string.h>
+#include <stddef.h>
 #include <math.h>
 
 #include "zf_driver_flash.h"
@@ -11,10 +12,15 @@ static const float balance_tilt_limit_deg = 40.0f;
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
 #define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
-#define BALANCE_PARAMS_FLASH_VERSION       (2u)
+#define BALANCE_PARAMS_FLASH_VERSION       (3u)
+#define BALANCE_PARAMS_FLASH_OLD_WORDS     (12u)
 #define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
 #define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
+
+/* V1/V2 were 11 floats + int16 PWM + uint8 enable + one padding byte. */
+typedef char balance_legacy_layout_check[offsetof(balance_params_t, target_speed) == 48 ? 1 : -1];
+typedef char balance_flash_capacity_check[2 + 4 * BALANCE_PARAMS_FLASH_PROFILE_WORDS <= EEPROM_PAGE_LENGTH ? 1 : -1];
 
 /* The speed loop follows the reference controller's count-sample units.
  * These small values are unverified tuning starting points: speed_kp
@@ -32,7 +38,10 @@ const balance_params_t balance_default_params = {
     .q_bias = 0.003f,
     .r_angle = 0.5f,
     .pwm_limit = 5000,
-    .speed_enabled = 0
+    .speed_enabled = 0,
+    .target_speed = 0.0f,
+    .turn_limit = 500,
+    .turn_direction = 1
 };
 
 balance_params_t balance_params;
@@ -47,6 +56,8 @@ static uint8_t kalman_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t speed_sample_phase;
+static float requested_speed;
+static float requested_turn;
 
 static uint8_t balance_params_profile_valid(uint8_t gear)
 {
@@ -81,6 +92,10 @@ static void balance_reset_speed(void)
     left_count_sum = 0;
     right_count_sum = 0;
     speed_sample_phase = 0;
+    requested_speed = 0;
+    requested_turn = 0;
+    balance_state.effective_target_speed = 0;
+    balance_state.turn_output = 0;
     balance_state.speed_output = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
     balance_state.speed_integral = 0.0f;
@@ -99,6 +114,8 @@ static void balance_clear_outputs(void)
     balance_state.left_pwm = 0;
     balance_state.right_pwm = 0;
     balance_state.output_updated = 0;
+    balance_state.effective_target_speed = 0;
+    balance_state.turn_output = 0;
 }
 
 static void balance_latch_fault(balance_fault_t fault)
@@ -117,7 +134,7 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         !balance_is_finite(params->speed_ki) || !balance_is_finite(params->speed_filter) ||
         !balance_is_finite(params->speed_integral_limit) || !balance_is_finite(params->speed_output_limit) ||
         !balance_is_finite(params->q_angle) || !balance_is_finite(params->q_bias) ||
-        !balance_is_finite(params->r_angle)) return 0;
+        !balance_is_finite(params->r_angle) || !balance_is_finite(params->target_speed)) return 0;
     if (params->balance_kp < 0 || params->balance_kp > 2000 || params->balance_kd < 0 ||
         params->balance_kd > 200 || fabsf(params->middle_angle) > 30 ||
         params->speed_kp < 0 || params->speed_kp > 0.1f || params->speed_ki < 0 || params->speed_ki > 0.01f ||
@@ -125,7 +142,9 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         params->speed_integral_limit > 100000 || params->speed_output_limit <= 0 ||
         params->speed_output_limit > 5 || params->q_angle <= 0 || params->q_angle > 1 ||
         params->q_bias <= 0 || params->q_bias > 1 || params->r_angle <= 0 || params->r_angle > 100 ||
-        params->pwm_limit <= 0 || params->pwm_limit > 10000 || params->speed_enabled > 1) return 0;
+        params->pwm_limit <= 0 || params->pwm_limit > 10000 || params->speed_enabled > 1 ||
+        params->target_speed < 0 || params->target_speed > 2000 || params->turn_limit < 0 ||
+        params->turn_limit > 3000 || (params->turn_direction != -1 && params->turn_direction != 1)) return 0;
     return 1;
 }
 
@@ -139,10 +158,17 @@ static void balance_params_flash_prepare(void)
     balance_params_t stored;
 
     if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC &&
-        (version == 1u || version == BALANCE_PARAMS_FLASH_VERSION)) {
-        for (gear = 1; gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+        (version == 1u || version == 2u || version == BALANCE_PARAMS_FLASH_VERSION)) {
+        /* Expand backwards so a V3 profile cannot overwrite the next old profile. */
+        for (gear = BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear > 0; gear--) {
             offset = balance_params_profile_offset(gear);
-            memcpy(&stored, &flash_union_buffer[offset], sizeof(stored));
+            stored = balance_default_params;
+            if (version < 3u) {
+                index = BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_OLD_WORDS;
+                memcpy(&stored, &flash_union_buffer[index], BALANCE_PARAMS_FLASH_OLD_WORDS * 4u);
+            } else {
+                memcpy(&stored, &flash_union_buffer[offset], sizeof(stored));
+            }
             if (version == 1u) {
                 if (balance_is_finite(stored.balance_kp) && stored.balance_kp > 0 &&
                     balance_is_finite(stored.speed_kp) && stored.speed_kp >= 0 && stored.speed_kp <= 1000 &&
@@ -316,7 +342,7 @@ static int16_t balance_pwm_from_float(float value)
     return (int16_t)value;
 }
 
-static uint8_t balance_run_control(void)
+static uint8_t balance_run_speed(void)
 {
     float filtered_error;
     float candidate_integral;
@@ -325,6 +351,10 @@ static uint8_t balance_run_control(void)
     float combined_output;
     float clipped_speed;
     float pwm_delta;
+    float filter = 1.0f - (1.0f - applied_params.speed_filter) * (1.0f - applied_params.speed_filter);
+    float measured_speed = (balance_state.left_count + balance_state.right_count) * 0.5f;
+
+    balance_state.speed_filtered += filter * (measured_speed - balance_state.speed_filtered);
 
     balance_state.balance_output = applied_params.balance_kp * (balance_state.angle - applied_params.middle_angle) +
         applied_params.balance_kd * balance_state.gyro_rate;
@@ -332,20 +362,20 @@ static uint8_t balance_run_control(void)
 
     if (!applied_params.speed_enabled) {
         balance_state.speed_error = 0;
-        balance_state.speed_filtered = 0;
         balance_state.speed_integral = 0;
         balance_state.speed_output = 0;
+        balance_state.effective_target_speed = 0;
     } else {
-        balance_state.speed_error = -(left_count_sum + right_count_sum);
-        balance_state.speed_filtered = balance_state.speed_filtered * (1.0f - applied_params.speed_filter) +
-            (left_count_sum + right_count_sum) * applied_params.speed_filter;
-        filtered_error = -balance_state.speed_filtered;
-        candidate_integral = balance_clamp(balance_state.speed_integral + filtered_error, applied_params.speed_integral_limit);
+        /* 100 count-rate units/s, updated at 20 ms. Keep the old 10 ms PI units. */
+        balance_state.effective_target_speed += balance_clamp(requested_speed - balance_state.effective_target_speed, 2.0f);
+        filtered_error = balance_state.effective_target_speed - balance_state.speed_filtered;
+        balance_state.speed_error = filtered_error;
+        candidate_integral = balance_clamp(balance_state.speed_integral + filtered_error * 2.0f, applied_params.speed_integral_limit);
         candidate_output = applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral;
         integral_delta_output = applied_params.speed_ki * (candidate_integral - balance_state.speed_integral);
         clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
-        /* Two degrees/second at the existing 10 ms control period. */
-        clipped_speed = balance_state.speed_output + balance_clamp(clipped_speed - balance_state.speed_output, 0.02f);
+        /* Two degrees/second at the 20 ms speed-loop period. */
+        clipped_speed = balance_state.speed_output + balance_clamp(clipped_speed - balance_state.speed_output, 0.04f);
         combined_output = balance_state.balance_output - applied_params.balance_kp * clipped_speed;
         pwm_delta = -applied_params.balance_kp * integral_delta_output;
         if (!balance_is_finite(filtered_error) || !balance_is_finite(candidate_integral) ||
@@ -360,16 +390,64 @@ static uint8_t balance_run_control(void)
         }
         balance_state.speed_integral = candidate_integral;
         clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
-        balance_state.speed_output += balance_clamp(clipped_speed - balance_state.speed_output, 0.02f);
+        balance_state.speed_output += balance_clamp(clipped_speed - balance_state.speed_output, 0.04f);
     }
     balance_state.target_angle = applied_params.middle_angle + balance_state.speed_output;
+    return balance_is_finite(balance_state.speed_filtered) && balance_is_finite(balance_state.target_angle);
+}
+
+static uint8_t balance_run_control(void)
+{
+    float combined_output;
+    float common;
+    float turn;
+
     combined_output = applied_params.balance_kp * (balance_state.angle - balance_state.target_angle) +
         applied_params.balance_kd * balance_state.gyro_rate;
-    if (!balance_is_finite(combined_output)) return 0;
+    if (!balance_is_finite(combined_output) || !balance_is_finite(requested_turn)) return 0;
     balance_state.balance_output = combined_output;
-    balance_state.left_pwm = balance_pwm_from_float(combined_output);
-    balance_state.right_pwm = balance_state.left_pwm;
+    common = balance_clamp(combined_output, applied_params.pwm_limit);
+    turn = balance_clamp(requested_turn, applied_params.turn_limit);
+    /* Preserve the common balancing torque when either motor approaches saturation. */
+    turn = balance_clamp(turn, applied_params.pwm_limit - fabsf(common));
+    balance_state.turn_output = turn;
+    balance_state.left_pwm = balance_pwm_from_float(common + turn);
+    balance_state.right_pwm = balance_pwm_from_float(common - turn);
     return 1;
+}
+
+void balance_set_motion_target(float speed, float turn)
+{
+    if (!balance_state.running) {
+        requested_speed = 0;
+        requested_turn = 0;
+        return;
+    }
+    if (!balance_is_finite(speed) || !balance_is_finite(turn)) {
+        balance_latch_fault(BALANCE_FAULT_NUMERIC);
+        return;
+    }
+    requested_speed = speed < 0 ? 0 : (speed > 2000 ? 2000 : speed);
+    requested_turn = turn;
+}
+
+void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count)
+{
+    left_count_sum += left_count;
+    right_count_sum += right_count;
+    if (++speed_sample_phase < 4) return;
+    speed_sample_phase = 0;
+    balance_state.left_count = left_count_sum;
+    balance_state.right_count = right_count_sum;
+    left_count_sum = 0;
+    right_count_sum = 0;
+    if (balance_state.running) {
+        if (!balance_run_speed()) balance_latch_fault(BALANCE_FAULT_NUMERIC);
+    } else {
+        float filter = 1.0f - (1.0f - applied_params.speed_filter) * (1.0f - applied_params.speed_filter);
+        float measured_speed = (balance_state.left_count + balance_state.right_count) * 0.5f;
+        balance_state.speed_filtered += filter * (measured_speed - balance_state.speed_filtered);
+    }
 }
 
 void balance_init(void)
@@ -392,8 +470,18 @@ void balance_init(void)
     balance_state.fault = BALANCE_FAULT_STOPPED;
     balance_state.imu_ready = 0;
     balance_state.output_updated = 0;
+    balance_state.control_period_ms = 5;
+    balance_state.speed_period_ms = 20;
     balance_reset_kalman();
     balance_reset_speed();
+}
+
+uint8_t balance_seed_attitude(float angle)
+{
+    if (balance_state.running) return 0;
+    balance_reset_kalman();
+    balance_state.imu_ready = balance_update_kalman(angle, 0.0f);
+    return balance_state.imu_ready;
 }
 
 uint8_t balance_start(void)
@@ -446,6 +534,8 @@ uint8_t balance_apply_params(void)
 
 void balance_update_5ms(float accel_angle, float gyro_rate, int16_t left_count, int16_t right_count, uint8_t valid)
 {
+    (void)left_count;
+    (void)right_count;
     balance_state.output_updated = 0;
     if (!valid) {
         balance_state.imu_ready = 0;
@@ -468,27 +558,11 @@ void balance_update_5ms(float accel_angle, float gyro_rate, int16_t left_count, 
         return;
     }
 
-    left_count_sum += left_count;
-    right_count_sum += right_count;
-    speed_sample_phase++;
-    if (speed_sample_phase < 2) return;
-    speed_sample_phase = 0;
-    if (left_count_sum > 32767 || left_count_sum < -32768 || right_count_sum > 32767 || right_count_sum < -32768) {
-        balance_latch_fault(BALANCE_FAULT_NUMERIC);
-        return;
-    }
-    /* Publish complete 10 ms counts even when stopped, for hand-turn direction checks. */
-    balance_state.left_count = left_count_sum;
-    balance_state.right_count = right_count_sum;
     if (balance_state.running) {
         if (!balance_run_control()) {
             balance_latch_fault(BALANCE_FAULT_NUMERIC);
             return;
         }
         balance_state.output_updated = 1;
-    } else {
-        balance_clear_outputs();
     }
-    left_count_sum = 0;
-    right_count_sum = 0;
 }

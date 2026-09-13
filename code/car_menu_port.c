@@ -5,17 +5,6 @@
 #include "zf_common_headfile.h"
 
 #define CC_MOTOR_PWM_FREQUENCY_HZ   (17000)
-#define CC_SERVO_PWM_FREQUENCY_HZ   (200)
-#define CC_SERVO_PERIOD_US          (5000)
-
-/* Servo calibration for PWM_DUTY_MAX=10000 at 200 Hz:
- * 2480 -> lower limit -> 1240 us
- * 3040 -> center      -> 1520 us
- * 3600 -> upper limit -> 1800 us
- */
-#define CC_SERVO_MIN_DUTY           (2480)
-#define CC_SERVO_CENTER_DUTY        (3040)
-#define CC_SERVO_MAX_DUTY           (3600)
 
 static uint8_t camera_online;
 static uint8_t actuator_ready;
@@ -23,15 +12,6 @@ static int8_t left_last_direction;
 static int8_t right_last_direction;
 static uint16_t left_encoder_previous;
 static uint16_t right_encoder_previous;
-
-#if BOARD_SERVO_ENABLE
-static uint32_t servo_duty(int16_t pulse_us)
-{
-    uint32_t duty = (uint32_t)cc_math_clamp_i32(pulse_us, 1000, 3000) * PWM_DUTY_MAX / CC_SERVO_PERIOD_US;
-    return cc_math_clamp_i32(duty, CC_SERVO_MIN_DUTY, CC_SERVO_MAX_DUTY);
-}
-
-#endif
 
 static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int32_t command, int8_t *last_direction)
 {
@@ -71,11 +51,6 @@ void cc_tc264_board_init(void)
     pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
     pwm_init(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
     pwm_init(BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, CC_MOTOR_PWM_FREQUENCY_HZ, 0);
-#if BOARD_SERVO_ENABLE
-    pwm_init(BOARD_SERVO_PWM_PIN, CC_SERVO_PWM_FREQUENCY_HZ, CC_SERVO_CENTER_DUTY);
-#else
-    gpio_init(BOARD_SERVO_AUX_GPIO_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
-#endif
 
     actuator_ready = 1;
     cc_tc264_menu_motor_stop();
@@ -149,16 +124,6 @@ void cc_tc264_menu_motor_stop(void)
     if (actuator_ready == 0) return;
     write_motor_pair(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, 0, &left_last_direction);
     write_motor_pair(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, 0, &right_last_direction);
-}
-
-void cc_tc264_menu_servo_write_us(int16_t pulse_us)
-{
-#if BOARD_SERVO_ENABLE
-    if (actuator_ready == 0) return;
-    pwm_set_duty(BOARD_SERVO_PWM_PIN, servo_duty(pulse_us));
-#else
-    (void)pulse_us;
-#endif
 }
 
 void cc_tc264_balance_encoder_init(void)

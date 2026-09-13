@@ -19,8 +19,6 @@ volatile uint32 car_uptime_ms;
 volatile uint8 car_balance_timing_reset = 1;
 volatile balance_imu_status_t balance_imu_status;
 
-#define BALANCE_CALIBRATION_SAMPLES            (600)
-#define BALANCE_CALIBRATION_VALID_MIN          (570)
 #define BALANCE_CALIBRATION_GRAVITY_MIN        (0.7f)
 #define BALANCE_CALIBRATION_GRAVITY_MAX        (1.3f)
 #define BALANCE_CALIBRATION_AXIS_MIN           (0.65f)
@@ -157,6 +155,7 @@ static void balance_runtime_retry_calibration(void)
 {
     uint8 axis;
 
+    car_follow_stop();
     for (axis = 0; axis < 3; axis++) {
         calibration_accel_sum[axis] = 0.0f;
         calibration_accel_square_sum[axis] = 0.0f;
@@ -236,7 +235,11 @@ static uint8 balance_runtime_finish_calibration(void)
     balance_imu_status.calibration_error = BALANCE_CAL_ERROR_NONE;
     initial_angle = atan2f(BOARD_BALANCE_ACCEL_SIGN * accel_mean[BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS],
         balance_imu_status.vertical_sign * accel_mean[vertical_axis]) * 57.2957795f;
-    balance_update_5ms(initial_angle, 0.0f, 0, 0, 1);
+    if (!balance_seed_attitude(initial_angle)) {
+        balance_imu_status.calibration_error = BALANCE_CAL_ERROR_START;
+        return 0;
+    }
+    car_follow_stop();
     if (balance_start() == 0) {
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_START;
         return 0;
@@ -248,6 +251,7 @@ static uint8 balance_runtime_finish_calibration(void)
 
 void balance_runtime_init(void)
 {
+    car_follow_stop();
     balance_init();
     balance_params_flash_load(car_menu_current_profile());
     cc_tc264_balance_encoder_init();
@@ -281,6 +285,7 @@ void balance_runtime_task(void)
 
     Init_ICM42688();
     imu_initialized = 1;
+    car_follow_stop();
     balance_runtime_reset_calibration();
     balance_state.fault = BALANCE_FAULT_NONE;
     car_running = 1;
@@ -289,6 +294,7 @@ void balance_runtime_task(void)
 
 void balance_runtime_request_start(void)
 {
+    car_follow_stop();
     if (imu_initialized == 0) {
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
@@ -316,6 +322,7 @@ void balance_runtime_update_5ms(void)
     uint8 valid;
 
     cc_tc264_balance_encoder_read(&left_count, &right_count);
+    balance_sample_encoders_5ms(left_count, right_count);
     valid = balance_runtime_read_imu(&angle, &rate);
     if (balance_imu_status.calibration_state == BALANCE_IMU_CALIBRATING) {
         balance_runtime_collect_calibration(valid);
@@ -327,6 +334,7 @@ void balance_runtime_update_5ms(void)
         return;
     }
     if (balance_imu_status.calibration_state != BALANCE_IMU_READY) {
+        if (car_running != 0 || balance_state.running != 0) car_follow_stop();
         car_running = 0;
         car_left_command = 0;
         car_right_command = 0;
@@ -345,6 +353,7 @@ void balance_runtime_update_5ms(void)
         imu_retry_ms = system_getval_ms();
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
+        car_follow_stop();
         car_running = 0;
         car_left_command = 0;
         car_right_command = 0;
@@ -356,8 +365,10 @@ void balance_runtime_update_5ms(void)
     balance_update_5ms(angle, rate, left_count, right_count, valid);
 
     if (was_running != 0 && balance_state.running == 0) {
+        car_follow_stop();
         car_running = 0;
     } else if (car_running != 0 && balance_state.running == 0) {
+        car_follow_stop();
         car_running = balance_start();
         if (car_running != 0) car_balance_timing_reset = 1;
     } else if (car_running == 0 && balance_state.running != 0) {
@@ -375,6 +386,7 @@ void balance_runtime_update_5ms(void)
 
 void balance_runtime_stop(void)
 {
+    car_follow_stop();
     if (balance_imu_status.calibration_state == BALANCE_IMU_CALIBRATING) {
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
     }

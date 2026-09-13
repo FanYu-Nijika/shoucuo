@@ -27,6 +27,9 @@ typedef struct {
     float r_angle;
     int16_t pwm_limit;
     uint8_t speed_enabled;
+    float target_speed; /* Sum of both wheels, counts per 10 ms. */
+    int16_t turn_limit;
+    int8_t turn_direction;
 } balance_params_t;
 
 typedef struct {
@@ -39,8 +42,12 @@ typedef struct {
     float speed_integral;
     float speed_error;
     float speed_filtered;
-    int16_t left_count;
-    int16_t right_count;
+    float effective_target_speed;
+    float turn_output;
+    int32_t left_count;
+    int32_t right_count;
+    uint16_t control_period_ms;
+    uint16_t speed_period_ms;
     int16_t left_pwm;
     int16_t right_pwm;
     uint8_t running;
@@ -59,12 +66,16 @@ void balance_params_flash_load(uint8_t gear);
 void balance_params_flash_switch(uint8_t gear);
 void balance_params_flash_save(uint8_t gear);
 uint8_t balance_start(void);
+uint8_t balance_seed_attitude(float angle);
 void balance_stop(void);
 uint8_t balance_apply_params(void);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
-/* Counts are signed incremental encoder counts from one 5 ms sample. The
- * state count fields publish the completed two-sample (10 ms) sum. */
+/* Sample encoders on every tick, including a transient invalid IMU sample.
+ * Counts in the state are full 20 ms increments; filtered speed is counts/10 ms. */
+void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
+void balance_set_motion_target(float speed, float turn);
+/* Count arguments retained for source compatibility; use the sampler above. */
 void balance_update_5ms(float accel_angle, float gyro_rate, int16_t left_count, int16_t right_count, uint8_t valid);
 
 #endif

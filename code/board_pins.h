@@ -14,13 +14,13 @@
 #define BOARD_LED1_PIN                     (P02_4)
 #define BOARD_LED2_PIN                     (P02_5)
 
-// SW7 原厂定义：1=上、2=左、3=下、4=公共端、5=右、6=中心。
-// 原理图把 6 脚接地，因此软件将 4 脚持续拉低作为公共端；CENTER 无法读取，按用户要求禁用。
-#define BOARD_KEY_UP_PIN                   (P20_6)
-#define BOARD_KEY_LEFT_PIN                 (P20_7)
-#define BOARD_KEY_DOWN_PIN                 (P20_8)
+// SW7 在当前 PCB 安装方向下已按实物按键校正；4 脚由 P20.10 持续拉低作为公共端。
+// 原理图把中心触点接地，CENTER 无法单独读取，按用户要求禁用。
+#define BOARD_KEY_UP_PIN                   (P20_7)
+#define BOARD_KEY_LEFT_PIN                 (P20_8)
+#define BOARD_KEY_DOWN_PIN                 (P20_9)
 #define BOARD_KEY_COMMON_PIN               (P20_10)
-#define BOARD_KEY_RIGHT_PIN                (P20_9)
+#define BOARD_KEY_RIGHT_PIN                (P20_6)
 #define BOARD_KEY_CENTER_PIN               (BOARD_KEY_COMMON_PIN)
 #define BOARD_KEY_CENTER_ENABLE            (0)
 

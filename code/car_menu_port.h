@@ -22,7 +22,6 @@ uint8_t cc_tc264_camera_set_gain(uint8_t gain);
 uint8_t cc_tc264_motor_ready(void);
 void cc_tc264_menu_motor_write(int16_t left, int16_t right);
 void cc_tc264_menu_motor_stop(void);
-void cc_tc264_menu_servo_write_us(int16_t pulse_us);
 
 void cc_tc264_balance_encoder_init(void);
 void cc_tc264_balance_encoder_read(int16_t *left, int16_t *right);

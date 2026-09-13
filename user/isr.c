@@ -35,6 +35,9 @@
 
 #include "isr_config.h"
 #include "isr.h"
+#include "car_shared.h"
+
+extern uint8 mt9v03x_lost_flag;
 
 // 对于TC系列默认是不支持中断嵌套的，希望支持中断嵌套需要在中断内使用 interrupt_global_enable(0); 来开启中断嵌套
 // 简单点说实际上进入中断后TC系列的硬件自动调用了 interrupt_global_disable(); 来拒绝响应任何的中断，因此需要我们自己手动调用 interrupt_global_enable(0); 来开启中断的响应。
@@ -142,6 +145,9 @@ IFX_INTERRUPT(exti_ch3_ch7_isr, 0, EXTI_CH3_CH7_INT_PRIO)
     if(exti_flag_get(ERU_CH3_REQ6_P02_0))           // 通道3中断
     {
         exti_flag_clear(ERU_CH3_REQ6_P02_0);
+        car_camera_capture_generation++;
+        car_camera_capture_time_ms = system_getval_ms();
+        __dsync();
         camera_vsync_handler();                     // 摄像头触发采集统一回调函数
     }
     if(exti_flag_get(ERU_CH7_REQ16_P15_1))          // 通道7中断
@@ -160,7 +166,12 @@ IFX_INTERRUPT(exti_ch3_ch7_isr, 0, EXTI_CH3_CH7_INT_PRIO)
 IFX_INTERRUPT(dma_ch5_isr, 0, DMA_INT_PRIO)
 {
     interrupt_global_enable(0);                     // 开启中断嵌套
-    camera_dma_handler();                           // 摄像头采集完成统一回调函数
+    camera_dma_handler();
+    if (mt9v03x_lost_flag == 0 && mt9v03x_finish_flag != 0) {
+        car_camera_completed_generation = car_camera_capture_generation;
+        car_camera_completed_time_ms = car_camera_capture_time_ms;
+        __dsync();
+    }
 }
 // **************************** DMA中断函数 ****************************
 

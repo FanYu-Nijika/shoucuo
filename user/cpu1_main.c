@@ -77,6 +77,7 @@ void core1_main(void)
             uint32_t start_us = system_getval_us();
             uint32_t processing_us;
             uint32_t frame_sequence;
+            uint32_t capture_time_ms;
             car_result_t result;
 
             for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
@@ -90,11 +91,13 @@ void core1_main(void)
             __dsync();
 
             frame_sequence = car_frame_slot_sequence[(uint8_t)selected];
+            capture_time_ms = car_frame_slot_capture_time_ms[(uint8_t)selected];
             image_deal(0, CAR_IMAGE_HEIGHT, &car_gray_frames[(uint8_t)selected][0][0],
                        &car_binary_frames[(uint8_t)selected][0][0], &result);
             processing_us = system_getval_us() - start_us;
             result.frame_slot = (uint8_t)selected;
             result.frame_sequence = frame_sequence;
+            result.capture_time_ms = capture_time_ms;
             result.processing_time_us = processing_us;
 
             if (processing_us > car_vision_max_us) car_vision_max_us = processing_us;

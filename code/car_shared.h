@@ -46,10 +46,22 @@ typedef struct {
     int16_t right_command;
     uint8_t frame_slot;
     uint32_t frame_sequence;
+    uint32_t capture_time_ms;
     uint32_t processing_time_us;
     uint16_t preview_row;
     // int16_t error_pixels;
 } car_result_t;
+
+/* CPU0 publishes a small immutable visual-control snapshot.  The ISR reads
+ * only the selected slot while the main loop fills the other slot, so camera
+ * processing never blocks the 5 ms balance interrupt. */
+typedef struct {
+    float error;
+    float curvature;
+    uint32_t capture_time_ms;
+    uint32_t sequence;
+    uint8_t valid;
+} car_control_snapshot_t;
 
 extern uint8_t car_gray_frames[CAR_FRAME_SLOT_COUNT][CAR_IMAGE_HEIGHT][CAR_IMAGE_WIDTH];
 extern uint8_t car_binary_frames[CAR_FRAME_SLOT_COUNT][CAR_IMAGE_HEIGHT][CAR_IMAGE_WIDTH];
@@ -59,6 +71,7 @@ extern volatile uint32_t car_frame_period_ms;
 extern volatile car_frame_state_t car_frame_state[CAR_FRAME_SLOT_COUNT];
 extern volatile uint32_t car_frame_slot_sequence[CAR_FRAME_SLOT_COUNT];
 extern volatile uint32_t car_frame_slot_period_ms[CAR_FRAME_SLOT_COUNT];
+extern volatile uint32_t car_frame_slot_capture_time_ms[CAR_FRAME_SLOT_COUNT];
 extern volatile uint8_t car_display_slot;
 extern volatile uint8_t car_display_read_slot;
 extern volatile uint8_t car_display_pending_free_slot;
@@ -71,7 +84,13 @@ extern volatile uint32_t car_vision_max_us;
 extern volatile uint32_t car_camera_frame_count;
 extern volatile uint32_t car_camera_last_frame_ms;
 extern volatile uint32_t car_camera_age_ms;
+extern volatile uint32_t car_camera_capture_generation;
+extern volatile uint32_t car_camera_capture_time_ms;
+extern volatile uint32_t car_camera_completed_generation;
+extern volatile uint32_t car_camera_completed_time_ms;
 extern volatile uint8_t car_center_stop_request;
+extern volatile car_control_snapshot_t car_control_snapshots[2];
+extern volatile uint8_t car_control_snapshot_index;
 
 void car_shared_clear(void);
 uint8_t car_shared_has_pending_frame(void);

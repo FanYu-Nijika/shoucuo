@@ -73,6 +73,7 @@ typedef struct {
     uint8_t control_row_far;
     uint8_t control_row_near;
 
+    /* Legacy Flash placeholders; no servo is configured or driven. */
     int16_t servo_center_us;
     int16_t servo_travel_us;
     uint8_t servo_reverse;

@@ -1,267 +1,189 @@
 #include "car.h"
 
-#include "board_pins.h"
-#include "image.h"
+#include <string.h>
+#include "balance_control.h"
+#include "balance_runtime.h"
 #include "math_utils.h"
 
-#define CAR_SERVO_PWM_FREQUENCY_HZ (200)
-#define CAR_SERVO_PERIOD_US (5000)
-#define CAR_SERVO_DUTY_SCALE (4)
-#define CAR_SERVO_MIN_DUTY (2480)
-#define CAR_SERVO_CENTER_DUTY (3040)
-#define CAR_SERVO_MAX_DUTY (3600)
-
-enum {
-    CAR_CURVE_MODE_STRAIGHT = 0,
-    CAR_CURVE_MODE_CURVE = 1
-};
-
-uint8 car_running = 0;
-uint8 car_camera_ready = 0;
-uint8 servo_reverse = 0;
-uint8 left_motor_reverse = 0;
-uint8 right_motor_reverse = 0;
-
-uint16 servo_center_duty = CAR_SERVO_CENTER_DUTY;
-uint16 servo_min_duty = CAR_SERVO_MIN_DUTY;
-uint16 servo_max_duty = CAR_SERVO_MAX_DUTY;
-uint16 car_servo_duty = CAR_SERVO_CENTER_DUTY;
-uint16 lost_stop_frames = CAR_LOST_STOP_FRAMES;
-uint16 car_lost_count = 0;
-
-int16 motor_base_duty = 2800;
-int16 motor_limit = 5000;
-int16 curve_slowdown = 0;
-int16 car_left_command = 0;
-int16 car_right_command = 0;
-
+volatile uint8 car_running;
+uint8 car_camera_ready;
+uint16 car_lost_count;
+int16 car_left_command;
+int16 car_right_command;
 float steering_kp = CAR_STEERING_KP_DEFAULT;
 float steering_kd = CAR_STEERING_KD_DEFAULT;
 float curve_steering_kp = CAR_CURVE_STEERING_KP_DEFAULT;
 float curve_steering_kd = CAR_CURVE_STEERING_KD_DEFAULT;
-uint8 car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
+uint8 car_curve_mode;
+volatile uint8 car_follow_status;
+volatile float car_turn_request;
 
-static uint8 had_valid_track = 0;
-static float last_error = 0;
-static float last_valid_error = 0;
+/* Main posts commands; the ISR owns follow/PD history. Line loss disarms
+ * following until another explicit START, even when valid frames return. */
+static volatile uint8 follow_command;
+static uint8 following;
+static volatile uint8 valid_frames;
+static volatile uint32 last_valid_capture_ms;
+static uint8 derivative_ready;
+static uint32 last_control_capture_ms;
+static float last_error;
+static float curve_blend;
 static float curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT;
 static float curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT;
-static float curve_blend = 0;
-static const uint8 car_line_loss_protection_enabled = 0;
 
-static void car_reset_track_state(void)
+static uint8 car_value_finite(float value)
 {
-    car_lost_count = 0;
-    had_valid_track = 0;
+    uint32 bits;
+    memcpy(&bits, &value, sizeof(bits));
+    return (bits & 0x7f800000u) != 0x7f800000u;
+}
+
+static void car_reset_turn(void)
+{
+    derivative_ready = 0;
     last_error = 0;
-    last_valid_error = 0;
-    car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
     curve_blend = 0;
+    car_curve_mode = 0;
+    car_turn_request = 0;
 }
 
 void car_apply_menu_params(const volatile car_params_t *params)
 {
-    uint32 center_duty;
-    int32 minimum_duty;
-    int32 maximum_duty;
-
     if (params == 0) return;
-
-    motor_base_duty = params->base_speed;
-    motor_limit = params->pwm_limit;
-    curve_slowdown = params->curve_slowdown;
-    lost_stop_frames = params->lost_stop_frames == 0 ? 1 : params->lost_stop_frames;
     steering_kp = params->steering_kp;
     steering_kd = params->steering_kd;
-    curve_steering_kp = params->curve_steering_kp < 0.0 ? 0.0 : params->curve_steering_kp;
-    curve_steering_kd = params->curve_steering_kd < 0.0 ? 0.0 : params->curve_steering_kd;
-    curve_exit_threshold = cc_math_clamp_f32(params->curve_exit_threshold, 0.0, 1.0);
-    curve_enter_threshold = cc_math_clamp_f32(params->curve_enter_threshold, 0.0, 1.0);
-    if (curve_enter_threshold < curve_exit_threshold) curve_enter_threshold = curve_exit_threshold;
-    servo_reverse = params->servo_reverse;
-    left_motor_reverse = params->left_direction < 0 ? 1 : 0;
-    right_motor_reverse = params->right_direction < 0 ? 1 : 0;
-
-    center_duty = (uint32)(params->servo_center_us < 1000 ? 1000 : params->servo_center_us) * 10000 / CAR_SERVO_PERIOD_US;
-    minimum_duty = (int32)center_duty - (int32)params->servo_travel_us * 10000 / CAR_SERVO_PERIOD_US;
-    maximum_duty = (int32)center_duty + (int32)params->servo_travel_us * 10000 / CAR_SERVO_PERIOD_US;
-    servo_center_duty = (uint16)cc_math_clamp_i32(center_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
-    servo_min_duty = (uint16)cc_math_clamp_i32(minimum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
-    servo_max_duty = (uint16)cc_math_clamp_i32(maximum_duty, CAR_SERVO_MIN_DUTY, CAR_SERVO_MAX_DUTY);
-    if (servo_min_duty > servo_center_duty) servo_min_duty = servo_center_duty;
-    if (servo_max_duty < servo_center_duty) servo_max_duty = servo_center_duty;
-    car_reset_track_state();
-}
-
-
-static void car_set_servo(uint16 duty)
-{
-    duty = cc_i16_max(duty, servo_min_duty);
-    duty = cc_i16_min(duty, servo_max_duty);
-    car_servo_duty = duty;
-    pwm_set_duty(BOARD_SERVO_PWM_PIN, car_servo_duty);
-}
-
-static void car_set_one_motor(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int16 command, uint8 reverse)
-{
-    if (reverse) command = -command;
-    if (command > motor_limit) command = motor_limit;
-    if (command < -motor_limit) command = -motor_limit;
-    command = cc_i16_max(command, -motor_limit);
-    command = cc_i16_min(command, motor_limit);
-
-    if (command >= 0) {
-        pwm_set_duty(forward_pin, command);
-        pwm_set_duty(reverse_pin, 0);
-    } else {
-        pwm_set_duty(forward_pin, 0);
-        pwm_set_duty(reverse_pin, -command);
-    }
-}
-
-static void car_set_motor(int16 left, int16 right)
-{
-    if (left > motor_limit) left = motor_limit;
-    if (left < -motor_limit) left = -motor_limit;
-    if (right > motor_limit) right = motor_limit;
-    if (right < -motor_limit) right = -motor_limit;
-
-    car_left_command = left;
-    car_right_command = right;
-    car_set_one_motor(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, left, left_motor_reverse);
-    car_set_one_motor(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, right, right_motor_reverse);
+    curve_steering_kp = params->curve_steering_kp;
+    curve_steering_kd = params->curve_steering_kd;
+    curve_exit_threshold = cc_math_clamp_f32(params->curve_exit_threshold, 0, 1);
+    curve_enter_threshold = cc_math_clamp_f32(params->curve_enter_threshold, curve_exit_threshold, 1);
+    car_follow_stop();
 }
 
 void car_init(void)
 {
-    pwm_init(BOARD_SERVO_PWM_PIN, CAR_SERVO_PWM_FREQUENCY_HZ, servo_center_duty);
-    pwm_init(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, 17000, 0);
-    pwm_init(BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, 17000, 0);
-    pwm_init(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, 17000, 0);
-    pwm_init(BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, 17000, 0);
-    car_stop();
+    /* Actuator port initializes the motor channels once. */
+    car_running = 0;
+    following = 0;
+    follow_command = 0;
+    valid_frames = 0;
+    car_follow_status = CAR_FOLLOW_IDLE;
+    car_reset_turn();
 }
 
 void car_set_camera_ready(uint8 ready)
 {
     car_camera_ready = ready;
-    if (!ready) car_stop();
+    if (!ready) car_follow_stop();
 }
 
 void car_set_running(uint8 running)
 {
-    if (running) {
-        car_running = 1;
-        car_reset_track_state();
-    } else {
-        car_stop();
-    }
-}
-
-void car_toggle_running(void)
-{
-    car_set_running(!car_running);
+    if (running) balance_runtime_request_start();
+    else car_stop();
 }
 
 void car_stop(void)
 {
-    car_running = 0;
-    car_reset_track_state();
-    car_set_motor(0, 0);
-    car_set_servo(servo_center_duty);
+    car_follow_stop();
+    balance_runtime_stop();
 }
 
-void car_track_update(float error, float curvature, uint8 valid, uint8 new_result)
+static uint8 car_follow_check(void)
 {
-    int16 speed;
-    float error_abs;
-    float steering;
-    float servo_command;
-    float d_error;
+    if (!balance_state.running) return CAR_FOLLOW_NO_BALANCE;
+    if (!balance_params.speed_enabled) return CAR_FOLLOW_SPEED_DISABLED;
+    if (!car_value_finite(balance_params.target_speed) || balance_params.target_speed <= 0) return CAR_FOLLOW_TARGET_ZERO;
+    if (!car_camera_ready || valid_frames < 3 || system_getval_ms() - last_valid_capture_ms > 100)
+        return CAR_FOLLOW_NO_LINE;
+    return CAR_FOLLOW_ACTIVE;
+}
+
+uint8 car_follow_start(void)
+{
+    uint8 status = car_follow_check();
+    if (status != CAR_FOLLOW_ACTIVE) {
+        car_follow_status = status;
+        return 0;
+    }
+    follow_command = 1;
+    return 1;
+}
+
+void car_follow_stop(void)
+{
+    follow_command = 2;
+}
+
+void car_track_update(float error, float curvature, uint8 valid, uint8 new_result, uint32 capture_ms, uint32 now_ms)
+{
     float kp;
     float kd;
+    float d_error = 0;
+    float turn;
+    uint32 elapsed_ms;
+    uint8 command = follow_command;
 
-    if (!car_running) {
-        car_set_motor(0, 0);
-        car_set_servo(servo_center_duty);
+    follow_command = 0;
+    if (command == 2 || !balance_state.running) {
+        following = 0;
+        car_reset_turn();
+        car_follow_status = CAR_FOLLOW_IDLE;
+    }
+    valid = valid && car_camera_ready && now_ms - capture_ms <= 100 &&
+        car_value_finite(error) && car_value_finite(curvature);
+    if (new_result && valid) {
+        if (valid_frames != 0 && capture_ms - last_valid_capture_ms > 100) valid_frames = 0;
+        last_valid_capture_ms = capture_ms;
+        if (valid_frames < 3) valid_frames++;
+        car_lost_count = 0;
+    } else if (!valid || now_ms - last_valid_capture_ms > 100) {
+        valid_frames = 0;
+        if (new_result && car_lost_count < 65535) car_lost_count++;
+        if (following) car_follow_status = CAR_FOLLOW_LINE_LOST;
+        following = 0;
+        car_reset_turn();
+    }
+    if (command == 1) {
+        car_follow_status = car_follow_check();
+        following = car_follow_status == CAR_FOLLOW_ACTIVE;
+        car_reset_turn();
+    }
+    if (!following) {
+        balance_set_motion_target(0, 0);
         return;
     }
-
-    if (new_result == 0) return;
-
-    if (!valid && car_line_loss_protection_enabled != 0) {
-        car_lost_count++;
-        if (car_lost_count >= lost_stop_frames) {
-            car_running = 0;
-            car_set_motor(0, 0);
-            car_set_servo(servo_center_duty);
-            return;
+    if (!balance_params.speed_enabled) {
+        following = 0;
+        car_follow_status = CAR_FOLLOW_SPEED_DISABLED;
+        car_reset_turn();
+        balance_set_motion_target(0, 0);
+        return;
+    }
+    if (new_result && valid) {
+        if (!car_curve_mode && curvature >= curve_enter_threshold) {
+            car_curve_mode = 1;
+            derivative_ready = 0;
+        } else if (car_curve_mode && curvature <= curve_exit_threshold) {
+            car_curve_mode = 0;
+            derivative_ready = 0;
         }
-
-        if (!had_valid_track) {
-            car_set_motor(0, 0);
-            car_set_servo(servo_center_duty);
-            return;
-        }
-
+        curve_blend = cc_math_clamp_f32(curve_blend + (car_curve_mode ? 0.5f : -0.5f), 0, 1);
+        elapsed_ms = capture_ms - last_control_capture_ms;
+        if (derivative_ready && elapsed_ms > 0 && elapsed_ms <= 100) d_error = (error - last_error) * 20.0f / elapsed_ms;
+        last_error = error;
+        last_control_capture_ms = capture_ms;
+        derivative_ready = 1;
         kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
-        steering = kp * last_valid_error;
-        if (servo_reverse) steering = -steering;
-        steering *= CAR_SERVO_DUTY_SCALE;
-        servo_command = servo_center_duty + steering;
-        servo_command = cc_f64_max(servo_command, servo_min_duty);
-        servo_command = cc_f64_min(servo_command, servo_max_duty);
-        car_set_servo(servo_command);
-
-        speed = motor_base_duty / 2;
-        car_set_motor(speed, speed);
-        return;
-    }
-
-    if (valid) {
-        /* 直接使用当前帧偏方差，避免弯道内部数值变化�??时间滤波延迟�? */
-        if (car_curve_mode == CAR_CURVE_MODE_STRAIGHT && curvature >= curve_enter_threshold) {
-            car_curve_mode = CAR_CURVE_MODE_CURVE;
-            last_error = error;
-        } else if (car_curve_mode == CAR_CURVE_MODE_CURVE && curvature <= curve_exit_threshold) {
-            car_curve_mode = CAR_CURVE_MODE_STRAIGHT;
-            last_error = error;
+        kd = steering_kd + (curve_steering_kd - steering_kd) * curve_blend;
+        turn = (kp * error + kd * d_error) * balance_params.turn_direction;
+        if (!car_value_finite(turn)) {
+            following = 0;
+            car_follow_status = CAR_FOLLOW_LINE_LOST;
+            car_reset_turn();
+            balance_set_motion_target(0, 0);
+            return;
         }
-
-        if (car_curve_mode == CAR_CURVE_MODE_CURVE) {
-            curve_blend += 0.5;
-            if (curve_blend > 1.0) curve_blend = 1.0;
-        } else {
-            curve_blend -= 0.5;
-            if (curve_blend < 0.0) curve_blend = 0.0;
-        }
+        car_turn_request = cc_math_clamp_f32(turn, -balance_params.turn_limit, balance_params.turn_limit);
     }
-
-    if (!valid) valid = 1;
-
-    car_lost_count = 0;
-    had_valid_track = 1;
-    last_valid_error = error;
-    d_error = error - last_error;
-    last_error = error;
-    kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
-    kd = steering_kd + (curve_steering_kd - steering_kd) * curve_blend;
-    steering = kp * error + kd * d_error;
-    if (servo_reverse) steering = -steering;
-    steering *= CAR_SERVO_DUTY_SCALE;
-
-    servo_command = servo_center_duty + steering;
-    servo_command = cc_f64_max(servo_command, servo_min_duty);
-    servo_command = cc_f64_min(servo_command, servo_max_duty);
-    if (servo_command > servo_max_duty) servo_command = servo_max_duty;
-    car_set_servo(servo_command);
-
-    error_abs = error >= 0 ? error : -error;
-    // if (car_curve_mode == CAR_CURVE_MODE_CURVE)
-        // speed = 2800;
-    // else
-    speed = motor_base_duty - error_abs * curve_slowdown;
-    if (speed < 0) speed = 0;
-    if (speed > motor_limit) speed = motor_limit;
-    car_set_motor(speed, speed);
+    balance_set_motion_target(balance_params.target_speed, car_turn_request);
 }
