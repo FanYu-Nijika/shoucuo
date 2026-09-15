@@ -104,7 +104,6 @@ static void update_display_slot(uint8_t slot)
 int core0_main(void)
 {
     uint32 last_frame_ms = 0;
-    uint32 last_consumed_capture_generation = 0;
     uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
@@ -124,52 +123,38 @@ int core0_main(void)
     while (TRUE) {
         // 此�?�编写需要循�?执�?�的代码
 
-        if (car_camera_completed_generation != last_consumed_capture_generation) {
-            uint32 generation_before;
-            uint32 generation_after;
-            uint32 capture_time_ms;
+        if (mt9v03x_finish_flag != 0) {
+            uint32 now_ms = system_getval_ms();
+            uint32 capture_time_ms = car_camera_completed_time_ms;
             uint32 frame_period_ms;
             int8_t slot;
 
-            __dsync();
-            generation_before = car_camera_completed_generation;
-            capture_time_ms = car_camera_completed_time_ms;
-            __dsync();
-            generation_after = car_camera_completed_generation;
-            if (generation_before == generation_after && car_camera_capture_generation == generation_before &&
-                generation_before != last_consumed_capture_generation) {
-                slot = find_free_frame_slot(next_frame_slot);
-                if (slot >= 0) {
-                    memcpy(&car_gray_frames[(uint8_t)slot][0][0], &mt9v03x_image[0][0], sizeof(car_gray_frames[0]));
-                    __dsync();
-                    generation_after = car_camera_completed_generation;
-                    if (generation_after == generation_before && car_camera_capture_generation == generation_before) {
-                        frame_period_ms = last_frame_ms == 0 ? 20 : capture_time_ms - last_frame_ms;
-                        if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
-                        last_frame_ms = capture_time_ms;
-                        car_camera_frame_count++;
-                        car_camera_last_frame_ms = capture_time_ms;
-                        car_camera_age_ms = 0;
-                        car_frame_sequence = generation_before;
-                        car_frame_period_ms = frame_period_ms;
-                        car_frame_slot_sequence[(uint8_t)slot] = generation_before;
-                        car_frame_slot_period_ms[(uint8_t)slot] = frame_period_ms;
-                        car_frame_slot_capture_time_ms[(uint8_t)slot] = capture_time_ms;
-                        __dsync();
-                        car_frame_state[(uint8_t)slot] = CAR_FRAME_READY;
-                        __dsync();
-                        next_frame_slot = (uint8_t)(((uint8_t)slot + 1) % CAR_FRAME_SLOT_COUNT);
-                        last_consumed_capture_generation = generation_before;
-                        car_menu_frame_accepted(frame_period_ms);
-                    }
-                } else {
-                    last_consumed_capture_generation = generation_before;
-                    last_frame_ms = capture_time_ms;
-                    car_camera_frame_count++;
-                    car_camera_last_frame_ms = capture_time_ms;
-                    car_camera_age_ms = 0;
-                    car_capture_drop_count++;
-                }
+            /* Consume this completion first so a later DMA interrupt cannot be cleared by this iteration. */
+            mt9v03x_finish_flag = 0;
+            if (capture_time_ms == 0) capture_time_ms = now_ms;
+            frame_period_ms = last_frame_ms == 0 ? 20 : capture_time_ms - last_frame_ms;
+            if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
+            last_frame_ms = capture_time_ms;
+            car_camera_frame_count++;
+            car_camera_last_frame_ms = capture_time_ms;
+            car_camera_age_ms = now_ms - capture_time_ms;
+
+            slot = find_free_frame_slot(next_frame_slot);
+            if (slot >= 0) {
+                /* A completed frame remains useful even if the following VSYNC arrived while the TFT task was busy. */
+                memcpy(&car_gray_frames[(uint8_t)slot][0][0], &mt9v03x_image[0][0], sizeof(car_gray_frames[0]));
+                car_frame_sequence++;
+                car_frame_period_ms = frame_period_ms;
+                car_frame_slot_sequence[(uint8_t)slot] = car_frame_sequence;
+                car_frame_slot_period_ms[(uint8_t)slot] = frame_period_ms;
+                car_frame_slot_capture_time_ms[(uint8_t)slot] = capture_time_ms;
+                __dsync();
+                car_frame_state[(uint8_t)slot] = CAR_FRAME_READY;
+                __dsync();
+                next_frame_slot = (uint8_t)(((uint8_t)slot + 1) % CAR_FRAME_SLOT_COUNT);
+                car_menu_frame_accepted(frame_period_ms);
+            } else {
+                car_capture_drop_count++;
             }
         }
 
