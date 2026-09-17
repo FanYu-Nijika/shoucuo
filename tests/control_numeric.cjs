@@ -59,7 +59,7 @@ for (const src of [runtime, read('code/balance_runtime.h')]) {
     for (const m of src.matchAll(/#define\s+(BALANCE_CALIBRATION_\w+)\s+\(([\d.]+)f?\)/g)) c[m[1]] = +m[2];
 }
 for (const name of ['kalman_p00','kalman_p01','kalman_p10','kalman_p11','kalman_initialized','left_count_sum',
-    'right_count_sum','speed_sample_phase','requested_speed','requested_turn_speed','car_running','car_camera_ready',
+    'right_count_sum','speed_sample_phase','requested_speed','requested_turn_speed','car_running','balance_start_pending','car_camera_ready',
     'car_lost_count','car_follow_status','car_turn_request','follow_command','following','valid_frames',
     'last_valid_capture_ms','derivative_ready','last_control_capture_ms','last_error','curve_blend','car_curve_mode']) c[name] = 0;
 c.steering_kp = 2; c.steering_kd = 3.5; c.curve_steering_kp = 2.7; c.curve_steering_kd = 3;
@@ -182,7 +182,10 @@ test('1 second calibration: sample threshold, biases, axis and quality warning',
         for (let i = 0; i < 200; i++) c.balance_runtime_collect_calibration(i < validCount ? 1 : 0);
         assert.equal(c.balance_imu_status.calibration_samples, 200);
         assert.equal(c.balance_runtime_finish_calibration(), validCount >= 190 ? 1 : 0);
-        if (validCount >= 190) { near(c.balance_imu_status.gyro_bias_y, 2); assert.equal(c.balance_imu_status.vertical_axis, 2); }
+        if (validCount >= 190) {
+            near(c.balance_imu_status.gyro_bias_y, 2); assert.equal(c.balance_imu_status.vertical_axis, 2);
+            assert.equal(c.car_running, 0); assert.equal(c.balance_state.running, 0); assert.equal(c.balance_start_pending, 0);
+        }
     }
     c.balance_stop(); c.calibration_gyro_square_sum[0] = 200 * 40;
     assert.equal(c.balance_runtime_finish_calibration(), 1); assert.equal(c.balance_imu_status.calibration_quality, 1);
@@ -295,7 +298,8 @@ test('V6 outer-loop gain returns to the old PWM-per-degree scale', () => {
 test('menu display bounds, stopped-only edits and capture generation checks', () => {
     const menu = read('code/car_menu.c');
     for (const call of menu.matchAll(/ips200_show_int\([^;]*,\s*(\d+)\);/g)) assert(+call[1] <= 10);
-    assert(menu.includes('car_running == 0 && car_menu_start_pending == 0'));
+    assert(menu.includes('car_params.running = car_running'));
+    assert(!menu.includes('car_menu_error = CAR_MENU_ERROR_LINE_LOST'));
     const main = read('user/cpu0_main.c');
     assert.equal((main.match(/car_camera_capture_generation == generation_before/g) || []).length, 2);
     assert(!main.includes('mt9v03x_finish_flag = 0'));

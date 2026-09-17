@@ -111,6 +111,10 @@ static uint8_t car_menu_current_gear = 1;
 static volatile uint8_t car_menu_motor_test_active;
 static volatile int16_t car_menu_test_left_pwm;
 static volatile int16_t car_menu_test_right_pwm;
+static uint8_t car_menu_last_running;
+static uint8_t car_menu_last_start_pending;
+static uint8_t car_menu_last_balance_fault;
+static uint8_t car_menu_last_calibration_state;
 
 /*
  * Menu maintenance is intentionally a flat list. Add or remove one row here;
@@ -134,6 +138,10 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "SWITCH GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_current_gear, 1, 4, 1, 0, CAR_MENU_APPLY_PROFILE, 0},
     {0, CAR_MENU_PAGE_RUN, "SAVE FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SAVE_FLASH},
     {0, CAR_MENU_PAGE_RUN, "RUNNING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_running, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "START PENDING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_start_pending, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "BALANCE FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_CALIBRATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "IMU READY", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_state.imu_ready, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_state, 0, BALANCE_IMU_FAILED, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "FOLLOW STATUS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &car_follow_status, 0, 6, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "BASE SPEED", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.base_speed, 0, 10000, 25, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_RUN, "PWM LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.pwm_limit, 0, 10000, 25, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -548,7 +556,7 @@ static void car_menu_start(void)
         car_menu_dirty = 1;
         return;
     }
-    if (car_running != 0) {
+    if (car_running != 0 || balance_start_pending != 0) {
         car_menu_error = CAR_MENU_ERROR_RUNNING;
         car_menu_dirty = 1;
         return;
@@ -810,11 +818,30 @@ static void car_menu_process_key_scan(uint32_t now)
 
 static const char *car_menu_status_text(void)
 {
-    if (car_running != 0) return "RUN";
-    if (car_menu_start_pending != 0) return "ARMING";
     if (car_menu_motor_test_active != 0) return "MTEST";
+    if (balance_imu_status.calibration_state == BALANCE_IMU_CALIBRATING) return "CAL";
+    if (balance_start_pending != 0 || car_menu_start_pending != 0) return "ARMING";
+    if (car_running != 0) return "RUN";
+    if (balance_imu_status.calibration_state == BALANCE_IMU_FAILED) return "IMUERR";
+    if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT";
+    if (balance_state.fault == BALANCE_FAULT_IMU) return "IMUERR";
+    if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERR";
+    if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMEERR";
+    if (balance_state.fault == BALANCE_FAULT_CALIBRATION) return "CALERR";
     if (car_menu_error != CAR_MENU_ERROR_NONE) return "ERROR";
     return "STOP";
+}
+
+static const char *car_menu_balance_fault_text(void)
+{
+    if (balance_imu_status.calibration_state == BALANCE_IMU_CALIBRATING) return "CALIBRATING - PWM OFF";
+    if (balance_start_pending != 0) return "STARTING ON NEXT IMU SAMPLE";
+    if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT - UPRIGHT THEN RUN";
+    if (balance_state.fault == BALANCE_FAULT_IMU) return "IMU FAULT - PWM OFF";
+    if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERIC FAULT - PWM OFF";
+    if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMING FAULT - PWM OFF";
+    if (balance_state.fault == BALANCE_FAULT_CALIBRATION) return "CALIBRATION FAULT";
+    return 0;
 }
 
 static const char *car_menu_error_text(void)
@@ -881,9 +908,12 @@ static void car_menu_draw_value(const car_menu_item_t *item, float value, uint16
 static void car_menu_draw_footer(void)
 {
     const char *text;
+    const char *fault_text;
 
     car_menu_fill(0, 216, 320, 24, RGB565_BLACK);
+    fault_text = car_menu_balance_fault_text();
     if (car_menu_error != CAR_MENU_ERROR_NONE && car_menu_editing == 0) text = car_menu_error_text();
+    else if (fault_text != 0 && car_menu_editing == 0) text = fault_text;
     else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT OK LEFT CANCEL";
     else if (car_menu_motor_test_active != 0) text = "CENTER STOP LEFT BACK";
     else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
@@ -1075,6 +1105,10 @@ void car_menu_init(void)
     car_menu_motor_test_active = 0;
     car_menu_test_left_pwm = 0;
     car_menu_test_right_pwm = 0;
+    car_menu_last_running = car_running;
+    car_menu_last_start_pending = balance_start_pending;
+    car_menu_last_balance_fault = balance_state.fault;
+    car_menu_last_calibration_state = balance_imu_status.calibration_state;
     car_control_clear_latched_result();
     key_mask = cc_tc264_menu_key_mask();
     car_menu_previous_keys = key_mask;
@@ -1112,10 +1146,14 @@ void car_menu_task(void)
     }
     car_menu_process_key_scan(now);
     car_menu_update_start(now);
-    if (car_menu_start_pending == 0 && car_params.running != 0 && car_running == 0) {
-        car_control_clear_latched_result();
-        car_params.running = 0;
-        car_menu_error = CAR_MENU_ERROR_LINE_LOST;
+    car_params.running = car_running;
+    if (car_menu_last_running != car_running || car_menu_last_start_pending != balance_start_pending ||
+        car_menu_last_balance_fault != balance_state.fault ||
+        car_menu_last_calibration_state != balance_imu_status.calibration_state) {
+        car_menu_last_running = car_running;
+        car_menu_last_start_pending = balance_start_pending;
+        car_menu_last_balance_fault = balance_state.fault;
+        car_menu_last_calibration_state = balance_imu_status.calibration_state;
         car_menu_dirty = 1;
     }
     if (car_menu_new_frame != 0 && car_menu_lcd_test_until_ms == 0 && car_result_ready == 0 &&

@@ -55,6 +55,7 @@ extern volatile uint32 car_balance_period_us;
 extern volatile uint32 car_balance_overruns;
 extern volatile uint32 car_uptime_ms;
 extern volatile uint8 car_balance_timing_reset;
+extern volatile uint8 balance_start_pending;
 extern volatile balance_imu_status_t balance_imu_status;
 
 void balance_runtime_init(void);

@@ -17,6 +17,7 @@ volatile uint32 car_balance_period_us;
 volatile uint32 car_balance_overruns;
 volatile uint32 car_uptime_ms;
 volatile uint8 car_balance_timing_reset = 1;
+volatile uint8 balance_start_pending;
 volatile balance_imu_status_t balance_imu_status;
 
 #define BALANCE_CALIBRATION_GRAVITY_MIN        (0.7f)
@@ -168,7 +169,8 @@ static void balance_runtime_retry_calibration(void)
     balance_imu_status.calibration_state = BALANCE_IMU_CALIBRATING;
     balance_imu_status.calibration_error = BALANCE_CAL_ERROR_NONE;
     balance_imu_status.calibration_quality = BALANCE_CAL_QUALITY_GOOD;
-    car_running = 1;
+    car_running = 0;
+    balance_start_pending = 0;
     balance_stop();
     balance_state.fault = BALANCE_FAULT_NONE;
     car_left_command = 0;
@@ -241,11 +243,9 @@ static uint8 balance_runtime_finish_calibration(void)
         return 0;
     }
     car_follow_stop();
-    if (balance_start() == 0) {
-        balance_imu_status.calibration_error = BALANCE_CAL_ERROR_START;
-        return 0;
-    }
-    car_running = 1;
+    balance_stop();
+    car_running = 0;
+    balance_start_pending = 0;
     car_balance_timing_reset = 1;
     return 1;
 }
@@ -255,6 +255,7 @@ void balance_runtime_init(void)
     car_follow_stop();
     balance_init();
     motor_test_active = 0;
+    balance_start_pending = 0;
     balance_params_flash_load(car_menu_current_profile());
     cc_tc264_balance_encoder_init();
     imu_initialized = 0;
@@ -270,7 +271,7 @@ void balance_runtime_init(void)
     }
     Init_ICM42688();
     imu_initialized = 1;
-    car_running = 1;
+    car_running = 0;
     car_balance_timing_reset = 1;
     cc_tc264_menu_motor_stop();
 }
@@ -291,7 +292,8 @@ void balance_runtime_task(void)
     car_follow_stop();
     balance_runtime_reset_calibration();
     balance_state.fault = BALANCE_FAULT_NONE;
-    car_running = 1;
+    car_running = 0;
+    balance_start_pending = 0;
     car_balance_timing_reset = 1;
 }
 
@@ -303,17 +305,17 @@ void balance_runtime_request_start(void)
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
         car_running = 0;
+        balance_start_pending = 0;
         return;
     }
     if (balance_imu_status.calibration_state != BALANCE_IMU_READY) {
-        balance_runtime_reset_calibration();
-        balance_state.fault = BALANCE_FAULT_NONE;
-        car_running = 1;
-        car_balance_timing_reset = 1;
+        car_running = 0;
+        balance_start_pending = 0;
         return;
     }
-    car_running = balance_start();
-    if (car_running != 0) car_balance_timing_reset = 1;
+    /* The 5 ms ISR owns Kalman and control state. Defer RUN there to avoid
+       racing a menu action against an in-progress control update. */
+    balance_start_pending = 1;
 }
 
 void balance_runtime_update_5ms(void)
@@ -326,6 +328,7 @@ void balance_runtime_update_5ms(void)
     uint8 valid;
 
     if (motor_test_active != 0) {
+        balance_start_pending = 0;
         car_running = 0;
         if (balance_state.running != 0) balance_stop();
         car_left_command = 0;
@@ -365,6 +368,7 @@ void balance_runtime_update_5ms(void)
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
         car_follow_stop();
+        balance_start_pending = 0;
         car_running = 0;
         car_left_command = 0;
         car_right_command = 0;
@@ -375,13 +379,21 @@ void balance_runtime_update_5ms(void)
     }
     balance_update_5ms(angle, rate, left_count, right_count, valid);
 
+    if (balance_start_pending != 0 && balance_state.running == 0) {
+        balance_start_pending = 0;
+        /* A fresh accelerometer seed prevents a previous fall from leaving
+           stale Kalman angle/covariance in the next explicit RUN. */
+        if (balance_seed_attitude(angle) != 0) car_running = balance_start();
+        else {
+            balance_state.fault = BALANCE_FAULT_NUMERIC;
+            car_running = 0;
+        }
+        if (car_running != 0) car_balance_timing_reset = 1;
+    }
+
     if (was_running != 0 && balance_state.running == 0) {
         car_follow_stop();
         car_running = 0;
-    } else if (car_running != 0 && balance_state.running == 0) {
-        car_follow_stop();
-        car_running = balance_start();
-        if (car_running != 0) car_balance_timing_reset = 1;
     } else if (car_running == 0 && balance_state.running != 0) {
         balance_stop();
     }
@@ -398,9 +410,7 @@ void balance_runtime_update_5ms(void)
 void balance_runtime_stop(void)
 {
     car_follow_stop();
-    if (balance_imu_status.calibration_state == BALANCE_IMU_CALIBRATING) {
-        balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
-    }
+    balance_start_pending = 0;
     car_running = 0;
     balance_stop();
     car_left_command = 0;
@@ -411,5 +421,6 @@ void balance_runtime_stop(void)
 void balance_runtime_set_motor_test(uint8 enabled)
 {
     motor_test_active = enabled != 0 ? 1 : 0;
+    if (motor_test_active != 0) balance_start_pending = 0;
     if (motor_test_active != 0) balance_runtime_stop();
 }
