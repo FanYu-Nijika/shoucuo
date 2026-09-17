@@ -27,9 +27,11 @@ typedef struct {
     float r_angle;
     int16_t pwm_limit;
     uint8_t speed_enabled;
-    float target_speed; /* Sum of both wheels, counts per 10 ms. */
+    float target_speed; /* Per-wheel target count in 20 ms. */
     int16_t turn_limit;
     int8_t turn_direction;
+    uint16_t left_motor_deadzone;
+    uint16_t right_motor_deadzone;
 } balance_params_t;
 
 typedef struct {
@@ -43,11 +45,26 @@ typedef struct {
     float speed_error;
     float speed_filtered;
     float effective_target_speed;
+    float left_target_speed;
+    float right_target_speed;
+    float left_speed_filtered;
+    float right_speed_filtered;
+    float left_speed_error;
+    float right_speed_error;
+    float left_speed_integral;
+    float right_speed_integral;
+    float left_speed_output;
+    float right_speed_output;
+    float left_target_angle;
+    float right_target_angle;
+    float turn_speed_target;
     float turn_output;
     int32_t left_count;
     int32_t right_count;
     uint16_t control_period_ms;
     uint16_t speed_period_ms;
+    int16_t left_control_pwm;
+    int16_t right_control_pwm;
     int16_t left_pwm;
     int16_t right_pwm;
     uint8_t running;
@@ -72,8 +89,9 @@ uint8_t balance_apply_params(void);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
 /* Sample encoders on every tick, including a transient invalid IMU sample.
- * Counts in the state are full 20 ms increments; filtered speed is counts/10 ms. */
+ * Counts and per-wheel filtered speeds use full 20 ms increments. */
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
+/* turn is the requested left/right wheel-speed difference, not PWM. */
 void balance_set_motion_target(float speed, float turn);
 /* Count arguments retained for source compatibility; use the sampler above. */
 void balance_update_5ms(float accel_angle, float gyro_rate, int16_t left_count, int16_t right_count, uint8_t valid);

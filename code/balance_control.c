@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <math.h>
 
+#include "board_pins.h"
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = 0.005f;
@@ -12,19 +13,21 @@ static const float balance_tilt_limit_deg = 40.0f;
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
 #define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
-#define BALANCE_PARAMS_FLASH_VERSION       (3u)
+#define BALANCE_PARAMS_FLASH_VERSION       (5u)
 #define BALANCE_PARAMS_FLASH_OLD_WORDS     (12u)
+#define BALANCE_PARAMS_FLASH_V4_WORDS      (14u)
 #define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
 #define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
 
 /* V1/V2 were 11 floats + int16 PWM + uint8 enable + one padding byte. */
 typedef char balance_legacy_layout_check[offsetof(balance_params_t, target_speed) == 48 ? 1 : -1];
+typedef char balance_v4_layout_check[offsetof(balance_params_t, left_motor_deadzone) == 56 ? 1 : -1];
 typedef char balance_flash_capacity_check[2 + 4 * BALANCE_PARAMS_FLASH_PROFILE_WORDS <= EEPROM_PAGE_LENGTH ? 1 : -1];
 
 /* The speed loop follows the reference controller's count-sample units.
  * These small values are unverified tuning starting points: speed_kp
- * is degrees/count per 10 ms and speed_ki is degrees/(count-sample). */
+ * is degrees/count per 20 ms and speed_ki is degrees/(count-sample). */
 const balance_params_t balance_default_params = {
     .balance_kp = 1000.0f,
     .balance_kd = 25.0556f,
@@ -40,8 +43,10 @@ const balance_params_t balance_default_params = {
     .pwm_limit = 5000,
     .speed_enabled = 0,
     .target_speed = 0.0f,
-    .turn_limit = 500,
-    .turn_direction = 1
+    .turn_limit = 100,
+    .turn_direction = 1,
+    .left_motor_deadzone = 1100,
+    .right_motor_deadzone = 600
 };
 
 balance_params_t balance_params;
@@ -57,7 +62,7 @@ static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t speed_sample_phase;
 static float requested_speed;
-static float requested_turn;
+static float requested_turn_speed;
 
 static uint8_t balance_params_profile_valid(uint8_t gear)
 {
@@ -93,9 +98,24 @@ static void balance_reset_speed(void)
     right_count_sum = 0;
     speed_sample_phase = 0;
     requested_speed = 0;
-    requested_turn = 0;
+    requested_turn_speed = 0;
     balance_state.effective_target_speed = 0;
+    balance_state.left_target_speed = 0;
+    balance_state.right_target_speed = 0;
+    balance_state.left_speed_filtered = 0;
+    balance_state.right_speed_filtered = 0;
+    balance_state.left_speed_error = 0;
+    balance_state.right_speed_error = 0;
+    balance_state.left_speed_integral = 0;
+    balance_state.right_speed_integral = 0;
+    balance_state.left_speed_output = 0;
+    balance_state.right_speed_output = 0;
+    balance_state.left_target_angle = applied_params.middle_angle;
+    balance_state.right_target_angle = applied_params.middle_angle;
+    balance_state.turn_speed_target = 0;
     balance_state.turn_output = 0;
+    balance_state.left_control_pwm = 0;
+    balance_state.right_control_pwm = 0;
     balance_state.speed_output = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
     balance_state.speed_integral = 0.0f;
@@ -111,6 +131,21 @@ static void balance_clear_outputs(void)
     balance_state.speed_integral = 0.0f;
     balance_state.speed_error = 0.0f;
     balance_state.speed_filtered = 0.0f;
+    balance_state.left_target_speed = 0.0f;
+    balance_state.right_target_speed = 0.0f;
+    balance_state.left_speed_filtered = 0.0f;
+    balance_state.right_speed_filtered = 0.0f;
+    balance_state.left_speed_error = 0.0f;
+    balance_state.right_speed_error = 0.0f;
+    balance_state.left_speed_integral = 0.0f;
+    balance_state.right_speed_integral = 0.0f;
+    balance_state.left_speed_output = 0.0f;
+    balance_state.right_speed_output = 0.0f;
+    balance_state.left_target_angle = applied_params.middle_angle;
+    balance_state.right_target_angle = applied_params.middle_angle;
+    balance_state.turn_speed_target = 0.0f;
+    balance_state.left_control_pwm = 0;
+    balance_state.right_control_pwm = 0;
     balance_state.left_pwm = 0;
     balance_state.right_pwm = 0;
     balance_state.output_updated = 0;
@@ -144,7 +179,8 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         params->q_bias <= 0 || params->q_bias > 1 || params->r_angle <= 0 || params->r_angle > 100 ||
         params->pwm_limit <= 0 || params->pwm_limit > 10000 || params->speed_enabled > 1 ||
         params->target_speed < 0 || params->target_speed > 2000 || params->turn_limit < 0 ||
-        params->turn_limit > 3000 || (params->turn_direction != -1 && params->turn_direction != 1)) return 0;
+        params->turn_limit > 1000 || (params->turn_direction != -1 && params->turn_direction != 1) ||
+        params->left_motor_deadzone > 3000 || params->right_motor_deadzone > 3000) return 0;
     return 1;
 }
 
@@ -158,14 +194,17 @@ static void balance_params_flash_prepare(void)
     balance_params_t stored;
 
     if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC &&
-        (version == 1u || version == 2u || version == BALANCE_PARAMS_FLASH_VERSION)) {
-        /* Expand backwards so a V3 profile cannot overwrite the next old profile. */
+        (version == 1u || version == 2u || version == 3u || version == 4u || version == BALANCE_PARAMS_FLASH_VERSION)) {
+        /* Expand backwards so a current profile cannot overwrite the next old profile. */
         for (gear = BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear > 0; gear--) {
             offset = balance_params_profile_offset(gear);
             stored = balance_default_params;
             if (version < 3u) {
                 index = BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_OLD_WORDS;
                 memcpy(&stored, &flash_union_buffer[index], BALANCE_PARAMS_FLASH_OLD_WORDS * 4u);
+            } else if (version < 5u) {
+                index = BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_V4_WORDS;
+                memcpy(&stored, &flash_union_buffer[index], BALANCE_PARAMS_FLASH_V4_WORDS * 4u);
             } else {
                 memcpy(&stored, &flash_union_buffer[offset], sizeof(stored));
             }
@@ -191,6 +230,12 @@ static void balance_params_flash_prepare(void)
                     stored.speed_output_limit = balance_default_params.speed_output_limit;
                 }
                 stored.speed_enabled = 0;
+            }
+            /* V1-V3 stored a PWM turn limit. V4 uses per-wheel encoder counts/20 ms. */
+            if (version < 4u) stored.turn_limit = balance_default_params.turn_limit;
+            if (version < 5u) {
+                stored.left_motor_deadzone = balance_default_params.left_motor_deadzone;
+                stored.right_motor_deadzone = balance_default_params.right_motor_deadzone;
             }
             if (!balance_params_are_valid(&stored)) stored = balance_default_params;
             memcpy(&flash_union_buffer[offset], &stored, sizeof(stored));
@@ -342,77 +387,145 @@ static int16_t balance_pwm_from_float(float value)
     return (int16_t)value;
 }
 
-static uint8_t balance_run_speed(void)
+static int16_t balance_apply_motor_deadzone(float control, uint16_t wheel_deadzone)
 {
-    float filtered_error;
+    uint16_t reference_deadzone = applied_params.left_motor_deadzone > applied_params.right_motor_deadzone ?
+        applied_params.left_motor_deadzone : applied_params.right_motor_deadzone;
+    float magnitude = fabsf(control) - (reference_deadzone - wheel_deadzone);
+
+    /* Align the two measured start thresholds without scaling the entire speed range. */
+    if (magnitude <= 0.0f) return 0;
+    return balance_pwm_from_float(control > 0.0f ? magnitude : -magnitude);
+}
+
+static uint8_t balance_update_wheel_speed(uint8_t left_wheel, float error, float upright_output)
+{
     float candidate_integral;
     float candidate_output;
     float integral_delta_output;
-    float combined_output;
     float clipped_speed;
+    float integral;
+    float speed_output;
+    float wheel_output;
     float pwm_delta;
+
+    if (left_wheel) {
+        integral = balance_state.left_speed_integral;
+        speed_output = balance_state.left_speed_output;
+    } else {
+        integral = balance_state.right_speed_integral;
+        speed_output = balance_state.right_speed_output;
+    }
+    candidate_integral = balance_clamp(integral + error * 2.0f, applied_params.speed_integral_limit);
+    candidate_output = BOARD_BALANCE_SPEED_ANGLE_SIGN *
+        (applied_params.speed_kp * error + applied_params.speed_ki * candidate_integral);
+    integral_delta_output = BOARD_BALANCE_SPEED_ANGLE_SIGN * applied_params.speed_ki * (candidate_integral - integral);
+    clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
+    clipped_speed = speed_output + balance_clamp(clipped_speed - speed_output, 0.04f);
+    wheel_output = upright_output - applied_params.balance_kp * clipped_speed;
+    pwm_delta = -applied_params.balance_kp * integral_delta_output;
+    if (!balance_is_finite(error) || !balance_is_finite(candidate_integral) ||
+        !balance_is_finite(candidate_output) || !balance_is_finite(wheel_output)) return 0;
+
+    /* Each wheel freezes only integration that would push its own angle or PWM farther into saturation. */
+    if ((integral_delta_output > 0 && candidate_output > clipped_speed) ||
+        (integral_delta_output < 0 && candidate_output < clipped_speed) ||
+        (pwm_delta > 0 && wheel_output > applied_params.pwm_limit) ||
+        (pwm_delta < 0 && wheel_output < -applied_params.pwm_limit)) {
+        candidate_integral = integral;
+        candidate_output = BOARD_BALANCE_SPEED_ANGLE_SIGN *
+            (applied_params.speed_kp * error + applied_params.speed_ki * candidate_integral);
+    }
+    clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
+    speed_output += balance_clamp(clipped_speed - speed_output, 0.04f);
+    if (left_wheel) {
+        balance_state.left_speed_integral = candidate_integral;
+        balance_state.left_speed_output = speed_output;
+    } else {
+        balance_state.right_speed_integral = candidate_integral;
+        balance_state.right_speed_output = speed_output;
+    }
+    return balance_is_finite(candidate_integral) && balance_is_finite(speed_output);
+}
+
+static uint8_t balance_run_speed(void)
+{
     float filter = 1.0f - (1.0f - applied_params.speed_filter) * (1.0f - applied_params.speed_filter);
-    float measured_speed = (balance_state.left_count + balance_state.right_count) * 0.5f;
-
-    balance_state.speed_filtered += filter * (measured_speed - balance_state.speed_filtered);
-
-    balance_state.balance_output = applied_params.balance_kp * (balance_state.angle - applied_params.middle_angle) +
-        applied_params.balance_kd * balance_state.gyro_rate;
-    if (!balance_is_finite(balance_state.balance_output)) return 0;
+    float upright_output;
 
     if (!applied_params.speed_enabled) {
+        balance_state.left_target_speed = 0;
+        balance_state.right_target_speed = 0;
+        balance_state.left_speed_filtered = 0;
+        balance_state.right_speed_filtered = 0;
+        balance_state.left_speed_error = 0;
+        balance_state.right_speed_error = 0;
+        balance_state.left_speed_integral = 0;
+        balance_state.right_speed_integral = 0;
+        balance_state.left_speed_output = 0;
+        balance_state.right_speed_output = 0;
+        balance_state.left_target_angle = applied_params.middle_angle;
+        balance_state.right_target_angle = applied_params.middle_angle;
+        balance_state.turn_speed_target = 0;
         balance_state.speed_error = 0;
         balance_state.speed_integral = 0;
         balance_state.speed_output = 0;
+        balance_state.speed_filtered = 0;
         balance_state.effective_target_speed = 0;
     } else {
-        /* 100 count-rate units/s, updated at 20 ms. Keep the old 10 ms PI units. */
+        /* The base target is ramped; camera differential changes without an extra slow ramp. */
         balance_state.effective_target_speed += balance_clamp(requested_speed - balance_state.effective_target_speed, 2.0f);
-        filtered_error = balance_state.effective_target_speed - balance_state.speed_filtered;
-        balance_state.speed_error = filtered_error;
-        candidate_integral = balance_clamp(balance_state.speed_integral + filtered_error * 2.0f, applied_params.speed_integral_limit);
-        candidate_output = applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral;
-        integral_delta_output = applied_params.speed_ki * (candidate_integral - balance_state.speed_integral);
-        clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
-        /* Two degrees/second at the 20 ms speed-loop period. */
-        clipped_speed = balance_state.speed_output + balance_clamp(clipped_speed - balance_state.speed_output, 0.04f);
-        combined_output = balance_state.balance_output - applied_params.balance_kp * clipped_speed;
-        pwm_delta = -applied_params.balance_kp * integral_delta_output;
-        if (!balance_is_finite(filtered_error) || !balance_is_finite(candidate_integral) ||
-            !balance_is_finite(candidate_output) || !balance_is_finite(combined_output)) return 0;
-        /* Freeze only integration that makes saturation worse; always allow unwinding. */
-        if ((integral_delta_output > 0 && candidate_output > clipped_speed) ||
-            (integral_delta_output < 0 && candidate_output < clipped_speed) ||
-            (pwm_delta > 0 && combined_output > applied_params.pwm_limit) ||
-            (pwm_delta < 0 && combined_output < -applied_params.pwm_limit)) {
-            candidate_integral = balance_state.speed_integral;
-            candidate_output = applied_params.speed_kp * filtered_error + applied_params.speed_ki * candidate_integral;
-        }
-        balance_state.speed_integral = candidate_integral;
-        clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
-        balance_state.speed_output += balance_clamp(clipped_speed - balance_state.speed_output, 0.04f);
+        balance_state.turn_speed_target = balance_clamp(requested_turn_speed, applied_params.turn_limit);
+        balance_state.left_target_speed = balance_clamp(balance_state.effective_target_speed + balance_state.turn_speed_target, 2000.0f);
+        balance_state.right_target_speed = balance_clamp(balance_state.effective_target_speed - balance_state.turn_speed_target, 2000.0f);
+        balance_state.left_speed_filtered += filter * (balance_state.left_count - balance_state.left_speed_filtered);
+        balance_state.right_speed_filtered += filter * (balance_state.right_count - balance_state.right_speed_filtered);
+        balance_state.left_speed_error = balance_state.left_target_speed - balance_state.left_speed_filtered;
+        balance_state.right_speed_error = balance_state.right_target_speed - balance_state.right_speed_filtered;
+        upright_output = applied_params.balance_kp * (balance_state.angle - applied_params.middle_angle) +
+            applied_params.balance_kd * balance_state.gyro_rate;
+        if (!balance_is_finite(upright_output)) return 0;
+        if (!balance_update_wheel_speed(1, balance_state.left_speed_error, upright_output)) return 0;
+        if (!balance_update_wheel_speed(0, balance_state.right_speed_error, upright_output)) return 0;
+        balance_state.left_target_angle = applied_params.middle_angle + balance_state.left_speed_output;
+        balance_state.right_target_angle = applied_params.middle_angle + balance_state.right_speed_output;
+        balance_state.speed_filtered = (balance_state.left_speed_filtered + balance_state.right_speed_filtered) * 0.5f;
+        balance_state.speed_error = (balance_state.left_speed_error + balance_state.right_speed_error) * 0.5f;
+        balance_state.speed_integral = (balance_state.left_speed_integral + balance_state.right_speed_integral) * 0.5f;
+        balance_state.speed_output = (balance_state.left_speed_output + balance_state.right_speed_output) * 0.5f;
     }
-    balance_state.target_angle = applied_params.middle_angle + balance_state.speed_output;
-    return balance_is_finite(balance_state.speed_filtered) && balance_is_finite(balance_state.target_angle);
+    balance_state.target_angle = (balance_state.left_target_angle + balance_state.right_target_angle) * 0.5f;
+    return balance_is_finite(balance_state.speed_filtered) && balance_is_finite(balance_state.target_angle) &&
+        balance_is_finite(balance_state.turn_speed_target);
 }
 
 static uint8_t balance_run_control(void)
 {
-    float combined_output;
+    float left_raw;
+    float right_raw;
     float common;
-    float turn;
+    float diff;
+    float left_control;
+    float right_control;
 
-    combined_output = applied_params.balance_kp * (balance_state.angle - balance_state.target_angle) +
+    left_raw = applied_params.balance_kp * (balance_state.angle - balance_state.left_target_angle) +
         applied_params.balance_kd * balance_state.gyro_rate;
-    if (!balance_is_finite(combined_output) || !balance_is_finite(requested_turn)) return 0;
-    balance_state.balance_output = combined_output;
-    common = balance_clamp(combined_output, applied_params.pwm_limit);
-    turn = balance_clamp(requested_turn, applied_params.turn_limit);
-    /* Preserve the common balancing torque when either motor approaches saturation. */
-    turn = balance_clamp(turn, applied_params.pwm_limit - fabsf(common));
-    balance_state.turn_output = turn;
-    balance_state.left_pwm = balance_pwm_from_float(common + turn);
-    balance_state.right_pwm = balance_pwm_from_float(common - turn);
+    right_raw = applied_params.balance_kp * (balance_state.angle - balance_state.right_target_angle) +
+        applied_params.balance_kd * balance_state.gyro_rate;
+    if (!balance_is_finite(left_raw) || !balance_is_finite(right_raw)) return 0;
+    common = (left_raw + right_raw) * 0.5f;
+    diff = (left_raw - right_raw) * 0.5f;
+    balance_state.balance_output = common;
+    common = balance_clamp(common, applied_params.pwm_limit);
+    /* Preserve common balancing torque before allocating the remaining PWM to wheel-speed difference. */
+    diff = balance_clamp(diff, applied_params.pwm_limit - fabsf(common));
+    left_control = common + diff;
+    right_control = common - diff;
+    balance_state.left_control_pwm = balance_pwm_from_float(left_control);
+    balance_state.right_control_pwm = balance_pwm_from_float(right_control);
+    balance_state.left_pwm = balance_apply_motor_deadzone(left_control, applied_params.left_motor_deadzone);
+    balance_state.right_pwm = balance_apply_motor_deadzone(right_control, applied_params.right_motor_deadzone);
+    balance_state.turn_output = (balance_state.left_pwm - balance_state.right_pwm) * 0.5f;
     return 1;
 }
 
@@ -420,7 +533,7 @@ void balance_set_motion_target(float speed, float turn)
 {
     if (!balance_state.running) {
         requested_speed = 0;
-        requested_turn = 0;
+        requested_turn_speed = 0;
         return;
     }
     if (!balance_is_finite(speed) || !balance_is_finite(turn)) {
@@ -428,7 +541,7 @@ void balance_set_motion_target(float speed, float turn)
         return;
     }
     requested_speed = speed < 0 ? 0 : (speed > 2000 ? 2000 : speed);
-    requested_turn = turn;
+    requested_turn_speed = balance_clamp(turn, 2000.0f);
 }
 
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count)
@@ -443,10 +556,6 @@ void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count)
     right_count_sum = 0;
     if (balance_state.running) {
         if (!balance_run_speed()) balance_latch_fault(BALANCE_FAULT_NUMERIC);
-    } else {
-        float filter = 1.0f - (1.0f - applied_params.speed_filter) * (1.0f - applied_params.speed_filter);
-        float measured_speed = (balance_state.left_count + balance_state.right_count) * 0.5f;
-        balance_state.speed_filtered += filter * (measured_speed - balance_state.speed_filtered);
     }
 }
 

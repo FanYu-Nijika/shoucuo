@@ -44,7 +44,8 @@ const c = vm.createContext({balance_default_params: defaults, balance_params: {}
     balance_dt_s: .005, balance_tilt_limit_deg: 40, balance_is_finite: Number.isFinite, car_value_finite: Number.isFinite,
     fabsf: Math.abs, atan2f: Math.atan2, cc_math_clamp_f32: (v, lo, hi) => Math.min(hi, Math.max(lo, v)),
     now: 0, system_getval_ms: () => c.now, cc_tc264_menu_motor_stop: () => {},
-    BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS: 0, BOARD_BALANCE_GYRO_AXIS: 1, BOARD_BALANCE_ACCEL_SIGN: -1});
+    BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS: 0, BOARD_BALANCE_GYRO_AXIS: 1, BOARD_BALANCE_ACCEL_SIGN: -1,
+    BOARD_BALANCE_SPEED_ANGLE_SIGN: -1});
 for (const src of [header, read('code/car.h'), read('code/balance_runtime.h')]) {
     for (const block of strip(src).matchAll(/enum\s*\{([^}]+)\}/g)) {
         let n = 0;
@@ -58,13 +59,14 @@ for (const src of [runtime, read('code/balance_runtime.h')]) {
     for (const m of src.matchAll(/#define\s+(BALANCE_CALIBRATION_\w+)\s+\(([\d.]+)f?\)/g)) c[m[1]] = +m[2];
 }
 for (const name of ['kalman_p00','kalman_p01','kalman_p10','kalman_p11','kalman_initialized','left_count_sum',
-    'right_count_sum','speed_sample_phase','requested_speed','requested_turn','car_running','car_camera_ready',
+    'right_count_sum','speed_sample_phase','requested_speed','requested_turn_speed','car_running','car_camera_ready',
     'car_lost_count','car_follow_status','car_turn_request','follow_command','following','valid_frames',
     'last_valid_capture_ms','derivative_ready','last_control_capture_ms','last_error','curve_blend','car_curve_mode']) c[name] = 0;
 c.steering_kp = 2; c.steering_kd = 3.5; c.curve_steering_kp = 2.7; c.curve_steering_kd = 3;
 c.curve_exit_threshold = .2; c.curve_enter_threshold = .24;
 for (const name of ['balance_reset_kalman','balance_reset_speed','balance_clear_outputs','balance_latch_fault',
-    'balance_params_are_valid','balance_update_kalman','balance_clamp','balance_pwm_from_float','balance_run_speed',
+    'balance_params_are_valid','balance_update_kalman','balance_clamp','balance_pwm_from_float','balance_apply_motor_deadzone',
+    'balance_update_wheel_speed','balance_run_speed',
     'balance_run_control','balance_set_motion_target','balance_sample_encoders_5ms','balance_init',
     'balance_seed_attitude','balance_start','balance_stop','balance_apply_params','balance_update_5ms']) {
     vm.runInContext(js(extract(balance, name)), c, {filename: name});
@@ -93,36 +95,55 @@ test('5 ms output, 20 ms full counts including one skipped IMU read', () => {
 });
 test('zero/forward/backward feedback signs and 100 units/s target ramp', () => {
     reset(); for (let i = 0; i < 4; i++) tick(); near(c.balance_state.speed_output, 0);
-    for (let i = 0; i < 4; i++) tick(5, 5); assert(c.balance_state.speed_output < 0);
-    reset(); for (let i = 0; i < 4; i++) tick(-5, -5); assert(c.balance_state.speed_output > 0);
+    for (let i = 0; i < 4; i++) tick(5, 5); assert(c.balance_state.speed_output > 0);
+    reset(); for (let i = 0; i < 4; i++) tick(-5, -5); assert(c.balance_state.speed_output < 0);
     reset(); c.balance_set_motion_target(20, 0); for (let i = 0; i < 4; i++) tick();
     near(c.balance_state.effective_target_speed, 2); c.balance_set_motion_target(0, 0);
     for (let i = 0; i < 4; i++) tick(); near(c.balance_state.effective_target_speed, 0);
 });
 test('angle/rate limiting, integral freeze and unwinding under PWM saturation', () => {
     reset(); c.applied_params.speed_filter = 1; c.applied_params.speed_kp = .1;
-    for (let i = 0; i < 4; i++) tick(-100, -100); near(c.balance_state.speed_output, .04);
-    near(c.balance_state.speed_integral, 0);
-    for (let i = 0; i < 400; i++) tick(-100, -100); assert(c.balance_state.speed_output <= 1.5);
+    for (let i = 0; i < 4; i++) tick(-100, -100); near(c.balance_state.left_speed_output, -.04);
+    near(c.balance_state.right_speed_output, -.04); near(c.balance_state.left_speed_integral, 0);
+    for (let i = 0; i < 400; i++) tick(-100, -100); assert(c.balance_state.speed_output >= -1.5);
     reset(); c.applied_params.speed_filter = 1; c.applied_params.speed_kp = 0;
     c.balance_state.angle = -10; c.balance_state.left_count = -10; c.balance_state.right_count = -10;
-    c.balance_run_speed(); near(c.balance_state.speed_integral, 0);
-    c.balance_state.speed_integral = 100; c.balance_state.left_count = 10; c.balance_state.right_count = 10;
-    c.balance_run_speed(); near(c.balance_state.speed_integral, 80);
+    c.balance_run_speed(); near(c.balance_state.left_speed_integral, 20); near(c.balance_state.right_speed_integral, 20);
+    c.balance_state.left_speed_integral = 100; c.balance_state.right_speed_integral = 100;
+    c.balance_state.left_count = 10; c.balance_state.right_count = 10;
+    c.balance_run_speed(); near(c.balance_state.left_speed_integral, 100); near(c.balance_state.right_speed_integral, 100);
 });
-test('disabled speed equals PD; differential preserves common torque and limits', () => {
+test('disabled speed equals PD; independent targets and differential preserve common torque', () => {
     reset(0); c.balance_state.angle = 1; c.balance_state.gyro_rate = 2; c.balance_run_control();
     const expected = Math.trunc(defaults.balance_kp + defaults.balance_kd * 2);
-    assert.equal(c.balance_state.left_pwm, expected);
-    for (const common of [-6000, -4800, 0, 4800, 6000]) {
-        c.balance_state.angle = common / defaults.balance_kp; c.balance_state.gyro_rate = 0;
-        c.balance_set_motion_target(0, 500); c.balance_run_control();
-        const {left_pwm: l, right_pwm: r} = c.balance_state;
-        assert(Math.abs(l) <= 5000 && Math.abs(r) <= 5000);
-        near((l + r) / 2, Math.max(-5000, Math.min(5000, common)));
-    }
+    assert.equal(c.balance_state.left_control_pwm, expected); assert.equal(c.balance_state.right_control_pwm, expected);
+    assert.equal(c.balance_state.left_pwm, expected); assert.equal(c.balance_state.right_pwm, expected - 500);
+    reset(); c.balance_set_motion_target(20, 5); for (let i = 0; i < 4; i++) tick();
+    near(c.balance_state.left_target_speed, 7); near(c.balance_state.right_target_speed, -3);
+    c.balance_state.angle = 4.8; c.balance_state.left_target_angle = -.4; c.balance_state.right_target_angle = .4;
+    c.balance_run_control(); assert(Math.abs(c.balance_state.left_pwm) <= 5000);
+    assert(Math.abs(c.balance_state.right_pwm) <= 5000);
+    near((c.balance_state.left_control_pwm + c.balance_state.right_control_pwm) / 2, 4800);
     c.balance_stop(); assert.equal(c.balance_state.left_pwm, 0); near(c.balance_state.turn_output, 0);
-    near(c.balance_state.speed_integral, 0); near(c.balance_state.effective_target_speed, 0);
+    near(c.balance_state.left_speed_integral, 0); near(c.balance_state.right_speed_integral, 0);
+});
+test('left and right PI states respond independently', () => {
+    reset(); c.applied_params.speed_filter = 1; c.balance_set_motion_target(0, 0);
+    for (let i = 0; i < 4; i++) tick(0, 10);
+    near(c.balance_state.left_speed_error, 0); assert(c.balance_state.right_speed_error < 0);
+    near(c.balance_state.left_speed_integral, 0); assert(c.balance_state.right_speed_integral < 0);
+    assert(c.balance_state.right_speed_output > c.balance_state.left_speed_output);
+    c.balance_state.angle = 2; c.balance_run_control();
+    assert(c.balance_state.right_control_pwm < c.balance_state.left_control_pwm);
+    assert(c.balance_state.right_pwm < c.balance_state.left_pwm);
+});
+test('motor dead-zone difference mapping is symmetric and preserves high-speed slope', () => {
+    reset(0);
+    for (const [input, left, right] of [[0, 0, 0], [500, 500, 0], [1100, 1100, 600], [2000, 2000, 1500],
+        [-500, -500, 0], [-1100, -1100, -600], [-2000, -2000, -1500]]) {
+        assert.equal(c.balance_apply_motor_deadzone(input, 1100), left);
+        assert.equal(c.balance_apply_motor_deadzone(input, 600), right);
+    }
 });
 function frame(time, error = 10, valid = 1, isNew = 1) {
     c.now = time; c.car_track_update(error, 0, valid, isNew, time, time);
@@ -132,7 +153,7 @@ test('explicit follow start, first-frame D=0, time-normalized D and lost-line la
     frame(20); frame(40); assert.equal(c.car_follow_start(), 0);
     frame(60); assert.equal(c.car_follow_start(), 1); frame(80);
     near(c.car_turn_request, 20); frame(120, 12); near(c.car_turn_request, 24 + 3.5);
-    frame(140, 0, 0); assert.equal(c.following, 0); near(c.requested_turn, 0); near(c.requested_speed, 0);
+    frame(140, 0, 0); assert.equal(c.following, 0); near(c.requested_turn_speed, 0); near(c.requested_speed, 0);
     frame(160); frame(180); frame(200); assert.equal(c.following, 0);
     assert.equal(c.car_follow_start(), 1); frame(220); c.now = 321;
     c.car_track_update(10, 0, 1, 0, 220, 321); assert.equal(c.following, 0);
@@ -156,12 +177,13 @@ test('1 second calibration: sample threshold, biases, axis and quality warning',
 });
 
 // Model little-endian target layout, then execute the actual Flash migration branches.
-const types = {float: [4, 'Float'], int16_t: [2, 'Int16'], uint8_t: [1, 'UInt8'], int8_t: [1, 'Int8']};
+const types = {float: [4, 'Float'], int16_t: [2, 'Int16'], uint16_t: [2, 'UInt16'], uint8_t: [1, 'UInt8'], int8_t: [1, 'Int8']};
 let size = 0;
-const fields = [...strip(header).match(/typedef struct \{([\s\S]*?)\} balance_params_t;/)[1].matchAll(/(float|int16_t|uint8_t|int8_t)\s+(\w+);/g)]
+const fields = [...strip(header).match(/typedef struct \{([\s\S]*?)\} balance_params_t;/)[1].matchAll(/(float|int16_t|uint16_t|uint8_t|int8_t)\s+(\w+);/g)]
     .map(([, type, name]) => { const [bytes, kind] = types[type]; size = Math.ceil(size / bytes) * bytes; const f = {name, kind, offset: size}; size += bytes; return f; });
 size = Math.ceil(size / 4) * 4;
 assert.equal(fields.find(f => f.name === 'target_speed').offset, 48);
+assert.equal(fields.find(f => f.name === 'left_motor_deadzone').offset, 56);
 const page = Buffer.alloc(4096, 255);
 c.flash_union_buffer = Array.from({length: 1024}, (_, i) => Object.defineProperty({}, 'uint32_type', {
     get: () => page.readUInt32LE(i * 4), set: value => page.writeUInt32LE(value >>> 0, i * 4)}));
@@ -174,16 +196,17 @@ c.readParams = (offset, length) => {
     for (const f of fields) if (f.offset < length) p[f.name] = page['read' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](offset * 4 + f.offset);
     return p;
 };
-Object.assign(c, {BALANCE_PARAMS_FLASH_MAGIC: 0x42414C31, BALANCE_PARAMS_FLASH_VERSION: 3,
+Object.assign(c, {BALANCE_PARAMS_FLASH_MAGIC: 0x42414C31, BALANCE_PARAMS_FLASH_VERSION: 5,
     BALANCE_PARAMS_FLASH_PROFILE_COUNT: 4, BALANCE_PARAMS_FLASH_PROFILE_START: 2,
-    BALANCE_PARAMS_FLASH_PROFILE_WORDS: size / 4, BALANCE_PARAMS_FLASH_OLD_WORDS: 12, EEPROM_PAGE_LENGTH: 1024});
+    BALANCE_PARAMS_FLASH_PROFILE_WORDS: size / 4, BALANCE_PARAMS_FLASH_OLD_WORDS: 12,
+    BALANCE_PARAMS_FLASH_V4_WORDS: 14, EEPROM_PAGE_LENGTH: 1024});
 vm.runInContext(js(extract(balance, 'balance_params_profile_offset')), c);
 let migration = extract(balance, 'balance_params_flash_prepare')
     .replace(/memcpy\(&stored, &flash_union_buffer\[(\w+)\], ([^;]+)\);/g, 'stored = readParams($1, $2);')
     .replace(/memcpy\(&flash_union_buffer\[offset\], &(stored|balance_default_params), [^;]+\);/g, 'writeParams(offset, $1);')
     .replace(/sizeof\((?:stored|balance_params_t)\)/g, String(size));
 vm.runInContext(js(migration), c);
-test('V1/V2 four-profile expansion and V3 roundtrip preserve other profiles', () => {
+test('V1/V2 four-profile expansion migrates safely to V5', () => {
     for (const version of [1, 2]) {
         page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(version, 4);
         for (let gear = 1; gear <= 4; gear++) {
@@ -193,14 +216,33 @@ test('V1/V2 four-profile expansion and V3 roundtrip preserve other profiles', ()
             for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
             temp.copy(page, (2 + (gear - 1) * 12) * 4, 0, 48);
         }
-        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 3);
+        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 5);
         for (let gear = 1; gear <= 4; gear++) {
             const p = c.readParams(2 + (gear - 1) * size / 4, size);
             near(p.balance_kp, 100 * gear); near(p.middle_angle, gear); near(p.target_speed, 0);
             near(p.speed_kp, version === 1 ? 1 / (100 * gear) : .00025, 1e-7);
-            assert.equal(p.turn_limit, 500); assert.equal(p.turn_direction, 1);
+            assert.equal(p.turn_limit, 100); assert.equal(p.turn_direction, 1);
+            assert.equal(p.left_motor_deadzone, 1100); assert.equal(p.right_motor_deadzone, 600);
         }
         const before = Buffer.from(page); c.balance_params_flash_prepare(); assert.deepEqual(page, before);
+    }
+});
+test('V3/V4 old-stride profiles expand to V5 without crossing profile boundaries', () => {
+    for (const version of [3, 4]) {
+        page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(version, 4);
+        for (let gear = 1; gear <= 4; gear++) {
+            const temp = Buffer.alloc(size); const p = {...defaults, balance_kp: 100 * gear, middle_angle: gear,
+                turn_limit: version === 3 ? 500 : 77, turn_direction: -1};
+            for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
+            temp.copy(page, (2 + (gear - 1) * 14) * 4, 0, 56);
+        }
+        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 5);
+        for (let gear = 1; gear <= 4; gear++) {
+            const p = c.readParams(2 + (gear - 1) * size / 4, size);
+            near(p.balance_kp, 100 * gear); near(p.middle_angle, gear);
+            assert.equal(p.turn_limit, version === 3 ? 100 : 77); assert.equal(p.turn_direction, -1);
+            assert.equal(p.left_motor_deadzone, 1100); assert.equal(p.right_motor_deadzone, 600);
+        }
     }
 });
 test('menu display bounds, stopped-only edits and capture generation checks', () => {

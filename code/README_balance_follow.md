@@ -6,17 +6,19 @@
 
 - IMU 初始化后，按 5 ms 周期采样 200 次（1 秒），至少 190 个有效样本。校准期间电机关闭，失败重试，成功后自动进入零速平衡。
 - Kalman、直立 PD、电机输出为 5 ms；编码器每 5 ms 读取，速度 PI 每 20 ms 更新。
-- LEFT/RIGHT COUNT 显示完整 20 ms 增量。SPEED FILTERED 和 TARGET SPEED 使用左右合计计数/10 ms：左右 20 ms 增量之和除以 2。
+- LEFT/RIGHT COUNT、左右滤波速度和 TARGET SPEED 均使用单轮 20 ms 计数。旧的 SPEED FILTERED 字段保留为左右滤波值的平均数。
 - 保留旧速度 Kp/Ki 单位：20 ms 积分累加误差的两倍，滤波系数内部按 `1-(1-a)^2` 换算。
-- SPEED ANGLE 为度，目标倾角等于机械中值加角度修正，修正速度限制为 2 度/秒。
-- 正差速为左轮加、右轮减；差速受 TURN LIMIT 和共同平衡输出的剩余 PWM 空间限制。
+- 左右轮各自维护速度误差、积分和 SPEED ANGLE。前进编码器与前进 PWM 均为正，因此 PI 输出先乘速度角方向 `-1`，再加到机械中值；修正速度限制为 2 度/秒。
+- 摄像头转向输出作为轮速差目标：正值提高左轮目标、降低右轮目标。TURN SPEED LIMIT 的单位为单轮 20 ms 编码器计数，不再直接叠加 PWM。
+- 正常平衡输出按 LEFT/RIGHT MOTOR DEADZONE 对齐两轮起转阈值；默认左 1100、右 600。MOTORS 测试仍输出原始 PWM，不经过补偿。
 
 ## 菜单使用
 
-1. 在 RUN CONTROL 执行 STOP，设置 BALANCE 中 SPEED ENABLE、TARGET SPEED 10MS，以及 STEERING 的 PD、TURN LIMIT、TURN DIRECTION。默认目标速度为 0，差速限幅为 500。
-2. 按需 SAVE FLASH。RUN 恢复零速平衡，不自动前进。
-3. 摄像头连续三帧识别有效赛道且图像年龄不超过 100 ms 后，执行 FOLLOW START。速度环必须开启、目标速度必须大于零。
-4. FOLLOW STOP 取消转向，速度目标按每秒 100 个计数率单位降至零，继续平衡。STOP 关闭电机。
+1. 在 RUN CONTROL 执行 STOP，设置 BALANCE 中 SPEED ENABLE、TARGET SPEED 20MS，以及 STEERING 的 PD、TURN SPEED LIMIT、TURN DIRECTION。默认目标速度为 0，轮速差限幅为 100。
+2. 首次架空验证使用 SPEED KP=0.001、SPEED KI=0、TARGET SPEED=0；确认车轮越快时对应 PWM 会减小，再从 0.000005 开始增加 KI。
+3. 按需 SAVE FLASH。RUN 恢复零速平衡，不自动前进。
+4. 摄像头连续三帧识别有效赛道且图像年龄不超过 100 ms 后，执行 FOLLOW START。速度环必须开启、目标速度必须大于零。
+5. FOLLOW STOP 取消转向，速度目标按每秒 100 个计数率单位降至零，继续平衡。STOP 关闭电机。
 
 丢线、异常视觉数值或图像年龄超过 100 ms 自动退出循线；图像恢复后仍需 FOLLOW START。每个新结果只更新一次视觉 PD，首帧 D 项为零，后续 D 项归一化到 20 ms。
 
@@ -26,7 +28,7 @@ FOLLOW STATUS：0 待命、1 循线、2 未平衡、3 速度环关闭、4 目标
 
 ## 存档与验证
 
-平衡存档为 V3，V1/V2 的四档旧参数按旧布局迁移，新增目标速度为 0、差速限幅 500、方向 +1；只在 SAVE FLASH 时写入。原四轮存档布局和舵机占位字段保留。
+平衡存档为 V5。V1-V4 的四档参数保留原有直立、Kalman 和速度环设置，迁移时补入左右死区 1100/600；旧 V1-V3 PWM 单位的差速限幅迁移为安全默认值 100。只在 SAVE FLASH 时写入，原四轮存档布局和舵机占位字段保留。
 
 `node tests/control_numeric.cjs` 执行从 C 函数提取的数值逻辑及存档布局测试，不调用 C 编译器。它不能验证 TC264 的实际执行耗时、浮点细节、电机方向和实车稳定性。固件未编译，实际耗时查看 BALANCE MAX US/PERIOD/OVERRUN 遥测。
 

@@ -175,6 +175,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         derivative_ready = 1;
         kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
         kd = steering_kd + (curve_steering_kd - steering_kd) * curve_blend;
+        /* Steering requests a wheel-speed difference; balance_control closes both wheel loops. */
         turn = (kp * error + kd * d_error) * balance_params.turn_direction;
         if (!car_value_finite(turn)) {
             following = 0;

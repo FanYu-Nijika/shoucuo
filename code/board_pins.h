@@ -62,9 +62,11 @@
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
 #define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)
 #define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)
-#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)
+#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
+/* Forward PWM and forward encoder counts are both positive, so speed error needs a negative angle correction. */
+#define BOARD_BALANCE_SPEED_ANGLE_SIGN     (-1)
 
-// 原理图编码器 H7=P20.3/P20.0，H4=P02.6/P02.7；平衡车按 H7 左、H4 右使用。
+// 原理图编码器 H7=P20.3/P20.0，H4=P02.6/P02.7；实车读数确认 H7 左、H4 右。
 #define BOARD_ENCODER_H7_INDEX             (TIM6_ENCODER)
 #define BOARD_ENCODER_H7_CH1               (TIM6_ENCODER_CH1_P20_3)
 #define BOARD_ENCODER_H7_CH2               (TIM6_ENCODER_CH2_P20_0)
