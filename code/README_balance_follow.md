@@ -5,7 +5,7 @@
 ## 周期与单位
 
 - IMU 初始化后，按 5 ms 周期采样 200 次（1 秒），至少 190 个有效样本。校准期间电机关闭，失败重试，成功后自动进入零速平衡。
-- Kalman、直立 PD、电机输出为 5 ms；编码器每 5 ms 读取，速度 PI 每 20 ms 更新。
+- Kalman、角度外环、俯仰角速度 P 内环和电机输出为 5 ms；编码器每 5 ms 读取，速度 PI 每 20 ms 更新。
 - LEFT/RIGHT COUNT、左右滤波速度和 TARGET SPEED 均使用单轮 20 ms 计数。旧的 SPEED FILTERED 字段保留为左右滤波值的平均数。
 - 保留旧速度 Kp/Ki 单位：20 ms 积分累加误差的两倍，滤波系数内部按 `1-(1-a)^2` 换算。
 - 左右轮各自维护速度误差、积分和 SPEED ANGLE。前进编码器与前进 PWM 均为正，因此 PI 输出先乘速度角方向 `-1`，再加到机械中值；修正速度限制为 2 度/秒。
@@ -15,7 +15,7 @@
 ## 菜单使用
 
 1. 在 RUN CONTROL 执行 STOP，设置 BALANCE 中 SPEED ENABLE、TARGET SPEED 20MS，以及 STEERING 的 PD、TURN SPEED LIMIT、TURN DIRECTION。默认目标速度为 0，轮速差限幅为 100。
-2. 首次架空验证使用 SPEED KP=0.001、SPEED KI=0、TARGET SPEED=0；确认车轮越快时对应 PWM 会减小，再从 0.000005 开始增加 KI。
+2. 速度环默认 `SPEED KP=0.004`、`SPEED KI=0.000020`，对应参考工程约 4 PWM/count 和 0.02 PWM/(count-sample)。首次架空验证先将 KI 设为 0，确认车轮越快时对应 PWM 会减小，再逐步增加 KI。
 3. 按需 SAVE FLASH。RUN 恢复零速平衡，不自动前进。
 4. 摄像头连续三帧识别有效赛道且图像年龄不超过 100 ms 后，执行 FOLLOW START。速度环必须开启、目标速度必须大于零。
 5. FOLLOW STOP 取消转向，速度目标按每秒 100 个计数率单位降至零，继续平衡。STOP 关闭电机。
@@ -28,7 +28,7 @@ FOLLOW STATUS：0 待命、1 循线、2 未平衡、3 速度环关闭、4 目标
 
 ## 存档与验证
 
-平衡存档为 V5。V1-V4 的四档参数保留原有直立、Kalman 和速度环设置，迁移时补入左右死区 1100/600；旧 V1-V3 PWM 单位的差速限幅迁移为安全默认值 100。只在 SAVE FLASH 时写入，原四轮存档布局和舵机占位字段保留。
+平衡存档为 V7。`ANGLE KP` 保留旧 `BALANCE KP` 的 PWM/degree 数值，`RATE KP` 保留旧 `BALANCE KD`；内部角度外环增益为 `ANGLE KP / RATE KP`，因此默认 1000/25 与旧 PD 在未限幅区等效。旧 V6 的角度外环参数会乘回 `RATE KP`，恢复为相同的 PWM/degree 数值。V1-V6 若仍使用旧占位速度参数 0.00025/0.000005，则在内存中迁移为 0.004/0.000020，自定义速度参数保持不变。目标角速度限幅使用 200 deg/s。只在 SAVE FLASH 时写入，原四轮存档布局和舵机占位字段保留。
 
 `node tests/control_numeric.cjs` 执行从 C 函数提取的数值逻辑及存档布局测试，不调用 C 编译器。它不能验证 TC264 的实际执行耗时、浮点细节、电机方向和实车稳定性。固件未编译，实际耗时查看 BALANCE MAX US/PERIOD/OVERRUN 遥测。
 

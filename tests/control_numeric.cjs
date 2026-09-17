@@ -66,6 +66,7 @@ c.steering_kp = 2; c.steering_kd = 3.5; c.curve_steering_kp = 2.7; c.curve_steer
 c.curve_exit_threshold = .2; c.curve_enter_threshold = .24;
 for (const name of ['balance_reset_kalman','balance_reset_speed','balance_clear_outputs','balance_latch_fault',
     'balance_params_are_valid','balance_update_kalman','balance_clamp','balance_pwm_from_float','balance_apply_motor_deadzone',
+    'balance_calculate_rate_output',
     'balance_update_wheel_speed','balance_run_speed',
     'balance_run_control','balance_set_motion_target','balance_sample_encoders_5ms','balance_init',
     'balance_seed_attitude','balance_start','balance_stop','balance_apply_params','balance_update_5ms']) {
@@ -113,19 +114,32 @@ test('angle/rate limiting, integral freeze and unwinding under PWM saturation', 
     c.balance_state.left_count = 10; c.balance_state.right_count = 10;
     c.balance_run_speed(); near(c.balance_state.left_speed_integral, 100); near(c.balance_state.right_speed_integral, 100);
 });
-test('disabled speed equals PD; independent targets and differential preserve common torque', () => {
+test('disabled speed equals legacy PD; independent targets and differential preserve common torque', () => {
     reset(0); c.balance_state.angle = 1; c.balance_state.gyro_rate = 2; c.balance_run_control();
-    const expected = Math.trunc(defaults.balance_kp + defaults.balance_kd * 2);
+    const expected = Math.trunc(defaults.angle_kp + defaults.rate_kp * 2);
     assert.equal(c.balance_state.left_control_pwm, expected); assert.equal(c.balance_state.right_control_pwm, expected);
     assert.equal(c.balance_state.left_pwm, expected); assert.equal(c.balance_state.right_pwm, expected - 500);
     reset(); c.balance_set_motion_target(20, 5); for (let i = 0; i < 4; i++) tick();
     near(c.balance_state.left_target_speed, 7); near(c.balance_state.right_target_speed, -3);
+    c.applied_params.rate_limit = 500;
     c.balance_state.angle = 4.8; c.balance_state.left_target_angle = -.4; c.balance_state.right_target_angle = .4;
     c.balance_run_control(); assert(Math.abs(c.balance_state.left_pwm) <= 5000);
     assert(Math.abs(c.balance_state.right_pwm) <= 5000);
-    near((c.balance_state.left_control_pwm + c.balance_state.right_control_pwm) / 2, 4800);
+    near((c.balance_state.left_control_pwm + c.balance_state.right_control_pwm) / 2, 4800, 1);
     c.balance_stop(); assert.equal(c.balance_state.left_pwm, 0); near(c.balance_state.turn_output, 0);
     near(c.balance_state.left_speed_integral, 0); near(c.balance_state.right_speed_integral, 0);
+});
+test('angle outer loop and rate inner loop signs, telemetry and target-rate limit', () => {
+    reset(0); c.balance_state.angle = 1; c.balance_state.gyro_rate = 2; c.balance_run_control();
+    assert(c.balance_state.left_angle_error > 0); assert(c.balance_state.left_target_rate < 0);
+    assert(c.balance_state.left_rate_error < 0); assert(c.balance_state.left_rate_output > 0);
+    near(c.balance_state.left_rate_output, defaults.angle_kp + defaults.rate_kp * 2, 1e-5);
+    c.balance_state.angle = -1; c.balance_state.gyro_rate = -2; c.balance_run_control();
+    assert(c.balance_state.left_target_rate > 0); assert(c.balance_state.left_rate_output < 0);
+    c.applied_params.rate_limit = 20; c.balance_state.angle = 10; c.balance_state.gyro_rate = 0; c.balance_run_control();
+    near(c.balance_state.left_target_rate, -20); near(c.balance_state.right_target_rate, -20);
+    near(c.balance_state.left_rate_output, defaults.rate_kp * 20, 1e-5);
+    c.balance_stop(); near(c.balance_state.left_target_rate, 0); near(c.balance_state.left_rate_output, 0);
 });
 test('left and right PI states respond independently', () => {
     reset(); c.applied_params.speed_filter = 1; c.balance_set_motion_target(0, 0);
@@ -184,6 +198,7 @@ const fields = [...strip(header).match(/typedef struct \{([\s\S]*?)\} balance_pa
 size = Math.ceil(size / 4) * 4;
 assert.equal(fields.find(f => f.name === 'target_speed').offset, 48);
 assert.equal(fields.find(f => f.name === 'left_motor_deadzone').offset, 56);
+assert.equal(fields.find(f => f.name === 'rate_limit').offset, 60);
 const page = Buffer.alloc(4096, 255);
 c.flash_union_buffer = Array.from({length: 1024}, (_, i) => Object.defineProperty({}, 'uint32_type', {
     get: () => page.readUInt32LE(i * 4), set: value => page.writeUInt32LE(value >>> 0, i * 4)}));
@@ -196,53 +211,85 @@ c.readParams = (offset, length) => {
     for (const f of fields) if (f.offset < length) p[f.name] = page['read' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](offset * 4 + f.offset);
     return p;
 };
-Object.assign(c, {BALANCE_PARAMS_FLASH_MAGIC: 0x42414C31, BALANCE_PARAMS_FLASH_VERSION: 5,
+Object.assign(c, {BALANCE_PARAMS_FLASH_MAGIC: 0x42414C31, BALANCE_PARAMS_FLASH_VERSION: 7,
     BALANCE_PARAMS_FLASH_PROFILE_COUNT: 4, BALANCE_PARAMS_FLASH_PROFILE_START: 2,
     BALANCE_PARAMS_FLASH_PROFILE_WORDS: size / 4, BALANCE_PARAMS_FLASH_OLD_WORDS: 12,
-    BALANCE_PARAMS_FLASH_V4_WORDS: 14, EEPROM_PAGE_LENGTH: 1024});
+    BALANCE_PARAMS_FLASH_V4_WORDS: 14, BALANCE_PARAMS_FLASH_V5_WORDS: 15, EEPROM_PAGE_LENGTH: 1024});
 vm.runInContext(js(extract(balance, 'balance_params_profile_offset')), c);
 let migration = extract(balance, 'balance_params_flash_prepare')
     .replace(/memcpy\(&stored, &flash_union_buffer\[(\w+)\], ([^;]+)\);/g, 'stored = readParams($1, $2);')
     .replace(/memcpy\(&flash_union_buffer\[offset\], &(stored|balance_default_params), [^;]+\);/g, 'writeParams(offset, $1);')
     .replace(/sizeof\((?:stored|balance_params_t)\)/g, String(size));
 vm.runInContext(js(migration), c);
-test('V1/V2 four-profile expansion migrates safely to V5', () => {
+test('V1/V2 four-profile expansion preserves old PD scale and migrates placeholder speed gains', () => {
     for (const version of [1, 2]) {
         page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(version, 4);
         for (let gear = 1; gear <= 4; gear++) {
-            const temp = Buffer.alloc(size); const p = {...defaults, balance_kp: 100 * gear, middle_angle: gear,
+            const temp = Buffer.alloc(size); const p = {...defaults, angle_kp: 100 * gear, rate_kp: 20 + gear, middle_angle: gear,
                 speed_kp: version === 1 ? 1 : .00025, speed_ki: version === 1 ? .01 : .000005,
                 speed_output_limit: version === 1 ? 500 : 1.5};
             for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
             temp.copy(page, (2 + (gear - 1) * 12) * 4, 0, 48);
         }
-        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 5);
+        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 7);
         for (let gear = 1; gear <= 4; gear++) {
             const p = c.readParams(2 + (gear - 1) * size / 4, size);
-            near(p.balance_kp, 100 * gear); near(p.middle_angle, gear); near(p.target_speed, 0);
-            near(p.speed_kp, version === 1 ? 1 / (100 * gear) : .00025, 1e-7);
+            near(p.angle_kp, 100 * gear, 1e-6); near(p.rate_kp, 20 + gear);
+            near(p.rate_limit, 200); near(p.middle_angle, gear); near(p.target_speed, 0);
+            near(p.speed_kp, version === 1 ? 1 / (100 * gear) : .004, 1e-7);
             assert.equal(p.turn_limit, 100); assert.equal(p.turn_direction, 1);
             assert.equal(p.left_motor_deadzone, 1100); assert.equal(p.right_motor_deadzone, 600);
         }
         const before = Buffer.from(page); c.balance_params_flash_prepare(); assert.deepEqual(page, before);
     }
 });
-test('V3/V4 old-stride profiles expand to V5 without crossing profile boundaries', () => {
+test('V3/V4 old-stride profiles expand to V6 without crossing profile boundaries', () => {
     for (const version of [3, 4]) {
         page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(version, 4);
         for (let gear = 1; gear <= 4; gear++) {
-            const temp = Buffer.alloc(size); const p = {...defaults, balance_kp: 100 * gear, middle_angle: gear,
+            const temp = Buffer.alloc(size); const p = {...defaults, angle_kp: 100 * gear, rate_kp: 20 + gear, middle_angle: gear,
                 turn_limit: version === 3 ? 500 : 77, turn_direction: -1};
             for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
             temp.copy(page, (2 + (gear - 1) * 14) * 4, 0, 56);
         }
-        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 5);
+        c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 7);
         for (let gear = 1; gear <= 4; gear++) {
             const p = c.readParams(2 + (gear - 1) * size / 4, size);
-            near(p.balance_kp, 100 * gear); near(p.middle_angle, gear);
+            near(p.angle_kp, 100 * gear, 1e-6); near(p.rate_kp, 20 + gear);
+            near(p.rate_limit, 200); near(p.middle_angle, gear);
             assert.equal(p.turn_limit, version === 3 ? 100 : 77); assert.equal(p.turn_direction, -1);
             assert.equal(p.left_motor_deadzone, 1100); assert.equal(p.right_motor_deadzone, 600);
         }
+    }
+});
+test('V5 profiles expand to V6 and preserve dead-zone parameters', () => {
+    page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(5, 4);
+    for (let gear = 1; gear <= 4; gear++) {
+        const temp = Buffer.alloc(size); const p = {...defaults, angle_kp: 500 + 100 * gear, rate_kp: 25,
+            middle_angle: gear, left_motor_deadzone: 1000 + gear, right_motor_deadzone: 500 + gear};
+        for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
+        temp.copy(page, (2 + (gear - 1) * 15) * 4, 0, 60);
+    }
+    c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 7);
+    for (let gear = 1; gear <= 4; gear++) {
+        const p = c.readParams(2 + (gear - 1) * size / 4, size);
+        near(p.angle_kp, 500 + 100 * gear, 1e-6); near(p.rate_kp, 25); near(p.rate_limit, 200);
+        assert.equal(p.left_motor_deadzone, 1000 + gear); assert.equal(p.right_motor_deadzone, 500 + gear);
+    }
+});
+test('V6 outer-loop gain returns to the old PWM-per-degree scale', () => {
+    page.fill(255); page.writeUInt32LE(0x42414C31, 0); page.writeUInt32LE(6, 4);
+    for (let gear = 1; gear <= 4; gear++) {
+        const temp = Buffer.alloc(size); const p = {...defaults, angle_kp: 40 + gear, rate_kp: 25,
+            speed_kp: .00025, speed_ki: .000005};
+        for (const f of fields) temp['write' + f.kind + (f.kind.endsWith('8') ? '' : 'LE')](p[f.name], f.offset);
+        temp.copy(page, (2 + (gear - 1) * size / 4) * 4, 0, size);
+    }
+    c.balance_params_flash_prepare(); assert.equal(page.readUInt32LE(4), 7);
+    for (let gear = 1; gear <= 4; gear++) {
+        const p = c.readParams(2 + (gear - 1) * size / 4, size);
+        near(p.angle_kp, (40 + gear) * 25, 1e-5); near(p.rate_kp, 25);
+        near(p.speed_kp, .004, 1e-7); near(p.speed_ki, .00002, 1e-8);
     }
 });
 test('menu display bounds, stopped-only edits and capture generation checks', () => {

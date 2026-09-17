@@ -13,9 +13,10 @@ static const float balance_tilt_limit_deg = 40.0f;
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
 #define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
-#define BALANCE_PARAMS_FLASH_VERSION       (5u)
+#define BALANCE_PARAMS_FLASH_VERSION       (7u)
 #define BALANCE_PARAMS_FLASH_OLD_WORDS     (12u)
 #define BALANCE_PARAMS_FLASH_V4_WORDS      (14u)
+#define BALANCE_PARAMS_FLASH_V5_WORDS      (15u)
 #define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
 #define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
@@ -23,17 +24,18 @@ static const float balance_tilt_limit_deg = 40.0f;
 /* V1/V2 were 11 floats + int16 PWM + uint8 enable + one padding byte. */
 typedef char balance_legacy_layout_check[offsetof(balance_params_t, target_speed) == 48 ? 1 : -1];
 typedef char balance_v4_layout_check[offsetof(balance_params_t, left_motor_deadzone) == 56 ? 1 : -1];
+typedef char balance_v6_layout_check[offsetof(balance_params_t, rate_limit) == 60 ? 1 : -1];
 typedef char balance_flash_capacity_check[2 + 4 * BALANCE_PARAMS_FLASH_PROFILE_WORDS <= EEPROM_PAGE_LENGTH ? 1 : -1];
 
-/* The speed loop follows the reference controller's count-sample units.
- * These small values are unverified tuning starting points: speed_kp
- * is degrees/count per 20 ms and speed_ki is degrees/(count-sample). */
+/* ANGLE KP keeps the old PWM/degree tuning scale. The explicit rate loop uses
+ * ANGLE KP / RATE KP internally, so 1000/25 reproduces the old PD response.
+ * The speed gains are the reference controller's PWM gains converted to degrees. */
 const balance_params_t balance_default_params = {
-    .balance_kp = 1000.0f,
-    .balance_kd = 25.0556f,
+    .angle_kp = 1000.0f,
+    .rate_kp = 25.0556f,
     .middle_angle = 0.0f,
-    .speed_kp = 0.00025f,
-    .speed_ki = 0.000005f,
+    .speed_kp = 0.004f,
+    .speed_ki = 0.00002f,
     .speed_filter = 0.16f,
     .speed_integral_limit = 30000.0f,
     .speed_output_limit = 1.5f,
@@ -46,7 +48,8 @@ const balance_params_t balance_default_params = {
     .turn_limit = 100,
     .turn_direction = 1,
     .left_motor_deadzone = 1100,
-    .right_motor_deadzone = 600
+    .right_motor_deadzone = 600,
+    .rate_limit = 200.0f
 };
 
 balance_params_t balance_params;
@@ -112,6 +115,14 @@ static void balance_reset_speed(void)
     balance_state.right_speed_output = 0;
     balance_state.left_target_angle = applied_params.middle_angle;
     balance_state.right_target_angle = applied_params.middle_angle;
+    balance_state.left_angle_error = 0;
+    balance_state.right_angle_error = 0;
+    balance_state.left_target_rate = 0;
+    balance_state.right_target_rate = 0;
+    balance_state.left_rate_error = 0;
+    balance_state.right_rate_error = 0;
+    balance_state.left_rate_output = 0;
+    balance_state.right_rate_output = 0;
     balance_state.turn_speed_target = 0;
     balance_state.turn_output = 0;
     balance_state.left_control_pwm = 0;
@@ -143,6 +154,14 @@ static void balance_clear_outputs(void)
     balance_state.right_speed_output = 0.0f;
     balance_state.left_target_angle = applied_params.middle_angle;
     balance_state.right_target_angle = applied_params.middle_angle;
+    balance_state.left_angle_error = 0.0f;
+    balance_state.right_angle_error = 0.0f;
+    balance_state.left_target_rate = 0.0f;
+    balance_state.right_target_rate = 0.0f;
+    balance_state.left_rate_error = 0.0f;
+    balance_state.right_rate_error = 0.0f;
+    balance_state.left_rate_output = 0.0f;
+    balance_state.right_rate_output = 0.0f;
     balance_state.turn_speed_target = 0.0f;
     balance_state.left_control_pwm = 0;
     balance_state.right_control_pwm = 0;
@@ -164,14 +183,16 @@ static void balance_latch_fault(balance_fault_t fault)
 uint8_t balance_params_are_valid(const balance_params_t *params)
 {
     if (params == 0) return 0;
-    if (!balance_is_finite(params->balance_kp) || !balance_is_finite(params->balance_kd) ||
+    if (!balance_is_finite(params->angle_kp) || !balance_is_finite(params->rate_kp) ||
         !balance_is_finite(params->middle_angle) || !balance_is_finite(params->speed_kp) ||
         !balance_is_finite(params->speed_ki) || !balance_is_finite(params->speed_filter) ||
         !balance_is_finite(params->speed_integral_limit) || !balance_is_finite(params->speed_output_limit) ||
         !balance_is_finite(params->q_angle) || !balance_is_finite(params->q_bias) ||
-        !balance_is_finite(params->r_angle) || !balance_is_finite(params->target_speed)) return 0;
-    if (params->balance_kp < 0 || params->balance_kp > 2000 || params->balance_kd < 0 ||
-        params->balance_kd > 200 || fabsf(params->middle_angle) > 30 ||
+        !balance_is_finite(params->r_angle) || !balance_is_finite(params->target_speed) ||
+        !balance_is_finite(params->rate_limit)) return 0;
+    if (params->angle_kp < 0 || params->angle_kp > 3000 || params->rate_kp <= 0.0001f ||
+        params->rate_kp > 100 || params->rate_limit < 20 || params->rate_limit > 500 ||
+        fabsf(params->middle_angle) > 30 ||
         params->speed_kp < 0 || params->speed_kp > 0.1f || params->speed_ki < 0 || params->speed_ki > 0.01f ||
         params->speed_filter < 0 || params->speed_filter > 1 || params->speed_integral_limit <= 0 ||
         params->speed_integral_limit > 100000 || params->speed_output_limit <= 0 ||
@@ -192,9 +213,11 @@ static void balance_params_flash_prepare(void)
     uint8_t gear;
     uint32_t version = flash_union_buffer[1].uint32_type;
     balance_params_t stored;
+    float old_balance_kp;
+    float old_balance_kd;
 
     if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC &&
-        (version == 1u || version == 2u || version == 3u || version == 4u || version == BALANCE_PARAMS_FLASH_VERSION)) {
+        version >= 1u && version <= BALANCE_PARAMS_FLASH_VERSION) {
         /* Expand backwards so a current profile cannot overwrite the next old profile. */
         for (gear = BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear > 0; gear--) {
             offset = balance_params_profile_offset(gear);
@@ -205,18 +228,23 @@ static void balance_params_flash_prepare(void)
             } else if (version < 5u) {
                 index = BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_V4_WORDS;
                 memcpy(&stored, &flash_union_buffer[index], BALANCE_PARAMS_FLASH_V4_WORDS * 4u);
+            } else if (version < 6u) {
+                index = BALANCE_PARAMS_FLASH_PROFILE_START + (gear - 1u) * BALANCE_PARAMS_FLASH_V5_WORDS;
+                memcpy(&stored, &flash_union_buffer[index], BALANCE_PARAMS_FLASH_V5_WORDS * 4u);
             } else {
                 memcpy(&stored, &flash_union_buffer[offset], sizeof(stored));
             }
+            old_balance_kp = stored.angle_kp;
+            old_balance_kd = stored.rate_kp;
             if (version == 1u) {
-                if (balance_is_finite(stored.balance_kp) && stored.balance_kp > 0 &&
+                if (balance_is_finite(old_balance_kp) && old_balance_kp > 0 &&
                     balance_is_finite(stored.speed_kp) && stored.speed_kp >= 0 && stored.speed_kp <= 1000 &&
                     balance_is_finite(stored.speed_ki) && stored.speed_ki >= 0 && stored.speed_ki <= 1000 &&
                     balance_is_finite(stored.speed_output_limit) &&
                     stored.speed_output_limit > 0 && stored.speed_output_limit <= 10000) {
-                    stored.speed_kp /= stored.balance_kp;
-                    stored.speed_ki /= stored.balance_kp;
-                    stored.speed_output_limit /= stored.balance_kp;
+                    stored.speed_kp /= old_balance_kp;
+                    stored.speed_ki /= old_balance_kp;
+                    stored.speed_output_limit /= old_balance_kp;
                     if (stored.speed_output_limit > 1.5f) stored.speed_output_limit = 1.5f;
                 } else {
                     stored.speed_kp = balance_default_params.speed_kp;
@@ -236,6 +264,35 @@ static void balance_params_flash_prepare(void)
             if (version < 5u) {
                 stored.left_motor_deadzone = balance_default_params.left_motor_deadzone;
                 stored.right_motor_deadzone = balance_default_params.right_motor_deadzone;
+            }
+            if (version < 6u) {
+                if (balance_is_finite(old_balance_kp) && old_balance_kp >= 0 && old_balance_kp <= 3000.0f &&
+                    balance_is_finite(old_balance_kd) && old_balance_kd > 0.0001f && old_balance_kd <= 100.0f) {
+                    stored.angle_kp = old_balance_kp;
+                    stored.rate_kp = old_balance_kd;
+                    stored.rate_limit = balance_default_params.rate_limit;
+                } else {
+                    stored.angle_kp = balance_default_params.angle_kp;
+                    stored.rate_kp = balance_default_params.rate_kp;
+                    stored.rate_limit = balance_default_params.rate_limit;
+                }
+            } else if (version == 6u) {
+                /* V6 stored the outer angle-to-rate gain; restore the old PWM/degree tuning scale. */
+                if (balance_is_finite(old_balance_kp) && old_balance_kp >= 0 && old_balance_kp <= 100.0f &&
+                    balance_is_finite(old_balance_kd) && old_balance_kd > 0.0001f && old_balance_kd <= 100.0f) {
+                    stored.angle_kp = old_balance_kp * old_balance_kd;
+                } else {
+                    stored.angle_kp = balance_default_params.angle_kp;
+                    stored.rate_kp = balance_default_params.rate_kp;
+                }
+            }
+            if (version < 7u) {
+                /* Replace only the former placeholder pair; user-tuned speed gains remain untouched. */
+                if (fabsf(stored.speed_kp - 0.00025f) < 0.0000001f &&
+                    fabsf(stored.speed_ki - 0.000005f) < 0.0000001f) {
+                    stored.speed_kp = balance_default_params.speed_kp;
+                    stored.speed_ki = balance_default_params.speed_ki;
+                }
             }
             if (!balance_params_are_valid(&stored)) stored = balance_default_params;
             memcpy(&flash_union_buffer[offset], &stored, sizeof(stored));
@@ -353,7 +410,7 @@ static uint8_t balance_update_kalman(float accel_angle, float gyro_rate)
     kalman_p11 = kalman_p11 - kalman_gain_bias * old_p01;
     balance_state.angle += kalman_gain_angle * innovation;
     balance_state.gyro_bias += kalman_gain_bias * innovation;
-    /* The D term must use the residual-bias-corrected rate estimated by Kalman. */
+    /* The rate loop must use the residual-bias-corrected angular rate estimated by Kalman. */
     balance_state.gyro_rate = gyro_rate - balance_state.gyro_bias;
 
     if (!balance_is_finite(balance_state.angle) || !balance_is_finite(balance_state.gyro_rate) ||
@@ -374,6 +431,16 @@ static float balance_clamp(float value, float limit)
         return -limit;
     }
     return value;
+}
+
+static float balance_calculate_rate_output(float target_angle)
+{
+    float angle_error = balance_state.angle - target_angle;
+    float target_rate = balance_clamp(-(applied_params.angle_kp / applied_params.rate_kp) * angle_error,
+        applied_params.rate_limit);
+    float rate_error = target_rate - balance_state.gyro_rate;
+
+    return -applied_params.rate_kp * rate_error;
 }
 
 static int16_t balance_pwm_from_float(float value)
@@ -400,6 +467,7 @@ static int16_t balance_apply_motor_deadzone(float control, uint16_t wheel_deadzo
 
 static uint8_t balance_update_wheel_speed(uint8_t left_wheel, float error, float upright_output)
 {
+    float angle_pwm_gain = applied_params.angle_kp;
     float candidate_integral;
     float candidate_output;
     float integral_delta_output;
@@ -422,8 +490,8 @@ static uint8_t balance_update_wheel_speed(uint8_t left_wheel, float error, float
     integral_delta_output = BOARD_BALANCE_SPEED_ANGLE_SIGN * applied_params.speed_ki * (candidate_integral - integral);
     clipped_speed = balance_clamp(candidate_output, applied_params.speed_output_limit);
     clipped_speed = speed_output + balance_clamp(clipped_speed - speed_output, 0.04f);
-    wheel_output = upright_output - applied_params.balance_kp * clipped_speed;
-    pwm_delta = -applied_params.balance_kp * integral_delta_output;
+    wheel_output = upright_output - angle_pwm_gain * clipped_speed;
+    pwm_delta = -angle_pwm_gain * integral_delta_output;
     if (!balance_is_finite(error) || !balance_is_finite(candidate_integral) ||
         !balance_is_finite(candidate_output) || !balance_is_finite(wheel_output)) return 0;
 
@@ -482,8 +550,7 @@ static uint8_t balance_run_speed(void)
         balance_state.right_speed_filtered += filter * (balance_state.right_count - balance_state.right_speed_filtered);
         balance_state.left_speed_error = balance_state.left_target_speed - balance_state.left_speed_filtered;
         balance_state.right_speed_error = balance_state.right_target_speed - balance_state.right_speed_filtered;
-        upright_output = applied_params.balance_kp * (balance_state.angle - applied_params.middle_angle) +
-            applied_params.balance_kd * balance_state.gyro_rate;
+        upright_output = balance_calculate_rate_output(applied_params.middle_angle);
         if (!balance_is_finite(upright_output)) return 0;
         if (!balance_update_wheel_speed(1, balance_state.left_speed_error, upright_output)) return 0;
         if (!balance_update_wheel_speed(0, balance_state.right_speed_error, upright_output)) return 0;
@@ -508,10 +575,18 @@ static uint8_t balance_run_control(void)
     float left_control;
     float right_control;
 
-    left_raw = applied_params.balance_kp * (balance_state.angle - balance_state.left_target_angle) +
-        applied_params.balance_kd * balance_state.gyro_rate;
-    right_raw = applied_params.balance_kp * (balance_state.angle - balance_state.right_target_angle) +
-        applied_params.balance_kd * balance_state.gyro_rate;
+    balance_state.left_angle_error = balance_state.angle - balance_state.left_target_angle;
+    balance_state.right_angle_error = balance_state.angle - balance_state.right_target_angle;
+    balance_state.left_target_rate = balance_clamp(-(applied_params.angle_kp / applied_params.rate_kp) *
+        balance_state.left_angle_error, applied_params.rate_limit);
+    balance_state.right_target_rate = balance_clamp(-(applied_params.angle_kp / applied_params.rate_kp) *
+        balance_state.right_angle_error, applied_params.rate_limit);
+    balance_state.left_rate_error = balance_state.left_target_rate - balance_state.gyro_rate;
+    balance_state.right_rate_error = balance_state.right_target_rate - balance_state.gyro_rate;
+    balance_state.left_rate_output = -applied_params.rate_kp * balance_state.left_rate_error;
+    balance_state.right_rate_output = -applied_params.rate_kp * balance_state.right_rate_error;
+    left_raw = balance_state.left_rate_output;
+    right_raw = balance_state.right_rate_output;
     if (!balance_is_finite(left_raw) || !balance_is_finite(right_raw)) return 0;
     common = (left_raw + right_raw) * 0.5f;
     diff = (left_raw - right_raw) * 0.5f;

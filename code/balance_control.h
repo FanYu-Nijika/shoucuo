@@ -14,8 +14,8 @@ typedef enum {
 } balance_fault_t;
 
 typedef struct {
-    float balance_kp;
-    float balance_kd;
+    float angle_kp;
+    float rate_kp;
     float middle_angle;
     float speed_kp;
     float speed_ki;
@@ -32,6 +32,7 @@ typedef struct {
     int8_t turn_direction;
     uint16_t left_motor_deadzone;
     uint16_t right_motor_deadzone;
+    float rate_limit;
 } balance_params_t;
 
 typedef struct {
@@ -57,6 +58,14 @@ typedef struct {
     float right_speed_output;
     float left_target_angle;
     float right_target_angle;
+    float left_angle_error;
+    float right_angle_error;
+    float left_target_rate;
+    float right_target_rate;
+    float left_rate_error;
+    float right_rate_error;
+    float left_rate_output;
+    float right_rate_output;
     float turn_speed_target;
     float turn_output;
     int32_t left_count;
