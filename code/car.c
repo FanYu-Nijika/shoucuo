@@ -91,8 +91,6 @@ void car_stop(void)
 static uint8 car_follow_check(void)
 {
     if (!balance_state.running) return CAR_FOLLOW_NO_BALANCE;
-    if (!balance_params.speed_enabled) return CAR_FOLLOW_SPEED_DISABLED;
-    if (!car_value_finite(balance_params.target_speed) || balance_params.target_speed <= 0) return CAR_FOLLOW_TARGET_ZERO;
     if (!car_camera_ready || valid_frames < 3 || system_getval_ms() - last_valid_capture_ms > 100)
         return CAR_FOLLOW_NO_LINE;
     return CAR_FOLLOW_ACTIVE;
@@ -149,14 +147,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         car_reset_turn();
     }
     if (!following) {
-        balance_set_motion_target(0, 0);
-        return;
-    }
-    if (!balance_params.speed_enabled) {
-        following = 0;
-        car_follow_status = CAR_FOLLOW_SPEED_DISABLED;
-        car_reset_turn();
-        balance_set_motion_target(0, 0);
+        balance_set_follow_command(0, 0);
         return;
     }
     if (new_result && valid) {
@@ -175,16 +166,16 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         derivative_ready = 1;
         kp = steering_kp + (curve_steering_kp - steering_kp) * curve_blend;
         kd = steering_kd + (curve_steering_kd - steering_kd) * curve_blend;
-        /* Steering requests a wheel-speed difference; balance_control closes both wheel loops. */
+        /* With no wheel-speed loop, camera PD directly requests PWM differential. */
         turn = (kp * error + kd * d_error) * balance_params.turn_direction;
         if (!car_value_finite(turn)) {
             following = 0;
             car_follow_status = CAR_FOLLOW_LINE_LOST;
             car_reset_turn();
-            balance_set_motion_target(0, 0);
+            balance_set_follow_command(0, 0);
             return;
         }
-        car_turn_request = cc_math_clamp_f32(turn, -balance_params.turn_limit, balance_params.turn_limit);
+        car_turn_request = cc_math_clamp_f32(turn, -balance_params.turn_pwm_limit, balance_params.turn_pwm_limit);
     }
-    balance_set_motion_target(balance_params.target_speed, car_turn_request);
+    balance_set_follow_command(balance_params.follow_angle, car_turn_request);
 }
