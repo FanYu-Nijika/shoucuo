@@ -31,7 +31,10 @@ typedef struct {
     float accel_angle;
     float gyro_rate;
     float angle_error;
+    float p_output;
+    float d_output;
     float balance_output;
+    float common_pwm;
     float target_angle;
     float follow_angle_applied;
     float turn_pwm_command;
@@ -62,6 +65,7 @@ uint8_t balance_start(void);
 uint8_t balance_seed_attitude(float angle);
 void balance_stop(void);
 uint8_t balance_apply_params(void);
+uint8_t balance_apply_live_params(const balance_params_t *params);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
 /* Encoders remain diagnostic-only. Four 5 ms samples form the displayed 20 ms count. */

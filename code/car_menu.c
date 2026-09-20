@@ -478,6 +478,11 @@ static void car_menu_finish_edit(uint8_t save)
 
 static void car_menu_motor_test_start(void)
 {
+    if (car_running != 0 || balance_state.running != 0 || balance_start_pending != 0) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+        car_menu_dirty = 1;
+        return;
+    }
     if (cc_tc264_motor_ready() == 0) {
         car_menu_error = CAR_MENU_ERROR_MOTOR;
         car_menu_dirty = 1;
@@ -665,16 +670,9 @@ static void car_menu_execute_action(uint8_t action)
     }
 }
 
-static void car_menu_emergency_stop(void)
-{
-    car_menu_stop();
-}
-
 void car_menu_handle_center(void)
 {
-    car_menu_page = CAR_MENU_PAGE_RUN;
-    car_menu_selected = 1;
-    car_menu_emergency_stop();
+    /* CENTER is disabled on this board; STOP is accepted only from the RUN menu item. */
 }
 
 uint8_t car_menu_current_profile(void)
@@ -830,9 +828,9 @@ static const char *car_menu_balance_fault_text(void)
     if (balance_imu_status.calibration_state == BALANCE_IMU_SAVING) return "SAVING IMU CAL";
     if (balance_start_pending != 0) return "STARTING ON NEXT IMU SAMPLE";
     if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT - UPRIGHT THEN RUN";
-    if (balance_state.fault == BALANCE_FAULT_IMU) return "IMU FAULT - PWM OFF";
-    if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERIC FAULT - PWM OFF";
-    if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMING FAULT - PWM OFF";
+    if (balance_state.fault == BALANCE_FAULT_IMU) return "IMU SAMPLE LOST - HOLD OUTPUT";
+    if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERIC SAMPLE REJECTED";
+    if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMING OVERRUN - RUN CONTINUES";
     if (balance_state.fault == BALANCE_FAULT_CALIBRATION) return "CALIBRATION FAULT";
     return 0;
 }

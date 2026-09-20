@@ -461,6 +461,8 @@ static void balance_runtime_update_bias_trim(void)
 static void balance_runtime_imu_failed(void)
 {
     balance_update_5ms(0.0f, 0.0f, 0);
+    /* While balancing, retain the last motor command and resume on the next valid sample. */
+    if (balance_state.running) return;
     imu_initialized = 0;
     imu_retry_ms = system_getval_ms();
     balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
@@ -512,7 +514,7 @@ void balance_runtime_task(void)
             balance_imu_status.calibration_source = BALANCE_CAL_SOURCE_MANUAL;
             balance_imu_status.static_samples = 0;
             balance_imu_status.trim_active = 0;
-            balance_state.fault = BALANCE_FAULT_STOPPED;
+            balance_state.fault = BALANCE_FAULT_NONE;
             trim_static_samples = 0;
         } else {
             balance_imu_status.flash_calibration_valid = 0;
@@ -560,7 +562,7 @@ uint8 balance_runtime_request_calibration(void)
     balance_runtime_hold_stopped();
     balance_state.imu_ready = 0;
     balance_runtime_reset_manual_wait();
-    balance_state.fault = BALANCE_FAULT_STOPPED;
+    balance_state.fault = BALANCE_FAULT_NONE;
     return 1;
 }
 

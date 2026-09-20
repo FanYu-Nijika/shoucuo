@@ -4,10 +4,10 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "zf_common_interrupt.h"
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = 0.005f;
-static const float balance_tilt_limit_deg = 40.0f;
 static const float balance_follow_slew_deg_per_tick = 0.01f;
 
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
@@ -220,7 +220,10 @@ static void balance_reset_follow(void)
 static void balance_clear_outputs(void)
 {
     balance_reset_follow();
+    balance_state.p_output = 0.0f;
+    balance_state.d_output = 0.0f;
     balance_state.balance_output = 0.0f;
+    balance_state.common_pwm = 0.0f;
     balance_state.left_control_pwm = 0;
     balance_state.right_control_pwm = 0;
     balance_state.left_pwm = 0;
@@ -228,11 +231,10 @@ static void balance_clear_outputs(void)
     balance_state.output_updated = 0;
 }
 
-static void balance_latch_fault(balance_fault_t fault)
+static void balance_report_fault(balance_fault_t fault)
 {
-    balance_state.running = 0;
+    /* Faults remain observable, but only an explicit STOP is allowed to end balance control. */
     balance_state.fault = (uint8_t)fault;
-    balance_clear_outputs();
 }
 
 static int16_t balance_pwm_from_float(float value)
@@ -255,20 +257,23 @@ static int16_t balance_apply_motor_deadzone(float control, uint16_t wheel_deadzo
 
 static uint8_t balance_update_complementary(float accel_angle, float gyro_rate)
 {
+    float next_angle;
     float predicted_angle;
 
     if (!balance_is_finite(accel_angle) || !balance_is_finite(gyro_rate)) return 0;
     balance_state.accel_angle = accel_angle;
     balance_state.gyro_rate = gyro_rate;
     if (!complementary_initialized) {
-        balance_state.angle = accel_angle;
+        next_angle = accel_angle;
         complementary_initialized = 1;
     } else {
         predicted_angle = balance_state.angle + gyro_rate * balance_dt_s;
-        balance_state.angle = applied_params.accel_weight * accel_angle +
+        next_angle = applied_params.accel_weight * accel_angle +
             (1.0f - applied_params.accel_weight) * predicted_angle;
     }
-    return balance_is_finite(balance_state.angle);
+    if (!balance_is_finite(next_angle)) return 0;
+    balance_state.angle = next_angle;
+    return 1;
 }
 
 static uint8_t balance_run_control(void)
@@ -283,10 +288,13 @@ static uint8_t balance_run_control(void)
         balance_follow_slew_deg_per_tick);
     balance_state.target_angle = applied_params.middle_angle - balance_state.follow_angle_applied;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
-    common = applied_params.balance_kp * balance_state.angle_error + applied_params.balance_kd * balance_state.gyro_rate;
+    balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
+    balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
+    common = balance_state.p_output + balance_state.d_output;
     if (!balance_is_finite(common)) return 0;
     balance_state.balance_output = common;
     common = balance_clamp(common, applied_params.pwm_limit);
+    balance_state.common_pwm = common;
     balance_state.turn_pwm_command = balance_clamp(requested_turn_pwm, applied_params.turn_pwm_limit);
     remaining = applied_params.pwm_limit - fabsf(common);
     turn = balance_clamp(balance_state.turn_pwm_command, remaining);
@@ -348,7 +356,7 @@ void balance_set_follow_command(float forward_angle, float turn_pwm)
         return;
     }
     if (!balance_is_finite(forward_angle) || !balance_is_finite(turn_pwm)) {
-        balance_latch_fault(BALANCE_FAULT_NUMERIC);
+        balance_report_fault(BALANCE_FAULT_NUMERIC);
         return;
     }
     if (forward_angle < 0.0f) forward_angle = 0.0f;
@@ -374,7 +382,7 @@ void balance_init(void)
     balance_params = balance_default_params;
     applied_params = balance_default_params;
     memset((void *)&balance_state, 0, sizeof(balance_state));
-    balance_state.fault = BALANCE_FAULT_STOPPED;
+    balance_state.fault = BALANCE_FAULT_NONE;
     balance_state.control_period_ms = 5;
     complementary_initialized = 0;
     left_count_sum = 0;
@@ -398,15 +406,11 @@ uint8_t balance_start(void)
 {
     if (balance_state.running) return 1;
     if (!balance_params_are_valid(&applied_params)) {
-        balance_latch_fault(BALANCE_FAULT_NUMERIC);
+        balance_report_fault(BALANCE_FAULT_NUMERIC);
         return 0;
     }
     if (!balance_state.imu_ready || !balance_is_finite(balance_state.angle) || !balance_is_finite(balance_state.gyro_rate)) {
-        balance_latch_fault(BALANCE_FAULT_IMU);
-        return 0;
-    }
-    if (fabsf(balance_state.angle - applied_params.middle_angle) >= balance_tilt_limit_deg) {
-        balance_latch_fault(BALANCE_FAULT_TILT);
+        balance_report_fault(BALANCE_FAULT_IMU);
         return 0;
     }
     balance_clear_outputs();
@@ -418,7 +422,7 @@ uint8_t balance_start(void)
 void balance_stop(void)
 {
     balance_state.running = 0;
-    balance_state.fault = BALANCE_FAULT_STOPPED;
+    balance_state.fault = BALANCE_FAULT_NONE;
     balance_clear_outputs();
 }
 
@@ -426,11 +430,25 @@ uint8_t balance_apply_params(void)
 {
     if (balance_state.running) return 0;
     if (!balance_params_are_valid(&balance_params)) {
-        balance_latch_fault(BALANCE_FAULT_NUMERIC);
+        balance_report_fault(BALANCE_FAULT_NUMERIC);
         return 0;
     }
     applied_params = balance_params;
     balance_clear_outputs();
+    return 1;
+}
+
+uint8_t balance_apply_live_params(const balance_params_t *params)
+{
+    uint32 interrupt_state;
+
+    if (!balance_params_are_valid(params)) return 0;
+    /* Copy both views in one short critical section so the 5 ms ISR never sees a mixed parameter set. */
+    interrupt_state = interrupt_global_disable();
+    balance_params = *params;
+    applied_params = *params;
+    if (!balance_state.running) balance_state.target_angle = applied_params.middle_angle;
+    interrupt_global_enable(interrupt_state);
     return 1;
 }
 
@@ -439,26 +457,23 @@ void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid)
     balance_state.output_updated = 0;
     if (!valid) {
         balance_state.imu_ready = 0;
-        complementary_initialized = 0;
-        balance_latch_fault(BALANCE_FAULT_IMU);
+        if (!balance_state.running) complementary_initialized = 0;
+        balance_report_fault(BALANCE_FAULT_IMU);
         return;
     }
     if (!balance_update_complementary(accel_angle, gyro_rate)) {
         balance_state.imu_ready = 0;
-        complementary_initialized = 0;
-        balance_latch_fault(BALANCE_FAULT_NUMERIC);
+        if (!balance_state.running) complementary_initialized = 0;
+        balance_report_fault(BALANCE_FAULT_NUMERIC);
         return;
     }
     balance_state.imu_ready = 1;
-    if (balance_state.running && fabsf(balance_state.angle - applied_params.middle_angle) >= balance_tilt_limit_deg) {
-        balance_latch_fault(BALANCE_FAULT_TILT);
-        return;
-    }
     if (balance_state.running) {
         if (!balance_run_control()) {
-            balance_latch_fault(BALANCE_FAULT_NUMERIC);
+            balance_report_fault(BALANCE_FAULT_NUMERIC);
             return;
         }
+        balance_state.fault = BALANCE_FAULT_NONE;
         balance_state.output_updated = 1;
     }
 }
