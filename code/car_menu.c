@@ -171,7 +171,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "CROSS LOST MAX", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.cross_max_lost_rows, 1, 120, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "THRESHOLD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.threshold, 0, 255, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "EXPOSURE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.exposure, 1, 4000, 16, 0, CAR_MENU_APPLY_EXPOSURE, 0},
-    {0, CAR_MENU_PAGE_VISION, "GAIN", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.gain, 0, 64, 1, 0, CAR_MENU_APPLY_GAIN, 0},
+    {0, CAR_MENU_PAGE_VISION, "GAIN", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.gain, 16, 64, 1, 0, CAR_MENU_APPLY_GAIN, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH FAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_far, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH MIDDLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_middle, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH NEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_near, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
@@ -225,7 +225,7 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_BALANCE, "BALANCE KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.balance_kp, 0, FLT_MAX, 10, 1, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "BALANCE KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.balance_kd, 0, FLT_MAX, 0.5, 1, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "MIDDLE ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.middle_angle, -30, 30, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "MIDDLE ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.middle_angle, -180, 180, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "ACC WEIGHT KA", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.accel_weight, 0, 1, 0.001, 3, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "PWM LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &balance_params.pwm_limit, 1, 10000, 100, 0, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "TARGET ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.target_angle, -35, 35, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
@@ -258,6 +258,8 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_IMU, "CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_state, 0, BALANCE_IMU_FAILED, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "CAL ERROR", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_error, 0, BALANCE_CAL_ERROR_FLASH, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "CAL SOURCE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_source, 0, BALANCE_CAL_SOURCE_MANUAL, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_IMU, "CAL UPRIGHT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_imu_status.calibrated_upright_angle, -180, 180, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_IMU, "CAL PROFILE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_profile, 1, 4, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "FLASH CAL VALID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_imu_status.flash_calibration_valid, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "STATIONARY", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_imu_status.stationary, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "TRIM ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_imu_status.trim_active, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -433,6 +435,9 @@ static void car_menu_apply_value(const car_menu_item_t *item, float value)
 
 static uint8_t car_menu_can_edit(const car_menu_item_t *item)
 {
+    if (balance_imu_status.calibration_state == BALANCE_IMU_WAIT_STATIC ||
+        balance_imu_status.calibration_state == BALANCE_IMU_COLLECTING ||
+        balance_imu_status.calibration_state == BALANCE_IMU_SAVING) return 0;
     return item != 0 && item->item_type == CAR_MENU_ITEM_VALUE && car_running == 0 && car_menu_start_pending == 0 ? 1 : 0;
 }
 
@@ -736,7 +741,7 @@ static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t
     uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
 
     if ((car_running != 0 || car_menu_start_pending != 0 || car_menu_motor_test_active != 0) && center != 0) {
-        car_menu_emergency_stop();
+        car_menu_stop();
         return;
     }
     if (car_menu_lcd_test_until_ms != 0) {

@@ -44,6 +44,7 @@ typedef struct {
     float gyro_bias_x;
     float gyro_bias_y;
     float gyro_bias_z;
+    float calibrated_upright_angle;
     uint16 static_samples;
     uint16 calibration_samples;
     uint16 calibration_valid_samples;
@@ -55,6 +56,7 @@ typedef struct {
     uint8 stationary;
     uint8 trim_active;
     uint8 vertical_axis;
+    uint8 calibration_profile;
     uint8 invalid_sample_streak;
     int8 vertical_sign;
 } balance_imu_status_t;

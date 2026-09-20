@@ -124,6 +124,7 @@
 #define BOARD_HOST_UART_RX_PIN             (UART0_RX_P14_1)
 
 // 该插座与逐飞无线串口/WiFi 模块的 TX、RX、RTS、RST 定义一致。
+#define BOARD_WIRELESS_UART                (UART_2)
 #define BOARD_WIRELESS_UART_TX_PIN         (UART2_TX_P10_5)
 #define BOARD_WIRELESS_UART_RX_PIN         (UART2_RX_P10_6)
 #define BOARD_WIRELESS_TX_GPIO_PIN         (P10_5)

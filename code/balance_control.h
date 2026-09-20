@@ -60,7 +60,7 @@ void balance_init(void);
 void balance_params_reset(void);
 void balance_params_flash_load(uint8_t gear);
 void balance_params_flash_switch(uint8_t gear);
-void balance_params_flash_save(uint8_t gear);
+uint8_t balance_params_flash_save(uint8_t gear);
 uint8_t balance_start(void);
 uint8_t balance_seed_attitude(float angle);
 void balance_stop(void);

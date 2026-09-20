@@ -29,8 +29,6 @@ volatile balance_imu_status_t balance_imu_status;
 #define BALANCE_IMU_FLASH_VERSION           (1u)
 #define BALANCE_CAL_GRAVITY_MIN             (0.7f)
 #define BALANCE_CAL_GRAVITY_MAX             (1.3f)
-#define BALANCE_CAL_AXIS_MIN                (0.65f)
-#define BALANCE_CAL_AXIS_MARGIN             (0.25f)
 #define BALANCE_CAL_GYRO_BIAS_MAX           (100.0f)
 #define BALANCE_MANUAL_STATIC_ACCEL_MIN     (0.95f)
 #define BALANCE_MANUAL_STATIC_ACCEL_MAX     (1.05f)
@@ -59,6 +57,9 @@ static uint16 trim_static_samples;
 static float calibration_accel_sum[3];
 static float calibration_gyro_sum[3];
 static float warmup_angle_sum;
+static float calibration_upright_pending;
+static uint8 calibration_profile_pending;
+static balance_params_t calibration_params_pending;
 
 static uint8 balance_runtime_value_finite(float value)
 {
@@ -115,6 +116,11 @@ static void balance_runtime_reset_status(void)
     balance_imu_status.calibration_source = BALANCE_CAL_SOURCE_NONE;
     balance_imu_status.vertical_axis = BOARD_BALANCE_ACCEL_VERTICAL_AXIS;
     balance_imu_status.vertical_sign = BOARD_BALANCE_ACCEL_VERTICAL_SIGN;
+    balance_imu_status.calibrated_upright_angle = balance_params.middle_angle;
+    balance_imu_status.calibration_profile = car_menu_current_profile();
+    calibration_upright_pending = balance_params.middle_angle;
+    calibration_profile_pending = car_menu_current_profile();
+    calibration_params_pending = balance_params;
     balance_runtime_clear_calibration_sums();
     warmup_angle_sum = 0.0f;
     trim_static_samples = 0;
@@ -317,12 +323,8 @@ static uint8 balance_runtime_finish_manual_calibration(void)
     float accel_mean[3];
     float gyro_mean[3];
     float gravity_norm_square = 0.0f;
-    float dominant = 0.0f;
-    float second = 0.0f;
-    float magnitude;
     float initial_angle;
     float scale;
-    uint8 vertical_axis = 0;
     uint8 axis;
 
     if (balance_imu_status.calibration_valid_samples != BALANCE_CALIBRATION_SAMPLES) {
@@ -334,12 +336,6 @@ static uint8 balance_runtime_finish_manual_calibration(void)
         accel_mean[axis] = calibration_accel_sum[axis] * scale;
         gyro_mean[axis] = calibration_gyro_sum[axis] * scale;
         gravity_norm_square += accel_mean[axis] * accel_mean[axis];
-        magnitude = fabsf(accel_mean[axis]);
-        if (magnitude > dominant) {
-            second = dominant;
-            dominant = magnitude;
-            vertical_axis = axis;
-        } else if (magnitude > second) second = magnitude;
         if (!balance_runtime_value_finite(gyro_mean[axis]) || fabsf(gyro_mean[axis]) > BALANCE_CAL_GYRO_BIAS_MAX) {
             balance_runtime_set_cal_required(BALANCE_CAL_ERROR_SAMPLES);
             return 0;
@@ -350,11 +346,8 @@ static uint8 balance_runtime_finish_manual_calibration(void)
         balance_runtime_set_cal_required(BALANCE_CAL_ERROR_GRAVITY);
         return 0;
     }
-    if (dominant < BALANCE_CAL_AXIS_MIN || dominant - second < BALANCE_CAL_AXIS_MARGIN) {
-        balance_runtime_set_cal_required(BALANCE_CAL_ERROR_AXIS);
-        return 0;
-    }
-    if (vertical_axis == BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS || vertical_axis == BOARD_BALANCE_GYRO_AXIS ||
+    if (BOARD_BALANCE_ACCEL_VERTICAL_AXIS == BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS ||
+        BOARD_BALANCE_ACCEL_VERTICAL_AXIS == BOARD_BALANCE_GYRO_AXIS ||
         BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS == BOARD_BALANCE_GYRO_AXIS) {
         balance_runtime_set_cal_required(BALANCE_CAL_ERROR_AXIS_CONFLICT);
         return 0;
@@ -363,10 +356,16 @@ static uint8 balance_runtime_finish_manual_calibration(void)
     balance_imu_status.gyro_bias_x = gyro_mean[0];
     balance_imu_status.gyro_bias_y = gyro_mean[1];
     balance_imu_status.gyro_bias_z = gyro_mean[2];
-    balance_imu_status.vertical_axis = vertical_axis;
-    balance_imu_status.vertical_sign = accel_mean[vertical_axis] >= 0.0f ? 1 : -1;
+    balance_imu_status.vertical_axis = BOARD_BALANCE_ACCEL_VERTICAL_AXIS;
+    balance_imu_status.vertical_sign = BOARD_BALANCE_ACCEL_VERTICAL_SIGN;
     initial_angle = atan2f(BOARD_BALANCE_ACCEL_SIGN * accel_mean[BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS],
-        balance_imu_status.vertical_sign * accel_mean[vertical_axis]) * 57.2957795f;
+        BOARD_BALANCE_ACCEL_VERTICAL_SIGN * accel_mean[BOARD_BALANCE_ACCEL_VERTICAL_AXIS]) * 57.2957795f;
+    if (!balance_runtime_value_finite(initial_angle)) {
+        balance_runtime_set_cal_required(BALANCE_CAL_ERROR_START);
+        return 0;
+    }
+    calibration_upright_pending = initial_angle;
+    balance_imu_status.calibrated_upright_angle = initial_angle;
     balance_stop();
     if (!balance_seed_attitude(initial_angle)) {
         balance_runtime_set_cal_required(BALANCE_CAL_ERROR_START);
@@ -504,14 +503,21 @@ void balance_runtime_init(void)
 void balance_runtime_task(void)
 {
     uint32 now;
+    balance_params_t new_params;
+    uint8 imu_saved;
 
     if (calibration_save_pending) {
         calibration_save_pending = 0;
-        if (balance_runtime_save_calibration()) {
+        imu_saved = balance_runtime_save_calibration();
+        new_params = calibration_params_pending;
+        new_params.middle_angle = calibration_upright_pending;
+        if (imu_saved && balance_apply_live_params(&new_params) && balance_params_flash_save(calibration_profile_pending)) {
             balance_imu_status.flash_calibration_valid = 1;
             balance_imu_status.calibration_state = BALANCE_IMU_READY;
             balance_imu_status.calibration_error = BALANCE_CAL_ERROR_NONE;
             balance_imu_status.calibration_source = BALANCE_CAL_SOURCE_MANUAL;
+            balance_imu_status.calibrated_upright_angle = calibration_upright_pending;
+            balance_imu_status.calibration_profile = calibration_profile_pending;
             balance_imu_status.static_samples = 0;
             balance_imu_status.trim_active = 0;
             balance_state.fault = BALANCE_FAULT_NONE;
@@ -558,10 +564,15 @@ void balance_runtime_request_start(void)
 uint8 balance_runtime_request_calibration(void)
 {
     if (!imu_initialized || motor_test_active || balance_state.running || car_running) return 0;
+    calibration_profile_pending = car_menu_current_profile();
+    calibration_params_pending = balance_params;
+    calibration_upright_pending = balance_params.middle_angle;
     car_follow_stop();
     balance_runtime_hold_stopped();
     balance_state.imu_ready = 0;
     balance_runtime_reset_manual_wait();
+    balance_imu_status.calibration_profile = calibration_profile_pending;
+    balance_imu_status.calibrated_upright_angle = calibration_upright_pending;
     balance_state.fault = BALANCE_FAULT_NONE;
     return 1;
 }

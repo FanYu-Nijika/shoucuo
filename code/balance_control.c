@@ -137,7 +137,7 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         !balance_is_finite(params->middle_angle) || !balance_is_finite(params->accel_weight) ||
         !balance_is_finite(params->follow_angle)) return 0;
     /* Kp/Kd deliberately have no tuning ceiling. Numeric and PWM checks contain unsafe values later. */
-    if (params->balance_kp < 0.0f || params->balance_kd < 0.0f || fabsf(params->middle_angle) > 30.0f ||
+    if (params->balance_kp < 0.0f || params->balance_kd < 0.0f || fabsf(params->middle_angle) > 180.0f ||
         params->accel_weight < 0.0f || params->accel_weight > 1.0f ||
         params->follow_angle < 0.0f || params->follow_angle > 5.0f ||
         params->pwm_limit < 1 || params->pwm_limit > 10000 ||
@@ -156,7 +156,7 @@ static balance_params_t balance_params_from_v7(const balance_params_v7_t *old, u
     if (version == 6u && balance_is_finite(old_kp) && balance_is_finite(old_kd)) old_kp *= old_kd;
     if (balance_is_finite(old_kp) && old_kp >= 0.0f) migrated.balance_kp = old_kp;
     if (balance_is_finite(old_kd) && old_kd >= 0.0f) migrated.balance_kd = old_kd;
-    if (balance_is_finite(old->middle_angle) && fabsf(old->middle_angle) <= 30.0f) migrated.middle_angle = old->middle_angle;
+    if (balance_is_finite(old->middle_angle) && fabsf(old->middle_angle) <= 180.0f) migrated.middle_angle = old->middle_angle;
     if (old->pwm_limit >= 1 && old->pwm_limit <= 10000) migrated.pwm_limit = old->pwm_limit;
     if (old->turn_direction == -1 || old->turn_direction == 1) migrated.turn_direction = old->turn_direction;
     if (old->left_motor_deadzone <= 3000) migrated.left_motor_deadzone = old->left_motor_deadzone;
@@ -336,16 +336,20 @@ void balance_params_flash_load(uint8_t gear)
     balance_params_flash_switch(gear);
 }
 
-void balance_params_flash_save(uint8_t gear)
+uint8_t balance_params_flash_save(uint8_t gear)
 {
     uint32_t offset;
+    balance_params_t stored_params;
 
-    if (!balance_params_profile_valid(gear) || balance_state.running || !balance_params_are_valid(&balance_params)) return;
+    if (!balance_params_profile_valid(gear) || balance_state.running || !balance_params_are_valid(&balance_params)) return 0;
+    stored_params = balance_params;
     flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
     balance_params_flash_prepare();
     offset = balance_params_profile_offset(gear);
-    memcpy(&flash_union_buffer[offset], &balance_params, sizeof(balance_params_t));
-    flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    memcpy(&flash_union_buffer[offset], &stored_params, sizeof(balance_params_t));
+    if (flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE) != 0) return 0;
+    flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    return memcmp(&flash_union_buffer[offset], &stored_params, sizeof(stored_params)) == 0 ? 1 : 0;
 }
 
 void balance_set_follow_command(float forward_angle, float turn_pwm)

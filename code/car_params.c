@@ -18,6 +18,11 @@ static void car_params_flash_factory_init(void);
 static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_zero)
 {
     if (params == 0) return;
+    /* Migrate the old dark camera defaults without overwriting a deliberate exposure setting. */
+    if (params->gain == 4 && params->exposure == 256) params->exposure = car_default_params.exposure;
+    if (params->exposure < 1 || params->exposure > 4000) params->exposure = car_default_params.exposure;
+    if (params->gain < 16) params->gain = 16;
+    if (params->gain > 64) params->gain = 64;
     if (params->stop_time == 0 || params->stop_time > CAR_STOP_TIME_MAX)
         params->stop_time = car_default_params.stop_time;
     if (params->curvature_scale <= 0.0) params->curvature_scale = car_default_params.curvature_scale;
@@ -121,8 +126,8 @@ const car_params_t car_default_params = {
     // .track_width_near = 185,
     .lookhead = 90,
 
-    .exposure = 256,
-    .gain = 4,
+    .exposure = 512,
+    .gain = 16,
     .pwm_limit = 5000,
     // .deadzone = 15,
     .left_direction = -1,

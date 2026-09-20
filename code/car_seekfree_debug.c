@@ -91,7 +91,7 @@ static uint8 car_seekfree_apply_param(uint8 index, float value)
         if (value < 0.0f) return 0;
         params.balance_kd = value;
     } else if (index == 2) {
-        if (value < -30.0f || value > 30.0f) return 0;
+        if (value < -180.0f || value > 180.0f) return 0;
         params.middle_angle = value;
     } else if (index == 3) {
         if (value < 0.0f || value > 1.0f) return 0;
