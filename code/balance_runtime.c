@@ -250,7 +250,6 @@ static uint8 balance_runtime_is_static(float gyro_limit)
 static void balance_runtime_hold_stopped(void)
 {
     car_running = 0;
-    balance_start_pending = 0;
     car_left_command = 0;
     car_right_command = 0;
     if (balance_state.running) balance_stop();
@@ -259,7 +258,6 @@ static void balance_runtime_hold_stopped(void)
 
 static void balance_runtime_begin_warmup(void)
 {
-    car_follow_stop();
     balance_runtime_hold_stopped();
     balance_state.imu_ready = 0;
     balance_imu_status.calibration_state = BALANCE_IMU_WARMUP;
@@ -276,7 +274,6 @@ static void balance_runtime_begin_warmup(void)
 
 static void balance_runtime_set_cal_required(uint8 error)
 {
-    car_follow_stop();
     balance_runtime_hold_stopped();
     balance_state.imu_ready = 0;
     balance_imu_status.calibration_state = BALANCE_IMU_CAL_REQUIRED;
@@ -468,7 +465,6 @@ static void balance_runtime_imu_failed(void)
     balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
     balance_imu_status.stationary = 0;
     balance_imu_status.trim_active = 0;
-    car_follow_stop();
     balance_runtime_hold_stopped();
 }
 
@@ -476,7 +472,6 @@ void balance_runtime_init(void)
 {
     uint8 calibration_loaded;
 
-    car_follow_stop();
     balance_init();
     motor_test_active = 0;
     calibration_save_pending = 0;
@@ -544,21 +539,18 @@ void balance_runtime_task(void)
 void balance_runtime_request_start(void)
 {
     if (motor_test_active) return;
-    car_follow_stop();
+    balance_start_pending = 1;
     if (!imu_initialized) {
         balance_imu_status.calibration_state = BALANCE_IMU_FAILED;
         balance_imu_status.calibration_error = BALANCE_CAL_ERROR_IMU;
         balance_state.fault = BALANCE_FAULT_IMU;
-        balance_start_pending = 0;
         return;
     }
     if (balance_imu_status.calibration_state != BALANCE_IMU_READY ||
         !balance_imu_status.flash_calibration_valid) {
         balance_state.fault = BALANCE_FAULT_CALIBRATION;
-        balance_start_pending = 0;
         return;
     }
-    balance_start_pending = 1;
 }
 
 uint8 balance_runtime_request_calibration(void)
@@ -567,7 +559,6 @@ uint8 balance_runtime_request_calibration(void)
     calibration_profile_pending = car_menu_current_profile();
     calibration_params_pending = balance_params;
     calibration_upright_pending = balance_params.middle_angle;
-    car_follow_stop();
     balance_runtime_hold_stopped();
     balance_state.imu_ready = 0;
     balance_runtime_reset_manual_wait();
@@ -635,6 +626,8 @@ void balance_runtime_update_5ms(void)
 
     balance_runtime_update_bias_trim();
     balance_update_5ms(angle, rate, 1);
+    /* FOLLOW is a persistent user command. Once IMU becomes ready it starts balance without another key press. */
+    if (car_follow_enabled && !balance_state.running) balance_start_pending = 1;
     if (balance_start_pending && !balance_state.running) {
         balance_start_pending = 0;
         /* Warmup seeds the filter once; while stopped it keeps tracking attitude, so RUN must not replace it with one noisy frame. */
@@ -642,7 +635,6 @@ void balance_runtime_update_5ms(void)
         if (car_running) car_balance_timing_reset = 1;
     }
     if (was_running && !balance_state.running) {
-        car_follow_stop();
         car_running = 0;
     } else if (!car_running && balance_state.running) balance_stop();
 
@@ -675,5 +667,10 @@ void balance_runtime_set_motor_test(uint8 enabled)
         balance_imu_status.calibration_samples = 0;
         balance_imu_status.calibration_valid_samples = 0;
     }
-    balance_runtime_stop();
+    balance_start_pending = 0;
+    car_running = 0;
+    balance_stop();
+    car_left_command = 0;
+    car_right_command = 0;
+    cc_tc264_menu_motor_stop();
 }

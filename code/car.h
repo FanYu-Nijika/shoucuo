@@ -6,10 +6,7 @@
 
 enum {
     CAR_FOLLOW_IDLE = 0,
-    CAR_FOLLOW_ACTIVE,
-    CAR_FOLLOW_NO_BALANCE,
-    CAR_FOLLOW_NO_LINE,
-    CAR_FOLLOW_LINE_LOST
+    CAR_FOLLOW_ACTIVE
 };
 
 extern volatile uint8 car_running;
@@ -23,6 +20,7 @@ extern uint8 car_curve_mode;
 extern float curve_steering_kp;
 extern float curve_steering_kd;
 extern volatile uint8 car_follow_status;
+extern volatile uint8 car_follow_enabled;
 extern volatile float car_turn_request;
 
 void car_init(void);

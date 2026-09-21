@@ -4,11 +4,11 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "board_pins.h"
 #include "zf_common_interrupt.h"
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = 0.005f;
-static const float balance_follow_slew_deg_per_tick = 0.01f;
 
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
@@ -92,7 +92,7 @@ static uint8_t complementary_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t encoder_sample_phase;
-static float requested_follow_angle;
+static float requested_base_pwm;
 static float requested_turn_pwm;
 
 static uint8_t balance_is_finite(float value)
@@ -208,9 +208,9 @@ static void balance_params_flash_prepare(void)
 
 static void balance_reset_follow(void)
 {
-    requested_follow_angle = 0.0f;
+    requested_base_pwm = 0.0f;
     requested_turn_pwm = 0.0f;
-    balance_state.follow_angle_applied = 0.0f;
+    balance_state.base_pwm_applied = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
     balance_state.angle_error = 0.0f;
@@ -244,13 +244,11 @@ static int16_t balance_pwm_from_float(float value)
     return (int16_t)value;
 }
 
-static int16_t balance_apply_motor_deadzone(float control, uint16_t wheel_deadzone)
+static int16_t balance_apply_right_trim(float control)
 {
-    uint16_t reference_deadzone = applied_params.left_motor_deadzone > applied_params.right_motor_deadzone ?
-        applied_params.left_motor_deadzone : applied_params.right_motor_deadzone;
-    float magnitude = fabsf(control) - (reference_deadzone - wheel_deadzone);
+    float magnitude = fabsf(control) - BOARD_BALANCE_RIGHT_PWM_TRIM;
 
-    /* Preserve the measured left/right start-threshold alignment without changing high-output slope. */
+    /* The new right wheel is the old left wheel and needs 200 less PWM for the same speed. */
     if (magnitude <= 0.0f) return 0;
     return balance_pwm_from_float(control > 0.0f ? magnitude : -magnitude);
 }
@@ -278,22 +276,22 @@ static uint8_t balance_update_complementary(float accel_angle, float gyro_rate)
 
 static uint8_t balance_run_control(void)
 {
+    float balance_common;
     float common;
     float remaining;
     float turn;
     float left_control;
     float right_control;
 
-    balance_state.follow_angle_applied += balance_clamp(requested_follow_angle - balance_state.follow_angle_applied,
-        balance_follow_slew_deg_per_tick);
-    balance_state.target_angle = applied_params.middle_angle - balance_state.follow_angle_applied;
+    balance_state.target_angle = applied_params.middle_angle;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
     balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
-    common = balance_state.p_output + balance_state.d_output;
-    if (!balance_is_finite(common)) return 0;
-    balance_state.balance_output = common;
-    common = balance_clamp(common, applied_params.pwm_limit);
+    balance_common = balance_state.p_output + balance_state.d_output;
+    if (!balance_is_finite(balance_common)) return 0;
+    balance_state.balance_output = balance_common;
+    common = balance_clamp(balance_common + requested_base_pwm, applied_params.pwm_limit);
+    balance_state.base_pwm_applied = common - balance_clamp(balance_common, applied_params.pwm_limit);
     balance_state.common_pwm = common;
     balance_state.turn_pwm_command = balance_clamp(requested_turn_pwm, applied_params.turn_pwm_limit);
     remaining = applied_params.pwm_limit - fabsf(common);
@@ -302,8 +300,8 @@ static uint8_t balance_run_control(void)
     right_control = common - turn;
     balance_state.left_control_pwm = balance_pwm_from_float(left_control);
     balance_state.right_control_pwm = balance_pwm_from_float(right_control);
-    balance_state.left_pwm = balance_apply_motor_deadzone(left_control, applied_params.left_motor_deadzone);
-    balance_state.right_pwm = balance_apply_motor_deadzone(right_control, applied_params.right_motor_deadzone);
+    balance_state.left_pwm = balance_pwm_from_float(left_control);
+    balance_state.right_pwm = balance_apply_right_trim(right_control);
     balance_state.turn_output = (balance_state.left_pwm - balance_state.right_pwm) * 0.5f;
     return 1;
 }
@@ -352,20 +350,18 @@ uint8_t balance_params_flash_save(uint8_t gear)
     return memcmp(&flash_union_buffer[offset], &stored_params, sizeof(stored_params)) == 0 ? 1 : 0;
 }
 
-void balance_set_follow_command(float forward_angle, float turn_pwm)
+void balance_set_follow_command(float base_pwm, float turn_pwm)
 {
     if (!balance_state.running) {
-        requested_follow_angle = 0.0f;
+        requested_base_pwm = 0.0f;
         requested_turn_pwm = 0.0f;
         return;
     }
-    if (!balance_is_finite(forward_angle) || !balance_is_finite(turn_pwm)) {
+    if (!balance_is_finite(base_pwm) || !balance_is_finite(turn_pwm)) {
         balance_report_fault(BALANCE_FAULT_NUMERIC);
         return;
     }
-    if (forward_angle < 0.0f) forward_angle = 0.0f;
-    if (forward_angle > 5.0f) forward_angle = 5.0f;
-    requested_follow_angle = forward_angle;
+    requested_base_pwm = balance_clamp(base_pwm, applied_params.pwm_limit);
     requested_turn_pwm = balance_clamp(turn_pwm, applied_params.turn_pwm_limit);
 }
 

@@ -15,7 +15,6 @@
 #define CROSS_SKEW_TURN_WINDOW 14
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
-#define DYNAMIC_PREVIEW_SPEED_THRESHOLD 4000
 #define DYNAMIC_PREVIEW_ROW_OFFSET 10
 #define DYNAMIC_PREVIEW_TIME_MS 1800
 #define DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES 15
@@ -183,7 +182,9 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
     result->left_edge = left;
     result->right_edge = right;
     result->line_width = right - left;
-    line_valid = already_line_lost == 0 && Left_Lost_Flag[row] == 0 && Right_Lost_Flag[row] == 0 &&
+    /* The center-line code can reconstruct the path from either boundary.
+     * Requiring both sides here kept FOLLOW disabled throughout normal curves. */
+    line_valid = already_line_lost == 0 && (Left_Lost_Flag[row] == 0 || Right_Lost_Flag[row] == 0) &&
         Longest_White_Column_Left[0] >= car_params.minimum_line_pixels;
     result->curve_variance = Calculate_Curve_Variance();
     if (car_params.curvature_scale > 0.0)
@@ -662,7 +663,7 @@ static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
         current_preview_row = base_row;
     }
 
-    if (car_params.running == 0 || car_params.base_speed <= DYNAMIC_PREVIEW_SPEED_THRESHOLD) {
+    if (car_params.running == 0 || car_params.base_speed <= 0) {
         straight_preview_time_ms = 0;
         preview_curve_mode = 0;
         curve_preview_hold_frames = 0;

@@ -77,9 +77,6 @@ enum {
     CAR_MENU_ERROR_CAMERA,
     CAR_MENU_ERROR_MOTOR,
     CAR_MENU_ERROR_RUNNING,
-    CAR_MENU_ERROR_LINE_LOST,
-    CAR_MENU_ERROR_FOLLOW_NO_BALANCE,
-    CAR_MENU_ERROR_FOLLOW_NO_LINE,
     CAR_MENU_ERROR_CAL_REQUIRED,
     CAR_MENU_ERROR_IMU
 };
@@ -92,7 +89,6 @@ enum {
 #define CAR_MENU_IMAGE_REFRESH_MS         (50)
 #define CAR_MENU_TELEMETRY_REFRESH_MS     (50)
 #define CAR_MENU_LCD_TEST_MS              (1500)
-#define CAR_MENU_START_DELAY_MS           (3000)
 
 typedef struct {
     uint16_t id;
@@ -140,13 +136,14 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "SWITCH GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_current_gear, 1, 4, 1, 0, CAR_MENU_APPLY_PROFILE, 0},
     {0, CAR_MENU_PAGE_RUN, "SAVE FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SAVE_FLASH},
     {0, CAR_MENU_PAGE_RUN, "RUNNING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_running, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "BASE SPEED", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.base_speed, 0, 10000, 25, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_RUN, "CURVE SLOW", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_I16, &car_params.curve_slowdown, -1000, 1000, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_RUN, "BASE PWM APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.base_pwm_applied, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "FOLLOW ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_follow_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "START PENDING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_start_pending, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "BALANCE FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_CALIBRATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "IMU READY", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_state.imu_ready, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_state, 0, BALANCE_IMU_FAILED, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_RUN, "FOLLOW STATUS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &car_follow_status, 0, CAR_FOLLOW_LINE_LOST, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_RUN, "FOLLOW ANGLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.follow_angle, 0, 5, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_RUN, "FOLLOW ANGLE APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.follow_angle_applied, 0, 5, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_STEERING, "STEERING KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kp, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "STEERING KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kd, 0, 10000, 0.1, 1, CAR_MENU_APPLY_PARAMS, 0},
@@ -180,8 +177,6 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_MOTORS, "LEFT MOTOR DEADZONE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &balance_params.left_motor_deadzone, 0, 3000, 50, 0, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_MOTORS, "RIGHT MOTOR DEADZONE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &balance_params.right_motor_deadzone, 0, 3000, 50, 0, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_MOTORS, "TEST START", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_MOTOR_TEST_START},
     {0, CAR_MENU_PAGE_MOTORS, "TEST STOP", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_MOTOR_TEST_STOP},
     {0, CAR_MENU_PAGE_MOTORS, "TEST ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_menu_motor_test_active, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -202,7 +197,8 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_TELEMETRY, "VARIANCE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &car_result.curvature, 0, 1, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "CURVE PID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_curve_mode, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "PRE-SIGHT ROW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U16, &car_result.preview_row, 0, MT9V03X_H - 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_TELEMETRY, "FOLLOW STATUS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &car_follow_status, 0, CAR_FOLLOW_LINE_LOST, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "FOLLOW ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_follow_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "BASE PWM APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.base_pwm_applied, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "TURN PWM CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_pwm_command, -3000, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "TURN OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "LEFT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -234,7 +230,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_BALANCE, "CONTROL RATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.gyro_rate, -2000, 2000, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "ANGLE ERROR", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.angle_error, -180, 180, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "BAL OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.balance_output, -1000000000, 1000000000, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "FOLLOW ANGLE APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.follow_angle_applied, 0, 5, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "BASE PWM APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.base_pwm_applied, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "TURN PWM CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_pwm_command, -3000, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "TURN OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "LEFT CONTROL PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_control_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -303,8 +299,6 @@ static uint32_t car_menu_last_key_scan_ms;
 static uint32_t car_menu_last_image_display_ms;
 static uint32_t car_menu_last_telemetry_display_ms;
 static uint32_t car_menu_lcd_test_until_ms;
-static uint8_t car_menu_start_pending;
-static uint32_t car_menu_start_ms;
 
 static uint16_t car_menu_item_count(uint16_t parent)
 {
@@ -438,7 +432,7 @@ static uint8_t car_menu_can_edit(const car_menu_item_t *item)
     if (balance_imu_status.calibration_state == BALANCE_IMU_WAIT_STATIC ||
         balance_imu_status.calibration_state == BALANCE_IMU_COLLECTING ||
         balance_imu_status.calibration_state == BALANCE_IMU_SAVING) return 0;
-    return item != 0 && item->item_type == CAR_MENU_ITEM_VALUE && car_running == 0 && car_menu_start_pending == 0 ? 1 : 0;
+    return item != 0 && item->item_type == CAR_MENU_ITEM_VALUE && car_running == 0 && balance_start_pending == 0 ? 1 : 0;
 }
 
 static void car_menu_begin_edit(void)
@@ -493,7 +487,6 @@ static void car_menu_motor_test_start(void)
         car_menu_dirty = 1;
         return;
     }
-    car_menu_start_pending = 0;
     car_control_clear_latched_result();
     balance_runtime_set_motor_test(1);
     car_params.running = 0;
@@ -518,14 +511,11 @@ static void car_menu_motor_test_stop(void)
 
 static void car_menu_stop(void)
 {
-    car_menu_start_pending = 0;
     car_menu_motor_test_active = 0;
     balance_runtime_set_motor_test(0);
     car_menu_test_left_pwm = 0;
     car_menu_test_right_pwm = 0;
     car_control_clear_latched_result();
-    balance_runtime_stop();
-    car_follow_stop();
     car_stop();
     car_params.running = 0;
     cc_tc264_menu_motor_stop();
@@ -553,7 +543,7 @@ static void car_menu_start(void)
     car_apply_menu_params(&car_params);
     car_control_clear_latched_result();
     balance_runtime_request_start();
-    car_params.running = car_running;
+    car_params.running = car_follow_enabled;
     if (balance_start_pending == 0 && car_running == 0) {
         if (balance_imu_status.calibration_state == BALANCE_IMU_FAILED ||
             balance_imu_status.calibration_error == BALANCE_CAL_ERROR_IMU) car_menu_error = CAR_MENU_ERROR_IMU;
@@ -564,46 +554,9 @@ static void car_menu_start(void)
     car_menu_dirty = 1;
 }
 
-static void car_menu_update_start(uint32_t now)
-{
-    if (car_menu_start_pending == 0) return;
-    if (cc_tc264_motor_ready() == 0) {
-        car_menu_start_pending = 0;
-        car_control_clear_latched_result();
-        car_stop();
-        car_menu_error = CAR_MENU_ERROR_MOTOR;
-        car_menu_dirty = 1;
-        return;
-    }
-    if (cc_tc264_camera_ready() == 0) {
-        car_menu_start_pending = 0;
-        car_control_clear_latched_result();
-        car_stop();
-        car_menu_error = CAR_MENU_ERROR_CAMERA;
-        car_menu_dirty = 1;
-        return;
-    }
-    if (now - car_menu_start_ms < CAR_MENU_START_DELAY_MS) return;
-
-    car_menu_start_pending = 0;
-    car_apply_menu_params(&car_params);
-    car_control_clear_latched_result();
-    car_set_running(1);
-    if (car_running == 0) {
-        car_control_clear_latched_result();
-        car_menu_error = CAR_MENU_ERROR_CAMERA;
-        car_params.running = 0;
-        car_menu_dirty = 1;
-        return;
-    }
-    car_params.running = 1;
-    car_menu_error = CAR_MENU_ERROR_NONE;
-    car_menu_dirty = 1;
-}
-
 static void car_menu_save_flash(void)
 {
-    if (car_running != 0 || car_menu_start_pending != 0) {
+    if (car_running != 0 || balance_start_pending != 0) {
         car_menu_error = CAR_MENU_ERROR_RUNNING;
         car_menu_dirty = 1;
         return;
@@ -620,12 +573,11 @@ static void car_menu_save_flash(void)
 
 static void car_menu_reset_defaults(void)
 {
-    if (car_running != 0) {
+    if (car_running != 0 || balance_start_pending != 0 || car_menu_motor_test_active != 0) {
         car_menu_error = CAR_MENU_ERROR_RUNNING;
         car_menu_dirty = 1;
         return;
     }
-    car_menu_stop();
     car_menu_current_gear = 1;
     car_params_reset();
     balance_params_reset();
@@ -644,9 +596,8 @@ static void car_menu_execute_action(uint8_t action)
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
     else if (action == CAR_MENU_ACTION_STOP) car_menu_stop();
     else if (action == CAR_MENU_ACTION_FOLLOW_START) {
-        if (car_follow_start() != 0) car_menu_error = CAR_MENU_ERROR_NONE;
-        else if (car_follow_status == CAR_FOLLOW_NO_BALANCE) car_menu_error = CAR_MENU_ERROR_FOLLOW_NO_BALANCE;
-        else car_menu_error = CAR_MENU_ERROR_FOLLOW_NO_LINE;
+        car_follow_start();
+        car_menu_error = CAR_MENU_ERROR_NONE;
         car_menu_dirty = 1;
     } else if (action == CAR_MENU_ACTION_FOLLOW_STOP) {
         car_follow_stop();
@@ -740,10 +691,6 @@ static void car_menu_handle_input(uint8_t short_keys, uint8_t long_keys, uint8_t
     uint8_t up = adjust_keys & CC_KEY_UP_MASK;
     uint8_t down = adjust_keys & CC_KEY_DOWN_MASK;
 
-    if ((car_running != 0 || car_menu_start_pending != 0 || car_menu_motor_test_active != 0) && center != 0) {
-        car_menu_stop();
-        return;
-    }
     if (car_menu_lcd_test_until_ms != 0) {
         if (action_keys != 0 || adjust_keys != 0) {
             car_menu_lcd_test_until_ms = 0;
@@ -807,13 +754,14 @@ static void car_menu_process_key_scan(uint32_t now)
 static const char *car_menu_status_text(void)
 {
     if (car_menu_motor_test_active != 0) return "MTEST";
+    if (car_follow_enabled != 0) return "FOLLOW";
+    if (car_running != 0) return "RUN";
     if (balance_imu_status.calibration_state == BALANCE_IMU_CAL_REQUIRED) return "CALREQ";
     if (balance_imu_status.calibration_state == BALANCE_IMU_WARMUP) return "WARM";
     if (balance_imu_status.calibration_state == BALANCE_IMU_WAIT_STATIC ||
         balance_imu_status.calibration_state == BALANCE_IMU_COLLECTING ||
         balance_imu_status.calibration_state == BALANCE_IMU_SAVING) return "CAL";
-    if (balance_start_pending != 0 || car_menu_start_pending != 0) return "ARMING";
-    if (car_running != 0) return "RUN";
+    if (balance_start_pending != 0) return "ARMING";
     if (balance_imu_status.calibration_state == BALANCE_IMU_FAILED) return "IMUERR";
     if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT";
     if (balance_state.fault == BALANCE_FAULT_IMU) return "IMUERR";
@@ -845,9 +793,6 @@ static const char *car_menu_error_text(void)
     if (car_menu_error == CAR_MENU_ERROR_CAMERA) return "CAMERA OFFLINE";
     if (car_menu_error == CAR_MENU_ERROR_MOTOR) return "MOTOR NOT READY";
     if (car_menu_error == CAR_MENU_ERROR_RUNNING) return "STOP FIRST";
-    if (car_menu_error == CAR_MENU_ERROR_LINE_LOST) return "LINE LOST";
-    if (car_menu_error == CAR_MENU_ERROR_FOLLOW_NO_BALANCE) return "FOLLOW NO BALANCE";
-    if (car_menu_error == CAR_MENU_ERROR_FOLLOW_NO_LINE) return "NO FRESH LINE";
     if (car_menu_error == CAR_MENU_ERROR_CAL_REQUIRED) return "IMU CAL REQUIRED";
     if (car_menu_error == CAR_MENU_ERROR_IMU) return "IMU OFFLINE";
     return "READY";
@@ -911,9 +856,10 @@ static void car_menu_draw_footer(void)
     if (car_menu_error != CAR_MENU_ERROR_NONE && car_menu_editing == 0) text = car_menu_error_text();
     else if (fault_text != 0 && car_menu_editing == 0) text = fault_text;
     else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT OK LEFT CANCEL";
-    else if (car_menu_motor_test_active != 0) text = "CENTER STOP LEFT BACK";
-    else if (car_running != 0) text = "CENTER EMERGENCY STOP LEFT BACK";
-    else if (car_menu_start_pending != 0) text = "WAIT 3S CENTER STOP LEFT BACK";
+    else if (car_menu_motor_test_active != 0) text = "USE TEST STOP / LEFT BACK";
+    else if (car_follow_enabled != 0) text = "FOLLOW: USE FOLLOW STOP OR STOP";
+    else if (car_running != 0) text = "RUN: USE STOP / LEFT BACK";
+    else if (balance_start_pending != 0) text = "ARMING: USE STOP / LEFT BACK";
     else text = "UP/DN MOVE RIGHT ENTER LEFT BACK";
     car_menu_text(2, 220, text, RGB565_WHITE, RGB565_BLACK);
 }
@@ -976,7 +922,8 @@ static void car_menu_draw_telemetry_values(void)
         background = item_number == car_menu_selected ? RGB565_BLUE : RGB565_BLACK;
         car_menu_fill(220, y, 100, 21, background);
         if (item->item_type == CAR_MENU_ITEM_VALUE || item->item_type == CAR_MENU_ITEM_INFO) {
-            value = car_menu_read_value(item);
+            if (car_menu_editing != 0 && item_number == car_menu_edit_item_number) value = car_menu_edit_value;
+            else value = car_menu_read_value(item);
             car_menu_draw_value(item, value, 228, y + 3, RGB565_WHITE, background);
         }
     }
@@ -1096,8 +1043,6 @@ void car_menu_init(void)
     car_menu_last_telemetry_display_ms = now;
     car_menu_lcd_test_until_ms = 0;
     car_menu_lcd_test_drawn = 0;
-    car_menu_start_pending = 0;
-    car_menu_start_ms = 0;
     car_menu_motor_test_active = 0;
     car_menu_test_left_pwm = 0;
     car_menu_test_right_pwm = 0;
@@ -1141,8 +1086,8 @@ void car_menu_task(void)
         car_menu_dirty = 1;
     }
     car_menu_process_key_scan(now);
-    car_menu_update_start(now);
-    car_params.running = car_running;
+    car_params.running = car_follow_enabled;
+    __dsync();
     if (car_menu_last_running != car_running || car_menu_last_start_pending != balance_start_pending ||
         car_menu_last_balance_fault != balance_state.fault ||
         car_menu_last_calibration_state != balance_imu_status.calibration_state) {
@@ -1193,8 +1138,8 @@ void car_menu_display(void)
         }
         return;
     }
-    if (car_menu_page == CAR_MENU_PAGE_TELEMETRY || car_menu_page == CAR_MENU_PAGE_IMU ||
-        car_menu_page == CAR_MENU_PAGE_BALANCE) {
+    if (car_menu_page == CAR_MENU_PAGE_RUN || car_menu_page == CAR_MENU_PAGE_TELEMETRY ||
+        car_menu_page == CAR_MENU_PAGE_IMU || car_menu_page == CAR_MENU_PAGE_BALANCE) {
         if (car_menu_dirty != 0) {
             car_menu_draw_list();
             car_menu_last_telemetry_display_ms = now;

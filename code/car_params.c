@@ -6,9 +6,10 @@
 
 #define CAR_PARAMS_FLASH_SECTOR          (0)
 #define CAR_PARAMS_FLASH_PAGE            (8)
-#define CAR_PARAMS_FLASH_FORMAT_VERSION  (4)
+#define CAR_PARAMS_FLASH_FORMAT_VERSION  (5)
 #define CAR_PARAMS_FLASH_LEGACY_VERSION  (2)
 #define CAR_PARAMS_FLASH_PREVIOUS_VERSION (3)
+#define CAR_PARAMS_FLASH_V4_VERSION      (4)
 #define CAR_PARAMS_FLASH_PROFILE_COUNT   (4)
 #define CAR_PARAMS_FLASH_PROFILE_START   (2)
 #define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
@@ -18,6 +19,9 @@ static void car_params_flash_factory_init(void);
 static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_zero)
 {
     if (params == 0) return;
+    if (params->base_speed < 0 || params->base_speed > 10000) params->base_speed = car_default_params.base_speed;
+    if (params->curve_slowdown < -1000 || params->curve_slowdown > 1000)
+        params->curve_slowdown = car_default_params.curve_slowdown;
     /* Migrate the old dark camera defaults without overwriting a deliberate exposure setting. */
     if (params->gain == 4 && params->exposure == 256) params->exposure = car_default_params.exposure;
     if (params->exposure < 1 || params->exposure > 4000) params->exposure = car_default_params.exposure;
@@ -52,7 +56,7 @@ static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
 const car_params_t car_default_params = {
-    .base_speed = 2400,
+    .base_speed = 800,
     // .minimum_speed = 2700,
     .curve_slowdown = 0,
     // .cruise_speed = 2800,
@@ -66,7 +70,7 @@ const car_params_t car_default_params = {
     // .lost_speed = 2000,
     .lost_stop_frames = CAR_LOST_STOP_FRAMES,
 
-    /* Simple PD units: us/pixel and us/pixel/frame. */
+    /* Differential steering units: PWM/pixel and PWM/pixel/20 ms. */
     .steering_kp = 2.0,
     // .steering_ki = 0.0,
     .steering_kd = 3.5,
@@ -211,6 +215,7 @@ static void car_params_flash_migrate_v2(void)
             stored_params.curvature_scale = car_default_params.curvature_scale;
             car_params_sanitize_curve_params(&stored_params, 1);
         }
+        stored_params.base_speed = car_default_params.base_speed;
         stored_params.running = 0;
         memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
     }
@@ -233,6 +238,30 @@ static void car_params_flash_migrate_v3(void)
             stored_params.curvature_scale = car_default_params.curvature_scale;
             car_params_sanitize_curve_params(&stored_params, 0);
         }
+        stored_params.base_speed = car_default_params.base_speed;
+        stored_params.running = 0;
+        memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
+    }
+    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
+    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+}
+
+static void car_params_flash_migrate_v4(void)
+{
+    uint8_t gear;
+    uint32_t offset;
+    car_params_t stored_params;
+
+    for (gear = 1; gear <= CAR_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+        offset = car_params_flash_profile_offset(gear);
+        if (car_params_flash_profile_empty(offset) != 0) {
+            stored_params = car_default_params;
+        } else {
+            memcpy(&stored_params, &flash_union_buffer[offset], sizeof(car_params_t));
+            car_params_sanitize_curve_params(&stored_params, 0);
+        }
+        /* V4 stored 2400 in an unused field; using it as direct PWM would be unsafe. */
+        stored_params.base_speed = car_default_params.base_speed;
         stored_params.running = 0;
         memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
     }
@@ -250,6 +279,8 @@ uint8_t car_params_flash_load(void)
         car_params_flash_migrate_v2();
     } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_PREVIOUS_VERSION) {
         car_params_flash_migrate_v3();
+    } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_V4_VERSION) {
+        car_params_flash_migrate_v4();
     } else if (flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION) {
         car_params_flash_factory_init();
     }
