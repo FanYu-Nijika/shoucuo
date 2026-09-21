@@ -28,8 +28,8 @@ function clamp(value, limit) {
     return Math.max(-limit, Math.min(limit, value));
 }
 
-function allocate(balanceRaw, basePwm, turnCommand, pwmLimit) {
-    const common = clamp(balanceRaw + basePwm, pwmLimit);
+function allocate(balanceRaw, turnCommand, pwmLimit) {
+    const common = clamp(balanceRaw, pwmLimit);
     const turn = clamp(turnCommand, pwmLimit - Math.abs(common));
     return {left: common + turn, right: common - turn, common, turn};
 }
@@ -68,22 +68,35 @@ test('upright gains have no artificial tuning ceiling', () => {
     assert(control.includes('params->pwm_limit > 10000'));
 });
 
-test('FOLLOW base PWM is direct feedforward while target angle remains mechanical zero', () => {
-    let out = allocate(100, -800, 0, 5000);
-    near(out.common, -700);
-    out = allocate(-4700, -800, 0, 5000);
-    near(out.common, -5000);
+test('FOLLOW uses a fixed target-angle offset and no direct base PWM', () => {
+    const target = 0 - (-1) * 0.5;
+    const output = 1000 * (0 - target);
+    const reverseTarget = 0 - (-1) * -0.5;
+    const reverseOutput = 1000 * (0 - reverseTarget);
+    near(target, 0.5);
+    near(output, -500);
+    near(reverseTarget, -0.5);
+    near(reverseOutput, 500);
+    assert(control.includes('.follow_angle = 0.5f'));
+    assert(control.includes('.turn_pwm_limit = 1400'));
+    assert(control.includes('BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.follow_angle_applied'));
+    assert(control.includes('common = balance_clamp(balance_common, applied_params.pwm_limit)'));
+    assert(control.includes('requested_follow_angle = 0.0f'));
     assert(control.includes('balance_state.target_angle = applied_params.middle_angle'));
-    assert(control.includes('balance_common + requested_base_pwm'));
-    assert(!control.includes('follow_angle_applied'));
+    assert(!control.includes('params->follow_angle < -5.0f || params->follow_angle > 5.0f'));
+    assert(!control.includes('if (follow_angle < -5.0f)'));
+    assert(!control.includes('if (follow_angle > 5.0f)'));
+    assert(menu.includes('&balance_params.follow_angle, -FLT_MAX, FLT_MAX, 0.1'));
+    assert(!control.includes('requested_base_pwm'));
+    assert(!controlHeader.includes('base_pwm_applied'));
 });
 
 test('camera PWM differential never steals common balance headroom', () => {
-    let out = allocate(4500, 0, 1000, 5000);
+    let out = allocate(4500, 1000, 5000);
     near(out.left, 5000); near(out.right, 4000); near(out.turn, 500);
-    out = allocate(-4800, 0, -1000, 5000);
+    out = allocate(-4800, -1000, 5000);
     near(out.left, -5000); near(out.right, -4600); near(out.turn, -200);
-    out = allocate(6000, 0, 500, 5000);
+    out = allocate(6000, 500, 5000);
     near(out.left, 5000); near(out.right, 5000); near(out.turn, 0);
 });
 
@@ -122,11 +135,10 @@ test('FOLLOW START immediately latches ACTIVE and requests balance from STOP', (
     assert(!startBody.includes('line_valid'));
 });
 
-test('line validity is telemetry only and base PWM remains unconditional while FOLLOW is active', () => {
+test('line validity is telemetry only and fixed FOLLOW angle remains unconditional', () => {
     const updateBody = car.slice(car.indexOf('void car_track_update('));
-    const baseIndex = updateBody.indexOf('base_pwm = motor_base_pwm');
-    assert(baseIndex > updateBody.indexOf('if (!car_follow_enabled)'));
-    assert(updateBody.indexOf('balance_set_follow_command(base_pwm, car_turn_request)') > baseIndex);
+    const followIndex = updateBody.indexOf('balance_set_follow_command(balance_params.follow_angle, car_turn_request)');
+    assert(followIndex > updateBody.indexOf('if (!car_follow_enabled)'));
     assert(!updateBody.includes('if (!valid)'));
     assert(!updateBody.includes('if (valid &&'));
     assert(image.includes('(Left_Lost_Flag[row] == 0 || Right_Lost_Flag[row] == 0)'));
@@ -147,14 +159,15 @@ test('only explicit STOP paths clear FOLLOW and status text prioritizes FOLLOW o
     assert(statusBody.includes('return "FOLLOW"'));
 });
 
-test('four-wheel style base PWM, curve slowdown and steering PD are active', () => {
-    near(800 - Math.abs(20) * 5, 700);
-    assert(car.includes('motor_base_pwm - fabsf(last_error) * curve_slowdown_pwm'));
-    assert(car.includes('BOARD_FOLLOW_FORWARD_PWM_SIGN'));
+test('fixed FOLLOW angle and four-wheel style steering PD are active', () => {
+    assert(car.includes('balance_set_follow_command(balance_params.follow_angle, car_turn_request)'));
     assert(car.includes('BOARD_FOLLOW_TURN_PWM_SIGN'));
-    for (const text of ['BASE SPEED', 'CURVE SLOW', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
+    for (const text of ['FOLLOW ANGLE', 'FOLLOW ANGLE APPLIED', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
         assert(menu.includes(text), text);
-    assert(image.includes('car_params.running == 0 || car_params.base_speed <= 0'));
+    assert(!menu.includes('BASE SPEED'));
+    assert(!menu.includes('CURVE SLOW'));
+    assert(image.includes('if (car_params.running == 0)'));
+    assert(!image.includes('car_params.base_speed <= 0'));
 });
 
 test('encoders are display-only 20 ms accumulators', () => {
@@ -236,8 +249,8 @@ test('active menu/control contain no speed loop, Kalman, or rate cascade', () =>
     }
     assert(!car.includes('speed_enabled'));
     assert(!car.includes('target_speed'));
-    assert(!menu.includes('FOLLOW ANGLE'));
-    assert(car.includes('balance_set_follow_command(base_pwm, car_turn_request)'));
+    assert(menu.includes('FOLLOW ANGLE'));
+    assert(car.includes('balance_set_follow_command(balance_params.follow_angle, car_turn_request)'));
 });
 
 console.log(`${groups} groups passed; source-level numerical checks only, no firmware compilation.`);

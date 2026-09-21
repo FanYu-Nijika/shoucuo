@@ -36,7 +36,7 @@ typedef struct {
     float balance_output;
     float common_pwm;
     float target_angle;
-    float base_pwm_applied;
+    float follow_angle_applied;
     float turn_pwm_command;
     float turn_output;
     int32_t left_count;
@@ -70,8 +70,8 @@ uint8_t balance_params_are_valid(const balance_params_t *params);
 
 /* Encoders remain diagnostic-only. Four 5 ms samples form the displayed 20 ms count. */
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
-/* FOLLOW adds open-loop base PWM and direct PWM differential to the upright controller. */
-void balance_set_follow_command(float base_pwm, float turn_pwm);
+/* FOLLOW changes the upright target angle and keeps camera steering as direct PWM differential. */
+void balance_set_follow_command(float follow_angle, float turn_pwm);
 void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid);
 
 #endif

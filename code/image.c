@@ -663,7 +663,7 @@ static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
         current_preview_row = base_row;
     }
 
-    if (car_params.running == 0 || car_params.base_speed <= 0) {
+    if (car_params.running == 0) {
         straight_preview_time_ms = 0;
         preview_curve_mode = 0;
         curve_preview_hold_frames = 0;

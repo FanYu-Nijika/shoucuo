@@ -1,6 +1,5 @@
 #include "car.h"
 
-#include <math.h>
 #include <string.h>
 #include "balance_control.h"
 #include "balance_runtime.h"
@@ -27,8 +26,6 @@ static uint8 derivative_ready;
 static uint32 last_control_capture_ms;
 static float last_error;
 static float curve_blend;
-static int16 motor_base_pwm = 800;
-static int16 curve_slowdown_pwm;
 static float curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT;
 static float curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT;
 
@@ -51,8 +48,6 @@ static void car_reset_turn(void)
 void car_apply_menu_params(const volatile car_params_t *params)
 {
     if (params == 0) return;
-    motor_base_pwm = cc_math_clamp_i32(params->base_speed, 0, 10000);
-    curve_slowdown_pwm = cc_math_clamp_i32(params->curve_slowdown, -1000, 1000);
     steering_kp = params->steering_kp;
     steering_kd = params->steering_kd;
     curve_steering_kp = params->curve_steering_kp;
@@ -105,7 +100,6 @@ void car_follow_stop(void)
 
 void car_track_update(float error, float curvature, uint8 valid, uint8 new_result, uint32 capture_ms, uint32 now_ms)
 {
-    float base_pwm;
     float kp;
     float kd;
     float d_error = 0;
@@ -141,8 +135,5 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         return;
     }
     car_follow_status = CAR_FOLLOW_ACTIVE;
-    base_pwm = motor_base_pwm - fabsf(last_error) * curve_slowdown_pwm;
-    base_pwm = cc_math_clamp_f32(base_pwm, 0, balance_params.pwm_limit);
-    base_pwm *= BOARD_FOLLOW_FORWARD_PWM_SIGN;
-    balance_set_follow_command(base_pwm, car_turn_request);
+    balance_set_follow_command(balance_params.follow_angle, car_turn_request);
 }

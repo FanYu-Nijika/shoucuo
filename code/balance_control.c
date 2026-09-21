@@ -57,7 +57,7 @@ const balance_params_t balance_default_params = {
     .accel_weight = 0.01f,
     .follow_angle = 0.5f,
     .pwm_limit = 5000,
-    .turn_pwm_limit = 500,
+    .turn_pwm_limit = 1400,
     .turn_direction = 1,
     .left_motor_deadzone = 1100,
     .right_motor_deadzone = 600
@@ -92,7 +92,7 @@ static uint8_t complementary_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t encoder_sample_phase;
-static float requested_base_pwm;
+static float requested_follow_angle;
 static float requested_turn_pwm;
 
 static uint8_t balance_is_finite(float value)
@@ -139,7 +139,6 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
     /* Kp/Kd deliberately have no tuning ceiling. Numeric and PWM checks contain unsafe values later. */
     if (params->balance_kp < 0.0f || params->balance_kd < 0.0f || fabsf(params->middle_angle) > 180.0f ||
         params->accel_weight < 0.0f || params->accel_weight > 1.0f ||
-        params->follow_angle < 0.0f || params->follow_angle > 5.0f ||
         params->pwm_limit < 1 || params->pwm_limit > 10000 ||
         params->turn_pwm_limit < 0 || params->turn_pwm_limit > 3000 ||
         (params->turn_direction != -1 && params->turn_direction != 1) ||
@@ -208,9 +207,9 @@ static void balance_params_flash_prepare(void)
 
 static void balance_reset_follow(void)
 {
-    requested_base_pwm = 0.0f;
+    requested_follow_angle = 0.0f;
     requested_turn_pwm = 0.0f;
-    balance_state.base_pwm_applied = 0.0f;
+    balance_state.follow_angle_applied = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
     balance_state.angle_error = 0.0f;
@@ -283,15 +282,15 @@ static uint8_t balance_run_control(void)
     float left_control;
     float right_control;
 
-    balance_state.target_angle = applied_params.middle_angle;
+    balance_state.follow_angle_applied = requested_follow_angle;
+    balance_state.target_angle = applied_params.middle_angle - BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.follow_angle_applied;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
     balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
     balance_common = balance_state.p_output + balance_state.d_output;
     if (!balance_is_finite(balance_common)) return 0;
     balance_state.balance_output = balance_common;
-    common = balance_clamp(balance_common + requested_base_pwm, applied_params.pwm_limit);
-    balance_state.base_pwm_applied = common - balance_clamp(balance_common, applied_params.pwm_limit);
+    common = balance_clamp(balance_common, applied_params.pwm_limit);
     balance_state.common_pwm = common;
     balance_state.turn_pwm_command = balance_clamp(requested_turn_pwm, applied_params.turn_pwm_limit);
     remaining = applied_params.pwm_limit - fabsf(common);
@@ -350,18 +349,18 @@ uint8_t balance_params_flash_save(uint8_t gear)
     return memcmp(&flash_union_buffer[offset], &stored_params, sizeof(stored_params)) == 0 ? 1 : 0;
 }
 
-void balance_set_follow_command(float base_pwm, float turn_pwm)
+void balance_set_follow_command(float follow_angle, float turn_pwm)
 {
     if (!balance_state.running) {
-        requested_base_pwm = 0.0f;
+        requested_follow_angle = 0.0f;
         requested_turn_pwm = 0.0f;
         return;
     }
-    if (!balance_is_finite(base_pwm) || !balance_is_finite(turn_pwm)) {
+    if (!balance_is_finite(follow_angle) || !balance_is_finite(turn_pwm)) {
         balance_report_fault(BALANCE_FAULT_NUMERIC);
         return;
     }
-    requested_base_pwm = balance_clamp(base_pwm, applied_params.pwm_limit);
+    requested_follow_angle = follow_angle;
     requested_turn_pwm = balance_clamp(turn_pwm, applied_params.turn_pwm_limit);
 }
 
