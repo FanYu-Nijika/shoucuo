@@ -627,7 +627,8 @@ static void car_menu_execute_action(uint8_t action)
 
 void car_menu_handle_center(void)
 {
-    /* CENTER is disabled on this board; STOP is accepted only from the RUN menu item. */
+    /* The physical CENTER key stays disabled; image.c reuses this request as a full STOP. */
+    car_menu_stop();
 }
 
 uint8_t car_menu_current_profile(void)

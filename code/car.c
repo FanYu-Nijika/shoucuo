@@ -20,8 +20,7 @@ volatile uint8 car_follow_status;
 volatile uint8 car_follow_enabled;
 volatile float car_turn_request;
 
-/* FOLLOW is deliberately only an enable bit. Vision quality remains telemetry
- * and never gates the base PWM on a competition track. */
+/* FOLLOW starts immediately; image.c can later cancel it through the original CENTER request. */
 static uint8 derivative_ready;
 static uint32 last_control_capture_ms;
 static float last_error;

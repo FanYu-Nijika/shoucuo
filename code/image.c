@@ -120,7 +120,7 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
             threshold_lost = 1;
         }
     } else {
-        lost_line_cnt= LOST_LINE;
+        lost_line_cnt = LOST_LINE;
         already_line_lost = 0;
     }
     if (car_params.automatic_threshold == 0) os_threshold = car_params.threshold;
@@ -128,8 +128,9 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
 
     threshold_update();
-    /* Keep image protection state for display, but do not let it stop the balance controller. */
-    if (protect(gray_frame) == 0) stop_cnt = 10;
+    if (protect(gray_frame) != 0) {
+        if (car_params.running != 0 && stop_cnt <= 0) car_center_stop_request = 1;
+    } else stop_cnt = 10;
     // Longest_White_Column();
     Longest_White_Column();
     xieru_type = Judge_xierushizi_type();
@@ -620,8 +621,9 @@ uint8_t protect(const uint8 *gray_frame) {
     int i, sum = 0;
     int row = 115;
     if (gray_frame == 0) return 0;
+    // if (threshold < 100)
     for (i = 0; i < 187; ++i) {
-        if (binary_image[row * width + i] == 0 || gray_frame[row * width + i] < 180) {
+        if (binary_image[row * width + i] == 0 || gray_frame[row * width + i] < 120) {
             ++sum;
         }
     }

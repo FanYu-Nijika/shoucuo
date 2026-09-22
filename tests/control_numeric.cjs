@@ -15,6 +15,7 @@ const menu = read('code/car_menu.c');
 const board = read('code/board_pins.h');
 const params = read('code/car_params.c');
 const image = read('code/image.c');
+const cpu0 = read('user/cpu0_main.c');
 const near = (a, b, eps = 1e-8) => assert(Math.abs(a - b) <= eps, `${a} != ${b}`);
 let groups = 0;
 function test(name, fn) { fn(); groups++; console.log('PASS ' + name); }
@@ -135,17 +136,20 @@ test('FOLLOW START immediately latches ACTIVE and requests balance from STOP', (
     assert(!startBody.includes('line_valid'));
 });
 
-test('line validity is telemetry only and fixed FOLLOW angle remains unconditional', () => {
-    const updateBody = car.slice(car.indexOf('void car_track_update('));
-    const followIndex = updateBody.indexOf('balance_set_follow_command(balance_params.follow_angle, car_turn_request)');
-    assert(followIndex > updateBody.indexOf('if (!car_follow_enabled)'));
-    assert(!updateBody.includes('if (!valid)'));
-    assert(!updateBody.includes('if (valid &&'));
-    assert(image.includes('(Left_Lost_Flag[row] == 0 || Right_Lost_Flag[row] == 0)'));
-    assert(!image.includes('Left_Lost_Flag[row] == 0 && Right_Lost_Flag[row] == 0 &&'));
+test('four-wheel bottom-row protection sends CENTER request and performs full STOP', () => {
+    const protectBody = image.slice(image.indexOf('uint8_t protect('), image.indexOf('static int Calculate_Max_Preview_Length'));
+    const centerBody = menu.slice(menu.indexOf('void car_menu_handle_center(void)'), menu.indexOf('uint8_t car_menu_current_profile'));
+    const stopBody = menu.slice(menu.indexOf('static void car_menu_stop(void)'), menu.indexOf('static void car_menu_start(void)'));
+    assert(protectBody.includes('gray_frame[row * width + i] < 120'));
+    assert(protectBody.includes('sum >= width-18'));
+    assert(image.includes('stop_cnt <= 0) car_center_stop_request = 1'));
+    assert(cpu0.includes('car_menu_handle_center()'));
+    assert(centerBody.includes('car_menu_stop()'));
+    assert(stopBody.includes('car_stop()'));
+    assert(stopBody.includes('cc_tc264_menu_motor_stop()'));
 });
 
-test('only explicit STOP paths clear FOLLOW and status text prioritizes FOLLOW over RUN', () => {
+test('runtime STOP and image CENTER request clear FOLLOW while status prioritizes FOLLOW over RUN', () => {
     assert.equal((runtime.match(/car_follow_stop\(\)/g) || []).length, 1);
     const runtimeStop = runtime.slice(runtime.indexOf('void balance_runtime_stop(void)'),
         runtime.indexOf('void balance_runtime_set_motor_test'));

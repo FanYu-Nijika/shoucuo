@@ -186,6 +186,11 @@ int core0_main(void)
 
             car_menu_result_accepted();
         }
+        if (car_center_stop_request != 0) {
+            car_center_stop_request = 0;
+            __dsync();
+            car_menu_handle_center();
+        }
         balance_runtime_task();
         car_seekfree_debug_task();
         car_menu_task();
