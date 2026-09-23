@@ -35,7 +35,7 @@ uint8 LCenter[MT9V03X_H];
 uint16 Search_Stop_Line;
 int16 Center_Line[MT9V03X_H];
 static int16 Dynamic_Center_Line[MT9V03X_H];
-int a, stop_cnt;
+int a;
 uint8 Cross_Flag;
 uint8 Cross_Count;
 uint8 xieru_type;
@@ -81,7 +81,6 @@ void image_init(void) {
     Cross_Flag = 0;
     Cross_Count = 0;
     left_index = right_index = 0;
-    stop_cnt = 10;
     current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
     last_preview_base_row = -1;
     straight_preview_time_ms = 0;
@@ -128,9 +127,7 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
 
     threshold_update();
-    if (protect(gray_frame) != 0) {
-        if (car_params.running != 0 && stop_cnt <= 0) car_center_stop_request = 1;
-    } else stop_cnt = 10;
+    if (car_params.running != 0 && protect(gray_frame) != 0) car_center_stop_request = 1;
     // Longest_White_Column();
     Longest_White_Column();
     xieru_type = Judge_xierushizi_type();
@@ -620,16 +617,14 @@ static uint8 Repair_Right_Skew(int skew_up)
 uint8_t protect(const uint8 *gray_frame) {
     int i, sum = 0;
     int row = 115;
+    uint8_t threshold_lost;
     if (gray_frame == 0) return 0;
-    // if (threshold < 100)
+    /* Measured Otsu values: track 88/140, lost 20/60. Ignore this test in manual-threshold mode. */
+    threshold_lost = car_params.automatic_threshold != 0 && os_threshold >= 0 && os_threshold < 75;
     for (i = 0; i < 187; ++i) {
-        if (binary_image[row * width + i] == 0 || gray_frame[row * width + i] < 120) {
-            ++sum;
-        }
+        if (binary_image[row * width + i] == 0) ++sum;
     }
-    if (sum >= width-18) {
-        --stop_cnt;
-        // car_stop();
+    if (threshold_lost != 0 || sum >= width - 18) {
         return 1;
     }
     return 0;

@@ -166,7 +166,7 @@ uint8 dma_init (IfxDma_ChannelId dma_ch, uint8 *source_addr, uint8 *destination_
         }
     }
 
-    IfxDma_Dma_getSrcPointer(&dma_link_list.channel)->B.CLRR = 1;
+    IfxDma_Dma_getSrcPointer(&dmaChn)->B.CLRR = 1;
 
     return list_num;
 }

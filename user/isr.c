@@ -37,7 +37,7 @@
 #include "isr.h"
 #include "car_shared.h"
 
-extern uint8 mt9v03x_lost_flag;
+extern vuint8 mt9v03x_lost_flag;
 
 // 对于TC系列默认是不支持中断嵌套的，希望支持中断嵌套需要在中断内使用 interrupt_global_enable(0); 来开启中断嵌套
 // 简单点说实际上进入中断后TC系列的硬件自动调用了 interrupt_global_disable(); 来拒绝响应任何的中断，因此需要我们自己手动调用 interrupt_global_enable(0); 来开启中断的响应。

@@ -57,6 +57,7 @@
 #include "zf_driver_exti.h"
 #include "zf_driver_gpio.h"
 #include "zf_driver_uart.h"
+#include "zf_driver_timer.h"
 #include "zf_device_camera.h"
 #include "zf_device_config.h"
 #include "zf_device_mt9v03x.h"
@@ -70,9 +71,9 @@ static  uint16    mt9v03x_version = 0x00;                   // 定义摄像头版本号
 
 int16   timeout = MT9V03X_INIT_TIMEOUT;                     // 定义超时溢出时长
 
-uint8   mt9v03x_lost_flag = 1;                              // 图像丢失标志位
+vuint8  mt9v03x_lost_flag = 1;                              // 图像丢失标志位
 uint8   mt9v03x_dma_int_num;                                // 当前DMA中断次数
-uint8   mt9v03x_dma_init_flag;                              // 是否需要重新初始化
+vuint8  mt9v03x_dma_init_flag;                              // 是否需要重新初始化
 uint8   mt9v03x_link_list_num;
 
 // 需要配置到摄像头的数据 不允许在这修改参数
@@ -240,18 +241,35 @@ static void mt9v03x_uart_handler (void)
 //-------------------------------------------------------------------------------------------------------------------
 static void mt9v03x_vsync_handler(void)
 {
+    uint32 reset_start_us;
+
     exti_flag_clear(MT9V03X_VSYNC_PIN);
+    /* CPU0 owns the completed image until its copy finishes. */
+    if(mt9v03x_finish_flag != 0) return;
+
     mt9v03x_dma_int_num = 0;
-    if(mt9v03x_dma_init_flag )
+    if(mt9v03x_dma_init_flag || mt9v03x_lost_flag)
     {
-        mt9v03x_dma_init_flag = 0;
+        dma_disable(MT9V03X_DMA_CH);
+        clear_dma_flag(MT9V03X_DMA_CH);
+        IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
         IfxDma_resetChannel(&MODULE_DMA, MT9V03X_DMA_CH);
+        reset_start_us = system_getval_us();
+        while(!IfxDma_isChannelReset(&MODULE_DMA, MT9V03X_DMA_CH))
+        {
+            if(system_getval_us() - reset_start_us >= 100)
+            {
+                mt9v03x_dma_init_flag = 1;
+                return;
+            }
+        }
         mt9v03x_link_list_num = dma_init(MT9V03X_DMA_CH,
                                          MT9V03X_DATA_ADD,
                                          mt9v03x_image[0],
                                          MT9V03X_PCLK_PIN,
                                          EXTI_TRIGGER_RISING,
                                          MT9V03X_IMAGE_SIZE);           // 如果超频到300M 倒数第二个参数请设置为FALLING
+        mt9v03x_dma_init_flag = 0;
         dma_enable(MT9V03X_DMA_CH);
     }
     else

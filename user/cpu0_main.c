@@ -131,8 +131,7 @@ int core0_main(void)
             uint32 frame_period_ms;
             int8_t slot;
 
-            /* Consume this completion first so a later DMA interrupt cannot be cleared by this iteration. */
-            mt9v03x_finish_flag = 0;
+            /* Keep the completed source buffer locked until the copy is finished. */
             if (capture_time_ms == 0) capture_time_ms = now_ms;
             frame_period_ms = last_frame_ms == 0 ? 20 : capture_time_ms - last_frame_ms;
             if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
@@ -158,6 +157,9 @@ int core0_main(void)
             } else {
                 car_capture_drop_count++;
             }
+            __dsync();
+            mt9v03x_finish_flag = 0;
+            __dsync();
         }
 
         car_camera_age_ms = car_camera_frame_count == 0 ? 0 : system_getval_ms() - car_camera_last_frame_ms;
