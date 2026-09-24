@@ -1,5 +1,6 @@
 #include "image.h"
 #include "car_shared.h"
+#include "balance_control.h"
 #include "longest_white.h"
 #include "car_params.h"
 #include "algorithm.h"
@@ -15,9 +16,8 @@
 #define CROSS_SKEW_TURN_WINDOW 14
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
-#define DYNAMIC_PREVIEW_ROW_OFFSET 15
-#define DYNAMIC_PREVIEW_TIME_MS 1800
-#define DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES 15
+#define DYNAMIC_PREVIEW_ROW_OFFSET 25
+#define DYNAMIC_PREVIEW_FAST_LEAN_DEG 8.0f
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -40,17 +40,11 @@ uint8 Cross_Flag;
 uint8 Cross_Count;
 uint8 xieru_type;
 static int current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
-static int last_preview_base_row = -1;
-static uint32 straight_preview_time_ms = 0;
-static uint8 preview_curve_mode = 0;
-static uint8 curve_preview_hold_frames = 0;
-static int curve_preview_hold_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
-static uint8 curve_variance_valid = 0;
 
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
-static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid);
+static int Update_Dynamic_Preview_Row(void);
 static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row);
 static float Calculate_Curve_Variance(void);
 uint8_t protect(const uint8 *gray_frame);
@@ -82,12 +76,6 @@ void image_init(void) {
     Cross_Count = 0;
     left_index = right_index = 0;
     current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
-    last_preview_base_row = -1;
-    straight_preview_time_ms = 0;
-    preview_curve_mode = 0;
-    curve_preview_hold_frames = 0;
-    curve_preview_hold_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
-    curve_variance_valid = 0;
     // Search_Stop_Line = 0;
 }
 
@@ -189,7 +177,7 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
         result->curvature = result->curve_variance / car_params.curvature_scale;
     if (result->curvature < 0.0) result->curvature = 0.0;
     if (result->curvature > 1.0) result->curvature = 1.0;
-    result->preview_row = Update_Dynamic_Preview_Row(result->curvature, line_valid);
+    result->preview_row = Update_Dynamic_Preview_Row();
     result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
@@ -639,78 +627,24 @@ static int Calculate_Max_Preview_Length(void)
     return max_length;
 }
 
-static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
+static int Update_Dynamic_Preview_Row(void)
 {
     int base_row = car_params.control_row_near;
-    int far_row;
     int offset;
-    uint32 frame_period_ms;
+    float forward_lean;
 
     if (base_row < 3) base_row = 3;
     if (base_row > height - 3) base_row = height - 3;
-    far_row = base_row - DYNAMIC_PREVIEW_ROW_OFFSET;
-    if (far_row < 3) far_row = 3;
+    current_preview_row = base_row;
+    if (car_params.running == 0 || balance_state.imu_ready == 0) return current_preview_row;
 
-    if (base_row != last_preview_base_row) {
-        last_preview_base_row = base_row;
-        straight_preview_time_ms = 0;
-        preview_curve_mode = 0;
-        curve_preview_hold_frames = 0;
-        curve_preview_hold_row = base_row;
-        current_preview_row = base_row;
-    }
-
-    if (car_params.running == 0) {
-        straight_preview_time_ms = 0;
-        preview_curve_mode = 0;
-        curve_preview_hold_frames = 0;
-        curve_preview_hold_row = base_row;
-        current_preview_row = base_row;
-        return current_preview_row;
-    }
-
-    if (line_valid == 0 || curve_variance_valid == 0) {
-        straight_preview_time_ms = 0;
-        preview_curve_mode = 0;
-        curve_preview_hold_frames = 0;
-        curve_preview_hold_row = base_row;
-        current_preview_row = base_row;
-        return current_preview_row;
-    }
-
-    /* Hold the entry row for three valid frames before the curve switches back to the near row. */
-    if (preview_curve_mode == 0 && curvature >= car_params.curve_enter_threshold) {
-        preview_curve_mode = 1;
-        straight_preview_time_ms = 0;
-        curve_preview_hold_frames = DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES;
-        curve_preview_hold_row = current_preview_row;
-        if (curve_preview_hold_row < far_row) curve_preview_hold_row = far_row;
-        if (curve_preview_hold_row > base_row) curve_preview_hold_row = base_row;
-    } else if (preview_curve_mode != 0 && curve_preview_hold_frames == 0 &&
-        curvature <= car_params.curve_exit_threshold) {
-        preview_curve_mode = 0;
-    }
-
-    if (curve_preview_hold_frames > 0) {
-        straight_preview_time_ms = 0;
-        current_preview_row = curve_preview_hold_row;
-        curve_preview_hold_frames--;
-        return current_preview_row;
-    }
-
-    if (preview_curve_mode != 0) {
-        straight_preview_time_ms = 0;
-        current_preview_row = base_row;
-        return current_preview_row;
-    }
-
-    frame_period_ms = car_frame_period_ms;
-    if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
-    straight_preview_time_ms += frame_period_ms;
-    if (straight_preview_time_ms > DYNAMIC_PREVIEW_TIME_MS) straight_preview_time_ms = DYNAMIC_PREVIEW_TIME_MS;
-    offset = straight_preview_time_ms * DYNAMIC_PREVIEW_ROW_OFFSET / DYNAMIC_PREVIEW_TIME_MS;
+    /* On this car COMP ANGLE decreases when the body leans forward. */
+    forward_lean = balance_params.middle_angle - balance_state.angle;
+    if (!(forward_lean > 0.0f)) return current_preview_row;
+    if (forward_lean > DYNAMIC_PREVIEW_FAST_LEAN_DEG) forward_lean = DYNAMIC_PREVIEW_FAST_LEAN_DEG;
+    offset = (int)(forward_lean * DYNAMIC_PREVIEW_ROW_OFFSET / DYNAMIC_PREVIEW_FAST_LEAN_DEG);
     current_preview_row = base_row - offset;
-    if (current_preview_row < far_row) current_preview_row = far_row;
+    if (current_preview_row < 3) current_preview_row = 3;
     return current_preview_row;
 }
 
@@ -793,7 +727,6 @@ static float Calculate_Curve_Variance(void)
     float variance_sum = 0;
     float mean;
 
-    curve_variance_valid = 0;
     if (near_row >= height) near_row = height - 1;
     if (near_row < 0) return 0;
     if (top_row < 0) top_row = 0;
@@ -829,7 +762,6 @@ static float Calculate_Curve_Variance(void)
         variance_sum += difference * difference * weight;
     }
 
-    curve_variance_valid = 1;
     return variance_sum / weight_sum;
 }
 

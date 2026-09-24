@@ -276,20 +276,22 @@ static int16_t balance_apply_right_trim(float control)
     return balance_pwm_from_float(control > 0.0f ? magnitude : -magnitude);
 }
 
-static uint8_t balance_update_complementary(float accel_angle, float gyro_rate)
+static uint8_t balance_update_complementary(float accel_angle, float gyro_rate, uint8_t accel_valid)
 {
     float next_angle;
     float predicted_angle;
 
-    if (!balance_is_finite(accel_angle) || !balance_is_finite(gyro_rate)) return 0;
-    balance_state.accel_angle = accel_angle;
+    if (!balance_is_finite(gyro_rate) || (accel_valid && !balance_is_finite(accel_angle))) return 0;
+    if (accel_valid) balance_state.accel_angle = accel_angle;
     balance_state.gyro_rate = gyro_rate;
     if (!complementary_initialized) {
+        if (!accel_valid) return 0;
         next_angle = accel_angle;
         complementary_initialized = 1;
     } else {
         predicted_angle = balance_state.angle + gyro_rate * balance_dt_s;
-        next_angle = applied_params.accel_weight * accel_angle +
+        next_angle = predicted_angle;
+        if (accel_valid) next_angle = applied_params.accel_weight * accel_angle +
             (1.0f - applied_params.accel_weight) * predicted_angle;
     }
     if (!balance_is_finite(next_angle)) return 0;
@@ -484,7 +486,7 @@ uint8_t balance_apply_live_params(const balance_params_t *params)
     return 1;
 }
 
-void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid)
+void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid)
 {
     balance_state.output_updated = 0;
     if (!valid) {
@@ -494,7 +496,7 @@ void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid)
         balance_cancel_follow_command();
         return;
     }
-    if (!balance_update_complementary(accel_angle, gyro_rate)) {
+    if (!balance_update_complementary(accel_angle, gyro_rate, accel_valid)) {
         balance_state.imu_ready = 0;
         if (!balance_state.running) complementary_initialized = 0;
         balance_state.fault = BALANCE_FAULT_NUMERIC;

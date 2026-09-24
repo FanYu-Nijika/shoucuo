@@ -74,6 +74,6 @@ void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
 /* FOLLOW speed is an open-loop -100..100 command, mapped to -5..5 degrees. */
 void balance_set_follow_command(float follow_speed, float turn_pwm);
 void balance_cancel_follow_command(void);
-void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid);
+void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);
 
 #endif

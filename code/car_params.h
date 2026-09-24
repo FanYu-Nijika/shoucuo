@@ -23,7 +23,7 @@
 #define CAR_STOP_TIME_DEFAULT      (25)
 #define CAR_STOP_TIME_MAX          (600)
 #define CAR_CONTROL_ROW_FAR_DEFAULT  (56)
-#define CAR_CONTROL_ROW_NEAR_DEFAULT (84)
+#define CAR_CONTROL_ROW_NEAR_DEFAULT (75)
 
 /* Flat runtime parameters: CPU0 edits them and CPU1 reads the shared values directly. */
 typedef struct {

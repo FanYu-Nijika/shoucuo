@@ -270,7 +270,9 @@ static void mt9v03x_vsync_handler(void)
                                          EXTI_TRIGGER_RISING,
                                          MT9V03X_IMAGE_SIZE);           // 如果超频到300M 倒数第二个参数请设置为FALLING
         mt9v03x_dma_init_flag = 0;
-        dma_enable(MT9V03X_DMA_CH);
+        /* Rebuild here, then arm the next frame at its VSYNC edge. */
+        mt9v03x_lost_flag = 0;
+        return;
     }
     else
     {

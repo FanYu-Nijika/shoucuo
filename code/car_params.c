@@ -95,7 +95,7 @@ const car_params_t car_default_params = {
     .path_weight_near = CAR_PATH_WEIGHT_NEAR,
     // .confidence_minimum = 0.35,
     // .control_row_far = 56,
-    .control_row_near = 84,
+    .control_row_near = CAR_CONTROL_ROW_NEAR_DEFAULT,
 
     /*
      * Measured with PWM_DUTY_MAX=10000 at 200 Hz:

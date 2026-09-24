@@ -1097,7 +1097,10 @@ void car_menu_task(void)
         car_menu_last_start_pending = balance_start_pending;
         car_menu_last_balance_fault = balance_state.fault;
         car_menu_last_calibration_state = balance_imu_status.calibration_state;
-        car_menu_dirty = 1;
+        if (car_menu_dirty == 0 && car_menu_lcd_test_until_ms == 0) {
+            car_menu_draw_header();
+            car_menu_draw_footer();
+        }
     }
     if (car_menu_new_frame != 0 && car_menu_lcd_test_until_ms == 0 && car_result_ready == 0 &&
         car_display_slot < CAR_FRAME_SLOT_COUNT && car_frame_state[car_display_slot] == CAR_FRAME_DISPLAY_READY) {

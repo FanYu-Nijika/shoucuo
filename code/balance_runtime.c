@@ -198,12 +198,13 @@ static uint8 balance_runtime_probe_imu_once(void)
     return model == 0x47 ? 1 : 0;
 }
 
-static uint8 balance_runtime_read_imu(float *angle, float *rate)
+static uint8 balance_runtime_read_imu(float *angle, float *rate, uint8 *accel_valid)
 {
     float accel[3];
     float gyro[3];
     float accel_norm_square;
 
+    *accel_valid = 0;
     if (!imu_initialized) return 0;
     Get_Acc_ICM42688();
     Get_Gyro_ICM42688();
@@ -220,16 +221,21 @@ static uint8 balance_runtime_read_imu(float *angle, float *rate)
     balance_imu_status.gyro_y = gyro[1];
     balance_imu_status.gyro_z = gyro[2];
     accel_norm_square = accel[0] * accel[0] + accel[1] * accel[1] + accel[2] * accel[2];
-    if (!(accel_norm_square >= 0.04f && accel_norm_square <= 4.0f)) return 0;
+    if (!balance_runtime_value_finite(accel_norm_square)) return 0;
     if (!(gyro[0] >= -2000.0f && gyro[0] <= 2000.0f && gyro[1] >= -2000.0f && gyro[1] <= 2000.0f &&
         gyro[2] >= -2000.0f && gyro[2] <= 2000.0f)) return 0;
-    *angle = atan2f(BOARD_BALANCE_ACCEL_SIGN * accel[BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS],
-        balance_imu_status.vertical_sign * accel[balance_imu_status.vertical_axis]) * 57.2957795f;
     gyro[0] -= balance_imu_status.gyro_bias_x;
     gyro[1] -= balance_imu_status.gyro_bias_y;
     gyro[2] -= balance_imu_status.gyro_bias_z;
     *rate = BOARD_BALANCE_GYRO_SIGN * gyro[BOARD_BALANCE_GYRO_AXIS];
-    return balance_runtime_value_finite(*angle) && balance_runtime_value_finite(*rate);
+    if (!balance_runtime_value_finite(*rate)) return 0;
+    /* A bump can invalidate the gravity angle without breaking the gyro reading. */
+    if (accel_norm_square < 0.04f || accel_norm_square > 4.0f) return 1;
+    *angle = atan2f(BOARD_BALANCE_ACCEL_SIGN * accel[BOARD_BALANCE_ACCEL_HORIZONTAL_AXIS],
+        balance_imu_status.vertical_sign * accel[balance_imu_status.vertical_axis]) * 57.2957795f;
+    if (!balance_runtime_value_finite(*angle)) return 0;
+    *accel_valid = 1;
+    return 1;
 }
 
 static uint8 balance_runtime_is_static(float gyro_limit)
@@ -456,7 +462,7 @@ static void balance_runtime_update_bias_trim(void)
 
 static void balance_runtime_imu_failed(void)
 {
-    balance_update_5ms(0.0f, 0.0f, 0);
+    balance_update_5ms(0.0f, 0.0f, 0, 0);
     /* While balancing, retain the last motor command and resume on the next valid sample. */
     if (balance_state.running) return;
     imu_initialized = 0;
@@ -576,6 +582,7 @@ void balance_runtime_update_5ms(void)
     int16 right_count = 0;
     uint8 was_running = balance_state.running;
     uint8 valid;
+    uint8 accel_valid;
 
     cc_tc264_balance_encoder_read(&left_count, &right_count);
     balance_sample_encoders_5ms(left_count, right_count);
@@ -595,7 +602,7 @@ void balance_runtime_update_5ms(void)
         balance_runtime_hold_stopped();
         return;
     }
-    valid = balance_runtime_read_imu(&angle, &rate);
+    valid = balance_runtime_read_imu(&angle, &rate, &accel_valid);
     if (!valid) {
         if (balance_imu_status.invalid_sample_streak < 255) balance_imu_status.invalid_sample_streak++;
         balance_imu_status.invalid_sample_total++;
@@ -610,12 +617,12 @@ void balance_runtime_update_5ms(void)
 
     if (balance_imu_status.calibration_state == BALANCE_IMU_WARMUP) {
         balance_runtime_hold_stopped();
-        balance_runtime_update_warmup(angle);
+        if (accel_valid) balance_runtime_update_warmup(angle);
         return;
     }
     if (balance_imu_status.calibration_state == BALANCE_IMU_WAIT_STATIC ||
         balance_imu_status.calibration_state == BALANCE_IMU_COLLECTING) {
-        balance_runtime_update_manual_calibration(1);
+        balance_runtime_update_manual_calibration(accel_valid);
         return;
     }
     if (balance_imu_status.calibration_state != BALANCE_IMU_READY) {
@@ -625,7 +632,7 @@ void balance_runtime_update_5ms(void)
     }
 
     balance_runtime_update_bias_trim();
-    balance_update_5ms(angle, rate, 1);
+    balance_update_5ms(angle, rate, 1, accel_valid);
     /* A pending FOLLOW also needs upright RUN before its two-second hold can begin. */
     if (car_follow_status != CAR_FOLLOW_IDLE && !balance_state.running) balance_start_pending = 1;
     if (balance_start_pending && !balance_state.running) {
