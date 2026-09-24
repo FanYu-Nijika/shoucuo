@@ -15,7 +15,7 @@
 #define CROSS_SKEW_TURN_WINDOW 14
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
-#define DYNAMIC_PREVIEW_ROW_OFFSET 10
+#define DYNAMIC_PREVIEW_ROW_OFFSET 15
 #define DYNAMIC_PREVIEW_TIME_MS 1800
 #define DYNAMIC_PREVIEW_CURVE_HOLD_FRAMES 15
 
@@ -620,7 +620,7 @@ uint8_t protect(const uint8 *gray_frame) {
     uint8_t threshold_lost;
     if (gray_frame == 0) return 0;
     /* Measured Otsu values: track 88/140, lost 20/60. Ignore this test in manual-threshold mode. */
-    threshold_lost = car_params.automatic_threshold != 0 && os_threshold >= 0 && os_threshold < 75;
+    threshold_lost = car_params.automatic_threshold != 0 && os_threshold >= 0 && os_threshold < 60;
     for (i = 0; i < 187; ++i) {
         if (binary_image[row * width + i] == 0) ++sum;
     }
@@ -1436,7 +1436,6 @@ uint8 ostu_deal_threshold(void)
     for (i = 0; i < height; i += 2) {
         for (j = 0; j < width; j += 2) {
             GrayCur = binary_image[i * width + j];
-            if (GrayCur > 200) white_cnt++;
             Graysum += GrayCur;
             PixelCnt[GrayCur]++;
             PixelSum++;
@@ -1446,7 +1445,7 @@ uint8 ostu_deal_threshold(void)
     }
 
     if (PixelSum == 0) return 1;
-    if (PixelMin >= PixelMax) return white_cnt < PixelSum * 0.1;
+    if (PixelMin >= PixelMax) return 1;
 
     for (i = PixelMin; i < PixelMax; i++) PixelPro[i] = (float)PixelCnt[i] / PixelSum;
     for (j = PixelMin; j < PixelMax; j++) {
@@ -1463,7 +1462,9 @@ uint8 ostu_deal_threshold(void)
             os_threshold = (int16)j;
         }
     }
-    return white_cnt < PixelSum * 0.1;
+    /* Count pixels above this frame's Otsu threshold, not above a fixed brightness of 200. */
+    for (i = os_threshold + 1; i <= PixelMax; i++) white_cnt += PixelCnt[i];
+    return white_cnt * 10 < PixelSum;
 }
 
 void threshold_update(void)

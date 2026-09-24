@@ -108,7 +108,7 @@ int core0_main(void)
     uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
-    /* P11.11 drives the buzzer transistor; hold it low before slower peripheral initialization. */
+    /* Hold the buzzer low before slower peripheral initialization. */
     gpio_init(BOARD_BUZZER_PIN, GPO, GPIO_LOW, GPO_PUSH_PULL);
     debug_init();                   // 初�?�化默�?�调试串�?
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
@@ -131,7 +131,7 @@ int core0_main(void)
             uint32 frame_period_ms;
             int8_t slot;
 
-            /* Keep the completed source buffer locked until the copy is finished. */
+            /* Consume completed frames before menu drawing so the next VSYNC can capture promptly. */
             if (capture_time_ms == 0) capture_time_ms = now_ms;
             frame_period_ms = last_frame_ms == 0 ? 20 : capture_time_ms - last_frame_ms;
             if (frame_period_ms == 0 || frame_period_ms > 250) frame_period_ms = 20;
@@ -142,7 +142,7 @@ int core0_main(void)
 
             slot = find_free_frame_slot(next_frame_slot);
             if (slot >= 0) {
-                /* A completed frame remains useful even if the following VSYNC arrived while the TFT task was busy. */
+                /* Publish pixels only after the full camera buffer has been copied. */
                 memcpy(&car_gray_frames[(uint8_t)slot][0][0], &mt9v03x_image[0][0], sizeof(car_gray_frames[0]));
                 car_frame_sequence++;
                 car_frame_period_ms = frame_period_ms;
@@ -243,7 +243,7 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     car_seekfree_debug_capture_5ms();
     if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
     else car_time_ms = 0;
-    gpio_set_level(BOARD_BUZZER_PIN, GPIO_LOW);
+    gpio_set_level(BOARD_BUZZER_PIN, car_curve_mode != 0 ? GPIO_HIGH : GPIO_LOW);
     elapsed_us = (system_getval() - start_ticks) / 100;
     if (elapsed_us > car_balance_max_us) car_balance_max_us = elapsed_us;
     if (elapsed_us >= 5000) {

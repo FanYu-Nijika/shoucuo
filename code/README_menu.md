@@ -14,8 +14,8 @@ minimum, maximum, step, decimals, apply, action
 普通参数的 `address` 直接写成 `&car_params.xxx`。例如：
 
 ```c
-{0, CAR_MENU_PAGE_RUN, "FOLLOW ANGLE", CAR_MENU_ITEM_VALUE,
- CAR_MENU_VALUE_FLOAT, &balance_params.follow_angle, -FLT_MAX, FLT_MAX, 0.1, 1,
+{0, CAR_MENU_PAGE_RUN, "FOLLOW SPEED", CAR_MENU_ITEM_VALUE,
+ CAR_MENU_VALUE_FLOAT, &balance_params.follow_speed, -100, 100, 1, 0,
  CAR_MENU_APPLY_BALANCE, 0},
 ```
 
@@ -23,7 +23,7 @@ minimum, maximum, step, decimals, apply, action
 
 菜单值的实际数据源始终是 `car_params` 或现有运行结果：编辑时的临时值只用于左键取消，不是参数副本。右键或停止状态下的中心键确认后，参数会直接写回并调用对应的应用动作。
 
-当前显示的可调项包括固定 `FOLLOW ANGLE`、PWM 限制、直道/弯道两套 `KP/KD`、偏方差比例尺和滞回阈值、自动阈值、固定阈值、曝光、增益、远/中/近路径权重、最大前瞻长度和左右电机方向。`MOTORS` 页还提供独立的左右电机 PWM 测试值；遥测项为只读节点，直接读取 `car_result`、运行状态或丢帧统计。
+当前显示的可调项包括 `FOLLOW SPEED`、PWM 限制、直道/弯道两套 `KP/KD`、偏方差比例尺和滞回阈值、自动阈值、固定阈值、曝光、增益、远/中/近路径权重、最大前瞻长度和左右电机方向。`FOLLOW SPEED` 范围为 −100～100，默认 0，步长 1；它是无编码器条件下的开环驱动力度，控制器按 0.05°/档换算为 −5～5° 的应用前倾角。`MOTORS` 页还提供独立的左右电机 PWM 测试值；遥测项为只读节点，直接读取 `car_result`、运行状态或丢帧统计。
 
 ## 2. 五个主按键
 
@@ -39,7 +39,7 @@ minimum, maximum, step, decimals, apply, action
 
 AUX1（P11.2）和 AUX2（P11.3）不参与菜单。运行状态禁止调参；CENTER 在当前板型禁用，停止操作只使用菜单中的 `FOLLOW STOP`、`STOP` 或 `TEST STOP`。上下键长按会按 100 ms 重复调节，短按、长按和取消逻辑沿用参考工程的轮询方式。
 
-RUN 只启动直立。`FOLLOW START` 立即置位 FOLLOW 并请求直立，不等待摄像头、有效赛道或延时；直立运行后固定 `FOLLOW ANGLE` 立即生效。只有 `FOLLOW STOP` 清除循迹，`STOP` 清除循迹并停止直立。
+RUN 只启动直立。`FOLLOW START` 先请求 RUN，直立控制启动后保持零前倾、零转向 2 秒，再启用 FOLLOW；收到有效图像后，直道使用完整 `FOLLOW SPEED`，弯道保持方向并使用 20% 幅度。应用前倾角在 5 ms 周期内按 2°/s 增大、4°/s 减小，反向时先经过 0°。图像停帧超过 120 ms 或丢线时先清零差速并请求前倾按 4°/s 回零；平衡故障、`FOLLOW STOP` 和 `STOP` 立即清除前倾与差速，`STOP` 还会停止直立。
 
 ### 电机 PWM 测试
 

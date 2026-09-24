@@ -35,7 +35,7 @@
 
 // P23.1 经 R2 驱动 Q2，输出高电平时导通蜂鸣器驱动级。
 #define BOARD_BUZZER_PIN                   (P23_1)
-#define BOARD_BUZZER_ENABLE                (0)
+#define BOARD_BUZZER_ENABLE                (1)
 
 // U8 缓冲器把 P33.5-P33.8 依次送到 PWM1-PWM4；P33.4 单独输出 PWM_SI。
 #define BOARD_MOTOR1_PWM_PIN               (ATOM2_CH1_P33_5)
@@ -67,7 +67,7 @@
 // 新车头方向与旧车相反；只翻转循迹前进和转向坐标，不改变直立负反馈方向。
 #define BOARD_FOLLOW_FORWARD_PWM_SIGN      (-1)
 #define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
-#define BOARD_BALANCE_RIGHT_PWM_TRIM       (200)
+#define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
 // 原理图编码器 H7=P20.3/P20.0，H4=P02.6/P02.7；车头反向后 H4 为新左轮、H7 为新右轮。
 #define BOARD_ENCODER_H7_INDEX             (TIM6_ENCODER)

@@ -4,8 +4,11 @@
 #include "zf_common_headfile.h"
 #include "car_params.h"
 
+/* START: IDLE -> WAIT_RUN -> WAIT_DELAY -> ACTIVE. A stopped RUN returns to WAIT_RUN; STOP returns to IDLE. */
 enum {
     CAR_FOLLOW_IDLE = 0,
+    CAR_FOLLOW_WAIT_RUN,
+    CAR_FOLLOW_WAIT_DELAY,
     CAR_FOLLOW_ACTIVE
 };
 

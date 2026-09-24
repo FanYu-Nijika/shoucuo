@@ -626,8 +626,8 @@ void balance_runtime_update_5ms(void)
 
     balance_runtime_update_bias_trim();
     balance_update_5ms(angle, rate, 1);
-    /* FOLLOW is a persistent user command. Once IMU becomes ready it starts balance without another key press. */
-    if (car_follow_enabled && !balance_state.running) balance_start_pending = 1;
+    /* A pending FOLLOW also needs upright RUN before its two-second hold can begin. */
+    if (car_follow_status != CAR_FOLLOW_IDLE && !balance_state.running) balance_start_pending = 1;
     if (balance_start_pending && !balance_state.running) {
         balance_start_pending = 0;
         /* Warmup seeds the filter once; while stopped it keeps tracking attitude, so RUN must not replace it with one noisy frame. */

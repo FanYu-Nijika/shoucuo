@@ -529,6 +529,8 @@ uint8 mt9v03x_init (void)
                 break;
             }
         }
+        mt9v03x_finish_flag = 0;
+        mt9v03x_lost_flag = 0;
         mt9v03x_link_list_num = camera_init(MT9V03X_DATA_ADD, mt9v03x_image[0], MT9V03X_IMAGE_SIZE);
     }while(0);
     return return_state;

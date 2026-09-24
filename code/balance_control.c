@@ -9,11 +9,15 @@
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = 0.005f;
+static const float follow_angle_per_speed = 0.05f;
+static const float follow_angle_rise_step = 0.01f;
+static const float follow_angle_fall_step = 0.02f;
+static const float follow_p_pwm_fraction = 0.6f;
 
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
 #define BALANCE_PARAMS_FLASH_MAGIC         (0x42414C31u)
-#define BALANCE_PARAMS_FLASH_VERSION       (8u)
+#define BALANCE_PARAMS_FLASH_VERSION       (9u)
 #define BALANCE_PARAMS_FLASH_PROFILE_COUNT (4u)
 #define BALANCE_PARAMS_FLASH_PROFILE_START (2u)
 #define BALANCE_PARAMS_FLASH_PROFILE_WORDS ((sizeof(balance_params_t) + 3u) / 4u)
@@ -22,7 +26,7 @@ static const float balance_dt_s = 0.005f;
 #define BALANCE_PARAMS_V5_WORDS            (15u)
 #define BALANCE_PARAMS_V7_WORDS            (16u)
 
-/* Fixed V7 layout is kept only for migration. Removed speed/Kalman/rate-limit fields never enter V8 control. */
+/* Fixed V7 layout is kept only for migration. Removed speed/Kalman/rate-limit fields never enter active control. */
 typedef struct {
     float angle_kp;
     float rate_kp;
@@ -45,9 +49,24 @@ typedef struct {
     float rate_limit;
 } balance_params_v7_t;
 
+typedef struct {
+    float balance_kp;
+    float balance_kd;
+    float middle_angle;
+    float accel_weight;
+    float follow_angle;
+    int16_t pwm_limit;
+    int16_t turn_pwm_limit;
+    int8_t turn_direction;
+    uint16_t left_motor_deadzone;
+    uint16_t right_motor_deadzone;
+} balance_params_v8_t;
+
 typedef char balance_v7_target_check[offsetof(balance_params_v7_t, target_speed) == 48 ? 1 : -1];
 typedef char balance_v7_deadzone_check[offsetof(balance_params_v7_t, left_motor_deadzone) == 56 ? 1 : -1];
 typedef char balance_v7_size_check[sizeof(balance_params_v7_t) == 64 ? 1 : -1];
+typedef char balance_v8_size_check[sizeof(balance_params_v8_t) == sizeof(balance_params_t) ? 1 : -1];
+typedef char balance_v8_follow_check[offsetof(balance_params_v8_t, follow_angle) == offsetof(balance_params_t, follow_speed) ? 1 : -1];
 typedef char balance_flash_capacity_check[2 + 4 * BALANCE_PARAMS_FLASH_PROFILE_WORDS <= EEPROM_PAGE_LENGTH ? 1 : -1];
 
 const balance_params_t balance_default_params = {
@@ -55,7 +74,7 @@ const balance_params_t balance_default_params = {
     .balance_kd = 25.0556f,
     .middle_angle = 0.0f,
     .accel_weight = 0.01f,
-    .follow_angle = 0.5f,
+    .follow_speed = 0.0f,
     .pwm_limit = 5000,
     .turn_pwm_limit = 1400,
     .turn_direction = 1,
@@ -92,8 +111,9 @@ static uint8_t complementary_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
 static uint8_t encoder_sample_phase;
-static float requested_follow_angle;
+static float requested_follow_speed;
 static float requested_turn_pwm;
+static uint8_t follow_active;
 
 static uint8_t balance_is_finite(float value)
 {
@@ -135,10 +155,11 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
     if (params == 0) return 0;
     if (!balance_is_finite(params->balance_kp) || !balance_is_finite(params->balance_kd) ||
         !balance_is_finite(params->middle_angle) || !balance_is_finite(params->accel_weight) ||
-        !balance_is_finite(params->follow_angle)) return 0;
+        !balance_is_finite(params->follow_speed)) return 0;
     /* Kp/Kd deliberately have no tuning ceiling. Numeric and PWM checks contain unsafe values later. */
     if (params->balance_kp < 0.0f || params->balance_kd < 0.0f || fabsf(params->middle_angle) > 180.0f ||
         params->accel_weight < 0.0f || params->accel_weight > 1.0f ||
+        params->follow_speed < -100.0f || params->follow_speed > 100.0f ||
         params->pwm_limit < 1 || params->pwm_limit > 10000 ||
         params->turn_pwm_limit < 0 || params->turn_pwm_limit > 3000 ||
         (params->turn_direction != -1 && params->turn_direction != 1) ||
@@ -163,7 +184,7 @@ static balance_params_t balance_params_from_v7(const balance_params_v7_t *old, u
     return migrated;
 }
 
-/* Build a complete V8 page in RAM. Migration is written only when the user chooses SAVE FLASH. */
+/* Build a complete V9 page in RAM. Migration is written only when the user chooses SAVE FLASH. */
 static void balance_params_flash_prepare(void)
 {
     balance_params_t profiles[BALANCE_PARAMS_FLASH_PROFILE_COUNT];
@@ -179,6 +200,14 @@ static void balance_params_flash_prepare(void)
         for (gear = 1; gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear++) {
             offset = balance_params_profile_offset(gear);
             memcpy(&profiles[gear - 1u], &flash_union_buffer[offset], sizeof(balance_params_t));
+            if (!balance_params_are_valid(&profiles[gear - 1u])) profiles[gear - 1u] = balance_default_params;
+        }
+    } else if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC && version == 8u) {
+        for (gear = 1; gear <= BALANCE_PARAMS_FLASH_PROFILE_COUNT; gear++) {
+            offset = balance_params_profile_offset(gear);
+            memcpy(&profiles[gear - 1u], &flash_union_buffer[offset], sizeof(balance_params_v8_t));
+            /* The old angle is not a speed command; start each migrated profile from zero drive. */
+            profiles[gear - 1u].follow_speed = 0.0f;
             if (!balance_params_are_valid(&profiles[gear - 1u])) profiles[gear - 1u] = balance_default_params;
         }
     } else if (flash_union_buffer[0].uint32_type == BALANCE_PARAMS_FLASH_MAGIC && version >= 1u && version <= 7u) {
@@ -205,10 +234,11 @@ static void balance_params_flash_prepare(void)
     }
 }
 
-static void balance_reset_follow(void)
+void balance_cancel_follow_command(void)
 {
-    requested_follow_angle = 0.0f;
+    requested_follow_speed = 0.0f;
     requested_turn_pwm = 0.0f;
+    follow_active = 0;
     balance_state.follow_angle_applied = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
@@ -218,7 +248,7 @@ static void balance_reset_follow(void)
 
 static void balance_clear_outputs(void)
 {
-    balance_reset_follow();
+    balance_cancel_follow_command();
     balance_state.p_output = 0.0f;
     balance_state.d_output = 0.0f;
     balance_state.balance_output = 0.0f;
@@ -228,12 +258,6 @@ static void balance_clear_outputs(void)
     balance_state.left_pwm = 0;
     balance_state.right_pwm = 0;
     balance_state.output_updated = 0;
-}
-
-static void balance_report_fault(balance_fault_t fault)
-{
-    /* Faults remain observable, but only an explicit STOP is allowed to end balance control. */
-    balance_state.fault = (uint8_t)fault;
 }
 
 static int16_t balance_pwm_from_float(float value)
@@ -247,7 +271,7 @@ static int16_t balance_apply_right_trim(float control)
 {
     float magnitude = fabsf(control) - BOARD_BALANCE_RIGHT_PWM_TRIM;
 
-    /* The new right wheel is the old left wheel and needs 200 less PWM for the same speed. */
+    /* The wheel asymmetry needs a smaller right PWM; the board trim is tuned separately. */
     if (magnitude <= 0.0f) return 0;
     return balance_pwm_from_float(control > 0.0f ? magnitude : -magnitude);
 }
@@ -275,31 +299,39 @@ static uint8_t balance_update_complementary(float accel_angle, float gyro_rate)
 
 static uint8_t balance_run_control(void)
 {
-    float balance_common;
     float common;
-    float remaining;
+    float follow_target;
+    float follow_step;
     float turn;
-    float left_control;
     float right_control;
 
-    balance_state.follow_angle_applied = requested_follow_angle;
+    follow_target = requested_follow_speed * follow_angle_per_speed;
+    /* Reverse commands pass through upright before applying lean in the opposite direction. */
+    if (balance_state.follow_angle_applied * follow_target < 0.0f) follow_target = 0.0f;
+    follow_step = fabsf(follow_target) > fabsf(balance_state.follow_angle_applied) ?
+        follow_angle_rise_step : follow_angle_fall_step;
+    balance_state.follow_angle_applied += balance_clamp(follow_target - balance_state.follow_angle_applied, follow_step);
+    if (fabsf(balance_state.follow_angle_applied) < 0.0001f) balance_state.follow_angle_applied = 0.0f;
     balance_state.target_angle = applied_params.middle_angle - BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.follow_angle_applied;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
+    if (!balance_is_finite(balance_state.p_output)) return 0;
+    /* Limit FOLLOW acceleration before gyro damping is added; RUN retains its original upright PD. */
+    if (follow_active && balance_state.follow_angle_applied != 0.0f) {
+        balance_state.p_output = balance_clamp(balance_state.p_output, applied_params.pwm_limit * follow_p_pwm_fraction);
+    }
     balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
-    balance_common = balance_state.p_output + balance_state.d_output;
-    if (!balance_is_finite(balance_common)) return 0;
-    balance_state.balance_output = balance_common;
-    common = balance_clamp(balance_common, applied_params.pwm_limit);
+    balance_state.balance_output = balance_state.p_output + balance_state.d_output;
+    if (!balance_is_finite(balance_state.balance_output)) return 0;
+    common = balance_clamp(balance_state.balance_output, applied_params.pwm_limit);
     balance_state.common_pwm = common;
     balance_state.turn_pwm_command = balance_clamp(requested_turn_pwm, applied_params.turn_pwm_limit);
-    remaining = applied_params.pwm_limit - fabsf(common);
-    turn = balance_clamp(balance_state.turn_pwm_command, remaining);
-    left_control = common + turn;
+    /* Steering only uses the PWM left after upright control, so it cannot clip one wheel's balance command. */
+    turn = balance_clamp(balance_state.turn_pwm_command, applied_params.pwm_limit - fabsf(common));
     right_control = common - turn;
-    balance_state.left_control_pwm = balance_pwm_from_float(left_control);
+    balance_state.left_control_pwm = balance_pwm_from_float(common + turn);
     balance_state.right_control_pwm = balance_pwm_from_float(right_control);
-    balance_state.left_pwm = balance_pwm_from_float(left_control);
+    balance_state.left_pwm = balance_state.left_control_pwm;
     balance_state.right_pwm = balance_apply_right_trim(right_control);
     balance_state.turn_output = (balance_state.left_pwm - balance_state.right_pwm) * 0.5f;
     return 1;
@@ -349,19 +381,20 @@ uint8_t balance_params_flash_save(uint8_t gear)
     return memcmp(&flash_union_buffer[offset], &stored_params, sizeof(stored_params)) == 0 ? 1 : 0;
 }
 
-void balance_set_follow_command(float follow_angle, float turn_pwm)
+void balance_set_follow_command(float follow_speed, float turn_pwm)
 {
     if (!balance_state.running) {
-        requested_follow_angle = 0.0f;
-        requested_turn_pwm = 0.0f;
+        balance_cancel_follow_command();
         return;
     }
-    if (!balance_is_finite(follow_angle) || !balance_is_finite(turn_pwm)) {
-        balance_report_fault(BALANCE_FAULT_NUMERIC);
+    if (!balance_is_finite(follow_speed) || !balance_is_finite(turn_pwm)) {
+        balance_state.fault = BALANCE_FAULT_NUMERIC;
+        balance_cancel_follow_command();
         return;
     }
-    requested_follow_angle = follow_angle;
-    requested_turn_pwm = balance_clamp(turn_pwm, applied_params.turn_pwm_limit);
+    requested_follow_speed = balance_clamp(follow_speed, 100.0f);
+    requested_turn_pwm = turn_pwm;
+    follow_active = 1;
 }
 
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count)
@@ -405,11 +438,11 @@ uint8_t balance_start(void)
 {
     if (balance_state.running) return 1;
     if (!balance_params_are_valid(&applied_params)) {
-        balance_report_fault(BALANCE_FAULT_NUMERIC);
+        balance_state.fault = BALANCE_FAULT_NUMERIC;
         return 0;
     }
     if (!balance_state.imu_ready || !balance_is_finite(balance_state.angle) || !balance_is_finite(balance_state.gyro_rate)) {
-        balance_report_fault(BALANCE_FAULT_IMU);
+        balance_state.fault = BALANCE_FAULT_IMU;
         return 0;
     }
     balance_clear_outputs();
@@ -429,7 +462,7 @@ uint8_t balance_apply_params(void)
 {
     if (balance_state.running) return 0;
     if (!balance_params_are_valid(&balance_params)) {
-        balance_report_fault(BALANCE_FAULT_NUMERIC);
+        balance_state.fault = BALANCE_FAULT_NUMERIC;
         return 0;
     }
     applied_params = balance_params;
@@ -457,19 +490,22 @@ void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid)
     if (!valid) {
         balance_state.imu_ready = 0;
         if (!balance_state.running) complementary_initialized = 0;
-        balance_report_fault(BALANCE_FAULT_IMU);
+        balance_state.fault = BALANCE_FAULT_IMU;
+        balance_cancel_follow_command();
         return;
     }
     if (!balance_update_complementary(accel_angle, gyro_rate)) {
         balance_state.imu_ready = 0;
         if (!balance_state.running) complementary_initialized = 0;
-        balance_report_fault(BALANCE_FAULT_NUMERIC);
+        balance_state.fault = BALANCE_FAULT_NUMERIC;
+        balance_cancel_follow_command();
         return;
     }
     balance_state.imu_ready = 1;
     if (balance_state.running) {
         if (!balance_run_control()) {
-            balance_report_fault(BALANCE_FAULT_NUMERIC);
+            balance_state.fault = BALANCE_FAULT_NUMERIC;
+            balance_cancel_follow_command();
             return;
         }
         balance_state.fault = BALANCE_FAULT_NONE;

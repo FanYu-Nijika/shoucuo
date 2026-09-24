@@ -10,7 +10,6 @@
 #include "zf_common_fifo.h"
 #include "zf_common_typedef.h"
 #include "zf_device_type.h"
-#include "zf_driver_gpio.h"
 #include "zf_driver_timer.h"
 #include "zf_driver_uart.h"
 
@@ -45,7 +44,7 @@ static uint8 car_seekfree_value_finite(float value)
 
 static uint32 car_seekfree_transfer(const uint8 *buffer, uint32 length)
 {
-    if (buffer == 0 || gpio_get_level(BOARD_WIRELESS_RTS_PIN) != GPIO_LOW) return length;
+    if (buffer == 0) return length;
     uart_write_buffer(BOARD_WIRELESS_UART, buffer, length);
     return 0;
 }
@@ -142,14 +141,13 @@ void car_seekfree_debug_init(void)
     fifo_init(&assistant_rx_fifo, FIFO_DATA_8BIT, assistant_rx_buffer, sizeof(assistant_rx_buffer));
     for (index = 0; index < CAR_SEEKFREE_CHANNEL_COUNT; index++) car_seekfree_sync_param(index);
     seekfree_assistant_oscilloscope_config(&assistant_scope, CAR_SEEKFREE_CHANNEL_COUNT, assistant_send_channels);
-    gpio_init(BOARD_WIRELESS_RTS_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
+    /* The module RX/TX are wired to P10.5/P10.6, not the debug UART header. */
     set_wireless_type(WIRELESS_UART, car_seekfree_uart_callback);
-    uart_init(BOARD_WIRELESS_UART, CAR_SEEKFREE_UART_BAUD,
-        BOARD_WIRELESS_UART_TX_PIN, BOARD_WIRELESS_UART_RX_PIN);
+    uart_init(BOARD_WIRELESS_UART, CAR_SEEKFREE_UART_BAUD, BOARD_WIRELESS_UART_TX_PIN, BOARD_WIRELESS_UART_RX_PIN);
     uart_rx_interrupt(BOARD_WIRELESS_UART, 1);
-    /* The board RTS pin differs from the stock driver, so bind the official assistant to this board-local transport. */
     seekfree_assistant_transfer_callback = car_seekfree_transfer;
     seekfree_assistant_receive_callback = car_seekfree_receive;
+    uart_write_buffer(BOARD_WIRELESS_UART, (const uint8 *)"UART2 READY\r\n", sizeof("UART2 READY\r\n") - 1);
     assistant_ready = 1;
 }
 
@@ -182,7 +180,6 @@ void car_seekfree_debug_task(void)
     car_seekfree_process_params();
     now = system_getval_ms();
     if (now - assistant_last_send_ms < CAR_SEEKFREE_SEND_PERIOD_MS) return;
-    if (gpio_get_level(BOARD_WIRELESS_RTS_PIN) != GPIO_LOW) return;
     assistant_last_send_ms = now;
     __dsync();
     slot = assistant_snapshot_index;

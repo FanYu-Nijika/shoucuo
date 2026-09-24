@@ -20,13 +20,17 @@ volatile uint8 car_follow_status;
 volatile uint8 car_follow_enabled;
 volatile float car_turn_request;
 
-/* FOLLOW starts immediately; image.c can later cancel it through the original CENTER request. */
+/* FOLLOW waits for a running upright controller, then holds zero lean and turn for two seconds. */
+#define CAR_FOLLOW_DELAY_MS (2000)
+
 static uint8 derivative_ready;
+static uint32 follow_upright_started_ms;
 static uint32 last_control_capture_ms;
 static float last_error;
 static float curve_blend;
 static float curve_exit_threshold = CAR_CURVE_EXIT_THRESHOLD_DEFAULT;
 static float curve_enter_threshold = CAR_CURVE_ENTER_THRESHOLD_DEFAULT;
+static const uint32 visual_timeout_ms = 120;
 
 static uint8 car_value_finite(float value)
 {
@@ -61,6 +65,7 @@ void car_init(void)
     car_running = 0;
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
+    follow_upright_started_ms = 0;
     car_reset_turn();
 }
 
@@ -82,10 +87,12 @@ void car_stop(void)
 
 uint8 car_follow_start(void)
 {
-    car_follow_enabled = 1;
-    car_follow_status = CAR_FOLLOW_ACTIVE;
     car_reset_turn();
-    balance_runtime_request_start();
+    car_follow_enabled = 0;
+    car_follow_status = CAR_FOLLOW_WAIT_RUN;
+    follow_upright_started_ms = 0;
+    balance_cancel_follow_command();
+    if (car_running == 0) balance_runtime_request_start();
     return 1;
 }
 
@@ -93,8 +100,9 @@ void car_follow_stop(void)
 {
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
+    follow_upright_started_ms = 0;
     car_reset_turn();
-    balance_set_follow_command(0, 0);
+    balance_cancel_follow_command();
 }
 
 void car_track_update(float error, float curvature, uint8 valid, uint8 new_result, uint32 capture_ms, uint32 now_ms)
@@ -103,11 +111,41 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     float kd;
     float d_error = 0;
     float turn;
+    float follow_speed;
     uint32 elapsed_ms;
-    (void)now_ms;
-    if (new_result && car_value_finite(error) && car_value_finite(curvature)) {
-        if (valid) car_lost_count = 0;
-        else if (car_lost_count < 65535) car_lost_count++;
+    uint8 visual_fresh = capture_ms != 0 && now_ms - capture_ms <= visual_timeout_ms;
+    uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature);
+
+    if (car_follow_status != CAR_FOLLOW_IDLE && balance_state.fault != BALANCE_FAULT_NONE) {
+        car_follow_stop();
+        return;
+    }
+    /* A failed or stopped RUN restarts the full upright interval before FOLLOW can act again. */
+    if (car_follow_status != CAR_FOLLOW_IDLE && car_running == 0) {
+        car_follow_enabled = 0;
+        car_follow_status = CAR_FOLLOW_WAIT_RUN;
+        follow_upright_started_ms = 0;
+    }
+    if (car_follow_status == CAR_FOLLOW_WAIT_RUN && car_running != 0) {
+        follow_upright_started_ms = now_ms;
+        car_follow_status = CAR_FOLLOW_WAIT_DELAY;
+    }
+    if (car_follow_status == CAR_FOLLOW_WAIT_DELAY && now_ms - follow_upright_started_ms >= CAR_FOLLOW_DELAY_MS) {
+        car_follow_status = CAR_FOLLOW_ACTIVE;
+        car_follow_enabled = 1;
+    }
+    if (car_follow_status == CAR_FOLLOW_WAIT_RUN || car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
+        car_reset_turn();
+        balance_cancel_follow_command();
+        return;
+    }
+
+    if (!visual_valid) {
+        /* A missing or invalid camera result must not leave the last curve command driving the wheels. */
+        if (new_result && car_lost_count < 65535) car_lost_count++;
+        car_reset_turn();
+    } else if (new_result) {
+        car_lost_count = 0;
         if (!car_curve_mode && curvature >= curve_enter_threshold) {
             car_curve_mode = 1;
             derivative_ready = 0;
@@ -130,9 +168,11 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
 
     if (!car_follow_enabled) {
         car_follow_status = CAR_FOLLOW_IDLE;
-        balance_set_follow_command(0, 0);
+        balance_cancel_follow_command();
         return;
     }
     car_follow_status = CAR_FOLLOW_ACTIVE;
-    balance_set_follow_command(balance_params.follow_angle, car_turn_request);
+    follow_speed = visual_valid ? balance_params.follow_speed : 0.0f;
+    if (car_curve_mode) follow_speed *= (0.5f);
+    balance_set_follow_command(follow_speed, car_turn_request);
 }

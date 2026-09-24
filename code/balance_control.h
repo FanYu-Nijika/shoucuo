@@ -18,10 +18,11 @@ typedef struct {
     float balance_kd;
     float middle_angle;
     float accel_weight;
-    float follow_angle;
+    float follow_speed;
     int16_t pwm_limit;
     int16_t turn_pwm_limit;
     int8_t turn_direction;
+    /* Keep these slots for V8 Flash profiles; motor dead zones are not used by the balance loop. */
     uint16_t left_motor_deadzone;
     uint16_t right_motor_deadzone;
 } balance_params_t;
@@ -70,8 +71,9 @@ uint8_t balance_params_are_valid(const balance_params_t *params);
 
 /* Encoders remain diagnostic-only. Four 5 ms samples form the displayed 20 ms count. */
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
-/* FOLLOW changes the upright target angle and keeps camera steering as direct PWM differential. */
-void balance_set_follow_command(float follow_angle, float turn_pwm);
+/* FOLLOW speed is an open-loop -100..100 command, mapped to -5..5 degrees. */
+void balance_set_follow_command(float follow_speed, float turn_pwm);
+void balance_cancel_follow_command(void);
 void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid);
 
 #endif

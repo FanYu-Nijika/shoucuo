@@ -13,6 +13,7 @@ const runtimeHeader = read('code/balance_runtime.h');
 const car = read('code/car.c');
 const menu = read('code/car_menu.c');
 const board = read('code/board_pins.h');
+const configuredRightTrim = Number(board.match(/#define BOARD_BALANCE_RIGHT_PWM_TRIM\s+\((\d+)\)/)[1]);
 const params = read('code/car_params.c');
 const image = read('code/image.c');
 const cpu0 = read('user/cpu0_main.c');
@@ -29,13 +30,33 @@ function clamp(value, limit) {
     return Math.max(-limit, Math.min(limit, value));
 }
 
+function followAngleFromSpeed(speed) {
+    return clamp(speed, 100) * 0.05;
+}
+
+function followAngleRamp(current, target) {
+    const effectiveTarget = current * target < 0 ? 0 : target;
+    const delta = effectiveTarget - current;
+    if (Math.abs(delta) <= 1e-12) return target;
+    const step = Math.abs(effectiveTarget) > Math.abs(current) ? 0.01 : 0.02;
+    if (Math.abs(delta) <= step) return effectiveTarget;
+    const next = current + Math.sign(delta) * step;
+    if (current * target < 0 && current * next <= 0) return effectiveTarget;
+    return next;
+}
+
+function followBalanceOutput(angleError, gyroRate, kp, kd, pwmLimit, active) {
+    const pLimit = active ? pwmLimit * 0.6 : pwmLimit;
+    return clamp(kp * angleError, pLimit) + kd * gyroRate;
+}
+
 function allocate(balanceRaw, turnCommand, pwmLimit) {
     const common = clamp(balanceRaw, pwmLimit);
     const turn = clamp(turnCommand, pwmLimit - Math.abs(common));
     return {left: common + turn, right: common - turn, common, turn};
 }
 
-function rightTrim(controlValue, trim = 200, limit = 5000) {
+function rightTrim(controlValue, trim = configuredRightTrim, limit = 5000) {
     const magnitude = Math.abs(controlValue) - trim;
     if (magnitude <= 0) return 0;
     return Math.trunc(clamp(Math.sign(controlValue) * magnitude, limit));
@@ -69,27 +90,48 @@ test('upright gains have no artificial tuning ceiling', () => {
     assert(control.includes('params->pwm_limit > 10000'));
 });
 
-test('FOLLOW uses a fixed target-angle offset and no direct base PWM', () => {
-    const target = 0 - (-1) * 0.5;
-    const output = 1000 * (0 - target);
-    const reverseTarget = 0 - (-1) * -0.5;
-    const reverseOutput = 1000 * (0 - reverseTarget);
-    near(target, 0.5);
-    near(output, -500);
-    near(reverseTarget, -0.5);
-    near(reverseOutput, 500);
-    assert(control.includes('.follow_angle = 0.5f'));
+test('FOLLOW SPEED maps -100..100 to -5..5 degrees and keeps the command open loop', () => {
+    near(followAngleFromSpeed(-100), -5);
+    near(followAngleFromSpeed(0), 0);
+    near(followAngleFromSpeed(100), 5);
+    near(followAngleFromSpeed(250), 5);
+    near(followAngleFromSpeed(-250), -5);
+    assert(control.includes('.follow_speed = 0.0f'));
+    assert(control.includes('follow_angle_per_speed = 0.05f'));
+    assert(control.includes('params->follow_speed < -100.0f || params->follow_speed > 100.0f'));
+    assert(control.includes('balance_set_follow_command(float follow_speed'));
+    assert(control.includes('balance_cancel_follow_command(void)'));
     assert(control.includes('.turn_pwm_limit = 1400'));
     assert(control.includes('BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.follow_angle_applied'));
-    assert(control.includes('common = balance_clamp(balance_common, applied_params.pwm_limit)'));
-    assert(control.includes('requested_follow_angle = 0.0f'));
+    assert(control.includes('common = balance_clamp(balance_state.balance_output, applied_params.pwm_limit)'));
+    assert(control.includes('requested_follow_speed = 0.0f'));
     assert(control.includes('balance_state.target_angle = applied_params.middle_angle'));
-    assert(!control.includes('params->follow_angle < -5.0f || params->follow_angle > 5.0f'));
-    assert(!control.includes('if (follow_angle < -5.0f)'));
-    assert(!control.includes('if (follow_angle > 5.0f)'));
-    assert(menu.includes('&balance_params.follow_angle, -FLT_MAX, FLT_MAX, 0.1'));
+    assert(menu.includes('"FOLLOW SPEED"'));
+    assert(menu.includes('&balance_params.follow_speed, -100, 100, 1, 0'));
+    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
     assert(!control.includes('requested_base_pwm'));
     assert(!controlHeader.includes('base_pwm_applied'));
+});
+
+test('FOLLOW angle ramp uses 2 degrees/s up, 4 degrees/s down, and passes through zero', () => {
+    near(followAngleRamp(0, 5), 0.01);
+    near(followAngleRamp(0.03, 5), 0.04);
+    near(followAngleRamp(0, -5), -0.01);
+    near(followAngleRamp(-0.03, -5), -0.04);
+    near(followAngleRamp(0.03, -5), 0.01);
+    near(followAngleRamp(0.01, -5), 0);
+    assert(control.includes('follow_angle_rise_step = 0.01f'));
+    assert(control.includes('follow_angle_fall_step = 0.02f'));
+});
+
+test('FOLLOW limits the posture P term to 60 percent of PWM LIMIT before adding D, while RUN keeps full P', () => {
+    near(followBalanceOutput(10, 0, 1000, 25.0556, 5000, true), 3000);
+    near(followBalanceOutput(-10, 0, 1000, 25.0556, 5000, true), -3000);
+    near(followBalanceOutput(10, 20, 1000, 25.0556, 5000, true), 3501.112);
+    near(followBalanceOutput(10, 0, 1000, 25.0556, 5000, false), 5000);
+    assert(control.includes('follow_p_pwm_fraction = 0.6f'));
+    assert(control.includes('applied_params.pwm_limit * follow_p_pwm_fraction'));
+    assert(control.includes('balance_state.p_output + balance_state.d_output'));
 });
 
 test('camera PWM differential never steals common balance headroom', () => {
@@ -101,9 +143,10 @@ test('camera PWM differential never steals common balance headroom', () => {
     near(out.left, 5000); near(out.right, 5000); near(out.turn, 0);
 });
 
-test('fixed new-right 200 PWM trim is symmetric and motor tests stay outside balance compensation', () => {
-    for (const [input, left, right] of [[0, 0, 0], [200, 200, 0], [800, 800, 600],
-        [2000, 2000, 1800], [-200, -200, 0], [-800, -800, -600], [-2000, -2000, -1800]]) {
+test('configured new-right PWM trim is symmetric and motor tests stay outside balance compensation', () => {
+    const trim = configuredRightTrim;
+    for (const [input, left, right] of [[0, 0, 0], [trim, trim, 0], [800, 800, 800 - trim],
+        [2000, 2000, 2000 - trim], [-trim, -trim, 0], [-800, -800, trim - 800], [-2000, -2000, trim - 2000]]) {
         assert.equal(input, left);
         assert.equal(rightTrim(input), right);
     }
@@ -120,29 +163,45 @@ test('new logical wheels use old opposite-side motor and encoder resources', () 
     assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)'));
 });
 
-test('FOLLOW has no delay, camera, freshness, or line-valid startup gate', () => {
-    for (const text of ['CAR_FOLLOW_DELAY_MS', 'CAR_FOLLOW_WAIT_DELAY', 'line_available',
-        'follow_start_latched', 'valid_frames < 3', 'now_ms - capture_ms <= 100']) assert(!car.includes(text), text);
+test('FOLLOW holds upright for two seconds after RUN starts, while stale visual commands expire', () => {
+    const delay = Number(car.match(/#define CAR_FOLLOW_DELAY_MS\s+\((\d+)\)/)[1]);
+    assert.equal(delay, 2000);
+    const started = 0xffffff00;
+    assert(((((started + 1995) >>> 0) - started) >>> 0) < delay);
+    assert(((((started + 2000) >>> 0) - started) >>> 0) >= delay);
+    assert(car.includes('car_follow_status == CAR_FOLLOW_WAIT_RUN && car_running != 0'));
+    assert(car.includes('now_ms - follow_upright_started_ms >= CAR_FOLLOW_DELAY_MS'));
+    assert(car.includes('balance_cancel_follow_command()'));
     assert(!menu.includes('FOLLOW WAIT MS'));
     assert(!menu.includes('FOLLOW STATUS'));
+    assert(car.includes('now_ms - capture_ms <= visual_timeout_ms'));
+    assert(car.includes('uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature)'));
+    assert(car.includes('if (!visual_valid)'));
+    assert(car.includes('car_reset_turn()'));
 });
 
-test('FOLLOW START immediately latches ACTIVE and requests balance from STOP', () => {
+test('FOLLOW START requests RUN before enabling vision control', () => {
     const startBody = car.slice(car.indexOf('uint8 car_follow_start(void)'), car.indexOf('void car_follow_stop(void)'));
-    assert(startBody.includes('car_follow_enabled = 1'));
-    assert(startBody.includes('car_follow_status = CAR_FOLLOW_ACTIVE'));
-    assert(startBody.includes('balance_runtime_request_start()'));
+    assert(startBody.includes('car_follow_enabled = 0'));
+    assert(startBody.includes('car_follow_status = CAR_FOLLOW_WAIT_RUN'));
+    assert(startBody.includes('if (car_running == 0) balance_runtime_request_start()'));
+    assert(runtime.includes('car_follow_status != CAR_FOLLOW_IDLE && !balance_state.running'));
+    assert(car.includes('car_follow_status = CAR_FOLLOW_ACTIVE'));
+    const stopBody = car.slice(car.indexOf('void car_follow_stop(void)'), car.indexOf('void car_track_update('));
+    assert(stopBody.includes('car_follow_status = CAR_FOLLOW_IDLE'));
+    assert(stopBody.includes('follow_upright_started_ms = 0'));
     assert(!startBody.includes('car_camera_ready'));
     assert(!startBody.includes('line_valid'));
 });
 
-test('four-wheel bottom-row protection sends CENTER request and performs full STOP', () => {
+test('bottom-row protection sends CENTER request and performs full STOP', () => {
     const protectBody = image.slice(image.indexOf('uint8_t protect('), image.indexOf('static int Calculate_Max_Preview_Length'));
     const centerBody = menu.slice(menu.indexOf('void car_menu_handle_center(void)'), menu.indexOf('uint8_t car_menu_current_profile'));
     const stopBody = menu.slice(menu.indexOf('static void car_menu_stop(void)'), menu.indexOf('static void car_menu_start(void)'));
-    assert(protectBody.includes('gray_frame[row * width + i] < 120'));
-    assert(protectBody.includes('sum >= width-18'));
-    assert(image.includes('stop_cnt <= 0) car_center_stop_request = 1'));
+    assert(protectBody.includes('os_threshold < 60'));
+    assert(protectBody.includes('binary_image[row * width + i] == 0'));
+    assert(protectBody.includes('threshold_lost != 0 || sum >= width - 18'));
+    assert(image.includes('protect(gray_frame) != 0) car_center_stop_request = 1'));
     assert(cpu0.includes('car_menu_handle_center()'));
     assert(centerBody.includes('car_menu_stop()'));
     assert(stopBody.includes('car_stop()'));
@@ -163,15 +222,26 @@ test('runtime STOP and image CENTER request clear FOLLOW while status prioritize
     assert(statusBody.includes('return "FOLLOW"'));
 });
 
-test('fixed FOLLOW angle and four-wheel style steering PD are active', () => {
-    assert(car.includes('balance_set_follow_command(balance_params.follow_angle, car_turn_request)'));
+test('valid FOLLOW keeps straight speed, scales curve speed to 20 percent, and clears stale vision', () => {
+    near(60 * 0.2, 12);
+    near(-60 * 0.2, -12);
+    assert(car.includes('0.2f'));
+    assert(car.includes('balance_params.follow_speed'));
+    assert(car.includes('balance_cancel_follow_command()'));
+    assert(car.includes('follow_speed = visual_valid ? balance_params.follow_speed : 0.0f'));
     assert(car.includes('BOARD_FOLLOW_TURN_PWM_SIGN'));
-    for (const text of ['FOLLOW ANGLE', 'FOLLOW ANGLE APPLIED', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
+    for (const text of ['FOLLOW SPEED', 'FOLLOW ANGLE APPLIED', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
         assert(menu.includes(text), text);
-    assert(!menu.includes('BASE SPEED'));
-    assert(!menu.includes('CURVE SLOW'));
+    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
     assert(image.includes('if (car_params.running == 0)'));
     assert(!image.includes('car_params.base_speed <= 0'));
+});
+
+test('FOLLOW fault handling stops the follow command immediately while RUN remains separate', () => {
+    const trackBody = car.slice(car.indexOf('void car_track_update('));
+    assert(trackBody.includes('car_follow_status != CAR_FOLLOW_IDLE && balance_state.fault != BALANCE_FAULT_NONE'));
+    assert(trackBody.includes('car_follow_stop()'));
+    assert(trackBody.includes('balance_cancel_follow_command()'));
 });
 
 test('encoders are display-only 20 ms accumulators', () => {
@@ -229,8 +299,12 @@ test('Flash calibration is separate on page 10 and guarded by magic/version/chec
     assert(runtime.includes('calibration_save_pending'));
 });
 
-test('V8 migration keeps only upright/mechanical/output/direction/dead-zone fields', () => {
-    assert(control.includes('#define BALANCE_PARAMS_FLASH_VERSION       (8u)'));
+test('V8 migration keeps upright fields and resets the old angle field to V9 speed zero', () => {
+    assert(control.includes('#define BALANCE_PARAMS_FLASH_VERSION       (9u)'));
+    assert(control.includes('typedef struct {'));
+    assert(control.includes('balance_v8_follow_check'));
+    assert(control.includes('version == 8u'));
+    assert(control.includes('profiles[gear - 1u].follow_speed = 0.0f'));
     const conversion = control.slice(control.indexOf('static balance_params_t balance_params_from_v7'),
         control.indexOf('static void balance_params_flash_prepare'));
     for (const field of ['angle_kp', 'rate_kp', 'middle_angle', 'pwm_limit', 'turn_direction',
@@ -253,8 +327,10 @@ test('active menu/control contain no speed loop, Kalman, or rate cascade', () =>
     }
     assert(!car.includes('speed_enabled'));
     assert(!car.includes('target_speed'));
-    assert(menu.includes('FOLLOW ANGLE'));
-    assert(car.includes('balance_set_follow_command(balance_params.follow_angle, car_turn_request)'));
+    assert(menu.includes('FOLLOW SPEED'));
+    assert(menu.includes('&balance_params.follow_speed'));
+    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
+    assert(car.includes('balance_params.follow_speed'));
 });
 
 console.log(`${groups} groups passed; source-level numerical checks only, no firmware compilation.`);
