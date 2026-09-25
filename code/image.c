@@ -18,6 +18,10 @@
 #define CROSS_SKEW_TURN_DIFF 6
 #define DYNAMIC_PREVIEW_ROW_OFFSET 25
 #define DYNAMIC_PREVIEW_FAST_LEAN_DEG 8.0f
+#define LOST_LINE_CHECK_ROWS 5
+#define LOST_LINE_CHECK_HALF_WIDTH 50
+#define LOST_LINE_GRAY_THRESHOLD 60
+#define LOST_LINE_CONFIRM_FRAMES 2
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -115,7 +119,7 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
 
     threshold_update();
-    if (car_params.running != 0 && protect(gray_frame) != 0) car_center_stop_request = 1;
+    if (protect(gray_frame) != 0) car_center_stop_request = 1;
     // Longest_White_Column();
     Longest_White_Column();
     xieru_type = Judge_xierushizi_type();
@@ -603,19 +607,45 @@ static uint8 Repair_Right_Skew(int skew_up)
 
 
 uint8_t protect(const uint8 *gray_frame) {
-    int i, sum = 0;
-    int row = 115;
-    uint8_t threshold_lost;
-    if (gray_frame == 0) return 0;
-    /* Measured Otsu values: track 88/140, lost 20/60. Ignore this test in manual-threshold mode. */
-    threshold_lost = car_params.automatic_threshold != 0 && os_threshold >= 0 && os_threshold < 60;
-    for (i = 0; i < 187; ++i) {
-        if (binary_image[row * width + i] == 0) ++sum;
+    static uint8_t lost_count = 0;
+    uint32_t gray_sum = 0;
+    int row, col, sample_count = 0;
+    int start_row, start_col, end_col;
+
+    if (car_params.running == 0) {
+        lost_count = 0;
+        return 0;
     }
-    if (threshold_lost != 0 || sum >= width - 18) {
-        return 1;
+    if (gray_frame == 0 || width == 0 || height == 0) {
+        lost_count = 0;
+        return 0;
     }
-    return 0;
+
+    start_row = height - LOST_LINE_CHECK_ROWS;
+    start_col = width / 2 - LOST_LINE_CHECK_HALF_WIDTH;
+    end_col = width / 2 + LOST_LINE_CHECK_HALF_WIDTH;
+    if (start_row < 0) start_row = 0;
+    if (start_col < 0) start_col = 0;
+    if (end_col > width) end_col = width;
+
+    for (row = start_row; row < height; row++) {
+        for (col = start_col; col < end_col; col++) {
+            gray_sum += gray_frame[row * width + col];
+            sample_count++;
+        }
+    }
+
+    if (sample_count == 0) {
+        lost_count = 0;
+        return 0;
+    }
+    if (gray_sum < LOST_LINE_GRAY_THRESHOLD * sample_count) {
+        if (lost_count < LOST_LINE_CONFIRM_FRAMES) lost_count++;
+    } else {
+        lost_count = 0;
+    }
+
+    return lost_count >= LOST_LINE_CONFIRM_FRAMES;
 }
 
 static int Calculate_Max_Preview_Length(void)
