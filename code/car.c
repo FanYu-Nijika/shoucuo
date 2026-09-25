@@ -22,11 +22,9 @@ volatile float car_turn_request;
 
 /* FOLLOW waits for a running upright controller, then holds zero lean and turn for two seconds. */
 #define CAR_FOLLOW_DELAY_MS (2000)
-#define CAR_CURVE_SLOWDOWN_DELAY_MS (1000)
 
 static uint8 derivative_ready;
 static uint32 follow_upright_started_ms;
-static uint32 curve_started_ms;
 static uint32 last_control_capture_ms;
 static float last_error;
 static float curve_blend;
@@ -47,7 +45,6 @@ static void car_reset_turn(void)
     last_error = 0;
     curve_blend = 0;
     car_curve_mode = 0;
-    curve_started_ms = 0;
     car_turn_request = 0;
 }
 
@@ -114,7 +111,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     float kd;
     float d_error = 0;
     float turn;
-    float follow_speed;
+    float target_speed_mps;
     uint32 elapsed_ms;
     uint8 visual_fresh = capture_ms != 0 && now_ms - capture_ms <= visual_timeout_ms;
     uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature);
@@ -139,7 +136,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     }
     if (car_follow_status == CAR_FOLLOW_WAIT_RUN || car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
         car_reset_turn();
-        balance_cancel_follow_command();
+        balance_set_follow_command(0.0f, 0.0f);
         return;
     }
 
@@ -151,11 +148,9 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         car_lost_count = 0;
         if (!car_curve_mode && curvature >= curve_enter_threshold) {
             car_curve_mode = 1;
-            curve_started_ms = now_ms;
             derivative_ready = 0;
         } else if (car_curve_mode && curvature <= curve_exit_threshold) {
             car_curve_mode = 0;
-            curve_started_ms = 0;
             derivative_ready = 0;
         }
         curve_blend = cc_math_clamp_f32(curve_blend + (car_curve_mode ? 0.5f : -0.5f), 0, 1);
@@ -173,11 +168,10 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
 
     if (!car_follow_enabled) {
         car_follow_status = CAR_FOLLOW_IDLE;
-        balance_cancel_follow_command();
+        balance_set_follow_command(0.0f, 0.0f);
         return;
     }
     car_follow_status = CAR_FOLLOW_ACTIVE;
-    follow_speed = visual_valid ? balance_params.follow_speed : 0.0f;
-    if (car_curve_mode && now_ms - curve_started_ms >= CAR_CURVE_SLOWDOWN_DELAY_MS) follow_speed *= 0.5f;
-    balance_set_follow_command(follow_speed, car_turn_request);
+    target_speed_mps = visual_valid ? balance_params.target_speed_mps : 0.0f;
+    balance_set_follow_command(target_speed_mps, car_turn_request);
 }

@@ -18,13 +18,17 @@ typedef struct {
     float balance_kd;
     float middle_angle;
     float accel_weight;
-    float follow_speed;
+    float target_speed_mps;
     int16_t pwm_limit;
     int16_t turn_pwm_limit;
     int8_t turn_direction;
     /* Keep these slots for V8 Flash profiles; motor dead zones are not used by the balance loop. */
     uint16_t left_motor_deadzone;
     uint16_t right_motor_deadzone;
+    float speed_kp;
+    float speed_ki;
+    float speed_angle_limit;
+    uint8_t speed_enabled;
 } balance_params_t;
 
 typedef struct {
@@ -37,11 +41,19 @@ typedef struct {
     float balance_output;
     float common_pwm;
     float target_angle;
-    float follow_angle_applied;
+    float speed_target_mps;
+    float speed_target_applied_mps;
+    float speed_raw_mps;
+    float speed_filtered_mps;
+    float speed_error_mps;
+    float speed_integral_angle;
+    float speed_angle_applied;
     float turn_pwm_command;
     float turn_output;
     int32_t left_count;
     int32_t right_count;
+    uint32_t left_counts_per_rev;
+    uint32_t right_counts_per_rev;
     uint16_t control_period_ms;
     int16_t left_control_pwm;
     int16_t right_control_pwm;
@@ -51,7 +63,17 @@ typedef struct {
     uint8_t fault;
     uint8_t imu_ready;
     uint8_t output_updated;
+    uint8_t encoder_calibration_valid;
+    uint8_t encoder_calibration_state;
 } balance_state_t;
+
+enum {
+    BALANCE_ENCODER_CAL_IDLE = 0,
+    BALANCE_ENCODER_CAL_LEFT,
+    BALANCE_ENCODER_CAL_RIGHT,
+    BALANCE_ENCODER_CAL_SAVED,
+    BALANCE_ENCODER_CAL_ERROR
+};
 
 extern balance_params_t balance_params;
 extern volatile balance_state_t balance_state;
@@ -69,11 +91,11 @@ uint8_t balance_apply_params(void);
 uint8_t balance_apply_live_params(const balance_params_t *params);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
-/* Encoders remain diagnostic-only. Four 5 ms samples form the displayed 20 ms count. */
+/* Four 5 ms samples form one signed 20 ms speed measurement. */
 void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
-/* FOLLOW speed is an open-loop -100..100 command, mapped to -5..5 degrees. */
-void balance_set_follow_command(float follow_speed, float turn_pwm);
+void balance_set_follow_command(float target_speed_mps, float turn_pwm);
 void balance_cancel_follow_command(void);
+uint8_t balance_encoder_calibrate_toggle(uint8_t wheel);
 void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);
 
 #endif

@@ -39,7 +39,9 @@ enum {
     CAR_MENU_ACTION_LCD_TEST,
     CAR_MENU_ACTION_RESET_DEFAULTS,
     CAR_MENU_ACTION_IMU_CALIBRATE,
-    CAR_MENU_ACTION_UART
+    CAR_MENU_ACTION_UART,
+    CAR_MENU_ACTION_CAL_LEFT,
+    CAR_MENU_ACTION_CAL_RIGHT
 };
 
 enum {
@@ -78,7 +80,8 @@ enum {
     CAR_MENU_ERROR_MOTOR,
     CAR_MENU_ERROR_RUNNING,
     CAR_MENU_ERROR_CAL_REQUIRED,
-    CAR_MENU_ERROR_IMU
+    CAR_MENU_ERROR_IMU,
+    CAR_MENU_ERROR_ENCODER
 };
 
 #define CAR_MENU_VISIBLE_ROWS             (8)
@@ -136,8 +139,9 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "SWITCH GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_current_gear, 1, 4, 1, 0, CAR_MENU_APPLY_PROFILE, 0},
     {0, CAR_MENU_PAGE_RUN, "SAVE FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SAVE_FLASH},
     {0, CAR_MENU_PAGE_RUN, "RUNNING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_running, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_RUN, "FOLLOW SPEED", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.follow_speed, -100, 100, 1, 0, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_RUN, "FOLLOW ANGLE APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.follow_angle_applied, -5, 5, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "TARGET SPEED M/S", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.target_speed_mps, 0, 3, 0.1, 2, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_RUN, "SPEED ENABLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &balance_params.speed_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_RUN, "SPEED ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_angle_applied, -10, 10, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "FOLLOW ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_follow_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "START PENDING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_start_pending, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "BALANCE FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_CALIBRATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -197,7 +201,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_TELEMETRY, "CURVE PID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_curve_mode, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "PRE-SIGHT ROW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U16, &car_result.preview_row, 0, MT9V03X_H - 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "FOLLOW ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_follow_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_TELEMETRY, "FOLLOW ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.follow_angle_applied, -FLT_MAX, FLT_MAX, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TELEMETRY, "SPEED ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_angle_applied, -FLT_MAX, FLT_MAX, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "TURN PWM CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_pwm_command, -3000, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "TURN OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_TELEMETRY, "LEFT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -231,7 +235,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_BALANCE, "CONTROL RATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.gyro_rate, -2000, 2000, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "ANGLE ERROR", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.angle_error, -180, 180, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "BAL OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.balance_output, -1000000000, 1000000000, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_BALANCE, "FOLLOW ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.follow_angle_applied, -FLT_MAX, FLT_MAX, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED ANGLE APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_angle_applied, -FLT_MAX, FLT_MAX, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "TURN PWM CMD", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_pwm_command, -3000, 3000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "TURN OUTPUT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.turn_output, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "LEFT CONTROL PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.left_control_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
@@ -240,6 +244,21 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_BALANCE, "RIGHT PWM", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I16, &balance_state.right_pwm, -10000, 10000, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "LEFT COUNT 20MS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I32, &balance_state.left_count, -2147483648.0, 2147483647.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_BALANCE, "RIGHT COUNT 20MS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I32, &balance_state.right_count, -2147483648.0, 2147483647.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_kp, 0, 20, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED KI", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_ki, 0, 10, 0.01, 2, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED ANGLE LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_angle_limit, 0, 10, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED TARGET", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_target_mps, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED TARGET APPLIED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_target_applied_mps, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED RAW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_raw_mps, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED FILTERED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_filtered_mps, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED ERROR", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_error_mps, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "SPEED INTEGRAL ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_integral_angle, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "LEFT COUNTS/REV", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &balance_state.left_counts_per_rev, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "RIGHT COUNTS/REV", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &balance_state.right_counts_per_rev, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "ENCODER CAL VALID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_state.encoder_calibration_valid, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "ENCODER CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.encoder_calibration_state, 0, 4, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_BALANCE, "CAL LEFT 1 REV", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_CAL_LEFT},
+    {0, CAR_MENU_PAGE_BALANCE, "CAL RIGHT 1 REV", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_CAL_RIGHT},
     {0, CAR_MENU_PAGE_BALANCE, "CONTROL PERIOD MS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U16, &balance_state.control_period_ms, 0, 1000, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_IMU, "IMU CALIBRATE", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_IMU_CALIBRATE},
@@ -592,6 +611,18 @@ static void car_menu_reset_defaults(void)
     car_menu_dirty = 1;
 }
 
+static void car_menu_encoder_calibrate(uint8_t wheel)
+{
+    if (car_menu_motor_test_active != 0 || car_running != 0 || balance_state.running != 0 || balance_start_pending != 0) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+    } else if (balance_encoder_calibrate_toggle(wheel) == 0) {
+        car_menu_error = CAR_MENU_ERROR_ENCODER;
+    } else {
+        car_menu_error = CAR_MENU_ERROR_NONE;
+    }
+    car_menu_dirty = 1;
+}
+
 static void car_menu_execute_action(uint8_t action)
 {
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
@@ -624,7 +655,8 @@ static void car_menu_execute_action(uint8_t action)
         else if (car_uart_stream_is_enabled() != 0) car_uart_stream_stop();
         else car_uart_stream_start();
         car_menu_dirty = 1;
-    }
+    } else if (action == CAR_MENU_ACTION_CAL_LEFT) car_menu_encoder_calibrate(1);
+    else if (action == CAR_MENU_ACTION_CAL_RIGHT) car_menu_encoder_calibrate(2);
 }
 
 void car_menu_handle_center(void)
@@ -797,6 +829,10 @@ static const char *car_menu_error_text(void)
     if (car_menu_error == CAR_MENU_ERROR_RUNNING) return "STOP FIRST";
     if (car_menu_error == CAR_MENU_ERROR_CAL_REQUIRED) return "IMU CAL REQUIRED";
     if (car_menu_error == CAR_MENU_ERROR_IMU) return "IMU OFFLINE";
+    if (car_menu_error == CAR_MENU_ERROR_ENCODER) return "ENCODER CAL ERROR";
+    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_LEFT) return "TURN LEFT 1 REV";
+    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_RIGHT) return "TURN RIGHT 1 REV";
+    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_SAVED) return "ENCODER CAL SAVED";
     return "READY";
 }
 

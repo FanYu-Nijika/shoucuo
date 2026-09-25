@@ -30,24 +30,17 @@ function clamp(value, limit) {
     return Math.max(-limit, Math.min(limit, value));
 }
 
-function followAngleFromSpeed(speed) {
-    return clamp(speed, 100) * 0.05;
+function speedFilter(previous, raw) {
+    return previous + 0.25 * (raw - previous);
 }
 
-function followAngleRamp(current, target) {
-    const effectiveTarget = current * target < 0 ? 0 : target;
-    const delta = effectiveTarget - current;
-    if (Math.abs(delta) <= 1e-12) return target;
-    const step = Math.abs(effectiveTarget) > Math.abs(current) ? 0.01 : 0.02;
-    if (Math.abs(delta) <= step) return effectiveTarget;
-    const next = current + Math.sign(delta) * step;
-    if (current * target < 0 && current * next <= 0) return effectiveTarget;
-    return next;
-}
-
-function followBalanceOutput(angleError, gyroRate, kp, kd, pwmLimit, active) {
-    const pLimit = active ? pwmLimit * 0.6 : pwmLimit;
-    return clamp(kp * angleError, pLimit) + kd * gyroRate;
+function speedAngle(previous, target, measured, integral) {
+    const error = target - measured;
+    const nextIntegral = integral + error * 0.02;
+    let output = clamp(-(2.0 * error + 0.3 * nextIntegral), 5);
+    if (output > previous + 0.04) output = previous + 0.04;
+    if (output < previous - 0.04) output = previous - 0.04;
+    return {angle: output, integral: nextIntegral};
 }
 
 function allocate(balanceRaw, turnCommand, pwmLimit) {
@@ -83,55 +76,48 @@ test('direct hard upright PD preserves 1000/25.0556 scale and PWM safety clamp',
 });
 
 test('upright gains have no artificial tuning ceiling', () => {
-    assert(!control.match(/balance_kp\s*>/));
-    assert(!control.match(/balance_kd\s*>/));
+    assert(!control.match(/balance_kp\s*>(?!=)/));
+    assert(!control.match(/balance_kd\s*>(?!=)/));
     assert(menu.includes('&balance_params.balance_kp, 0, FLT_MAX'));
     assert(menu.includes('&balance_params.balance_kd, 0, FLT_MAX'));
     assert(control.includes('params->pwm_limit > 10000'));
 });
 
-test('FOLLOW SPEED maps -100..100 to -5..5 degrees and keeps the command open loop', () => {
-    near(followAngleFromSpeed(-100), -5);
-    near(followAngleFromSpeed(0), 0);
-    near(followAngleFromSpeed(100), 5);
-    near(followAngleFromSpeed(250), 5);
-    near(followAngleFromSpeed(-250), -5);
-    assert(control.includes('.follow_speed = 0.0f'));
-    assert(control.includes('follow_angle_per_speed = 0.05f'));
-    assert(control.includes('params->follow_speed < -100.0f || params->follow_speed > 100.0f'));
-    assert(control.includes('balance_set_follow_command(float follow_speed'));
-    assert(control.includes('balance_cancel_follow_command(void)'));
-    assert(control.includes('.turn_pwm_limit = 1400'));
-    assert(control.includes('BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.follow_angle_applied'));
-    assert(control.includes('common = balance_clamp(balance_state.balance_output, applied_params.pwm_limit)'));
-    assert(control.includes('requested_follow_speed = 0.0f'));
-    assert(control.includes('balance_state.target_angle = applied_params.middle_angle'));
-    assert(menu.includes('"FOLLOW SPEED"'));
-    assert(menu.includes('&balance_params.follow_speed, -100, 100, 1, 0'));
-    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
-    assert(!control.includes('requested_base_pwm'));
-    assert(!controlHeader.includes('base_pwm_applied'));
-});
-
-test('FOLLOW angle ramp uses 2 degrees/s up, 4 degrees/s down, and passes through zero', () => {
-    near(followAngleRamp(0, 5), 0.01);
-    near(followAngleRamp(0.03, 5), 0.04);
-    near(followAngleRamp(0, -5), -0.01);
-    near(followAngleRamp(-0.03, -5), -0.04);
-    near(followAngleRamp(0.03, -5), 0.01);
-    near(followAngleRamp(0.01, -5), 0);
-    assert(control.includes('follow_angle_rise_step = 0.01f'));
-    assert(control.includes('follow_angle_fall_step = 0.02f'));
-});
-
-test('FOLLOW limits the posture P term to 60 percent of PWM LIMIT before adding D, while RUN keeps full P', () => {
-    near(followBalanceOutput(10, 0, 1000, 25.0556, 5000, true), 3000);
-    near(followBalanceOutput(-10, 0, 1000, 25.0556, 5000, true), -3000);
-    near(followBalanceOutput(10, 20, 1000, 25.0556, 5000, true), 3501.112);
-    near(followBalanceOutput(10, 0, 1000, 25.0556, 5000, false), 5000);
-    assert(control.includes('follow_p_pwm_fraction = 0.6f'));
-    assert(control.includes('applied_params.pwm_limit * follow_p_pwm_fraction'));
-    assert(control.includes('balance_state.p_output + balance_state.d_output'));
+test('20 ms encoder speed loop filters physical velocity and cascades to target angle', () => {
+    near(speedFilter(0, 1), 0.25);
+    near(speedFilter(0.25, 1), 0.4375);
+    let output = speedAngle(0, 1.5, 0.25, 0);
+    assert(output.angle < 0);
+    output = speedAngle(0, 0, 1.0, 0);
+    assert(output.angle > 0);
+    output = speedAngle(0, 10, 0, 0);
+    near(output.angle, -0.04);
+    output = speedAngle(0, -10, 0, 0);
+    near(output.angle, 0.04);
+    assert(control.includes('if (++encoder_sample_phase < 4) return'));
+    assert(control.includes('speed_kp'));
+    assert(control.includes('speed_ki'));
+    assert(control.includes('speed_angle_limit'));
+    assert(control.includes('speed_angle_applied'));
+    assert(control.includes('speed_filtered_mps'));
+    assert(control.includes('speed_error_mps'));
+    assert(control.includes('speed_integral_angle'));
+    assert(control.includes('angle_target = -balance_clamp'));
+    assert(control.includes('0.065f'));
+    assert(control.includes('0.25f'));
+    assert(control.includes('0.02f'));
+    assert(control.includes('2.0f'));
+    assert(control.includes('0.3f'));
+    assert(control.includes('5.0f'));
+    assert(controlHeader.includes('target_speed_mps'));
+    assert(controlHeader.includes('left_counts_per_rev'));
+    assert(controlHeader.includes('right_counts_per_rev'));
+    assert(menu.includes('TARGET SPEED M/S'));
+    assert(menu.includes('SPEED ENABLE'));
+    assert(menu.includes('SPEED ANGLE'));
+    assert(!menu.includes('FOLLOW SPEED'));
+    assert(!control.includes('follow_angle_per_speed'));
+    assert(!control.includes('follow_p_pwm_fraction'));
 });
 
 test('camera PWM differential never steals common balance headroom', () => {
@@ -222,18 +208,22 @@ test('runtime STOP and image CENTER request clear FOLLOW while status prioritize
     assert(statusBody.includes('return "FOLLOW"'));
 });
 
-test('valid FOLLOW keeps straight speed, scales curve speed to 20 percent, and clears stale vision', () => {
-    near(60 * 0.2, 12);
-    near(-60 * 0.2, -12);
-    assert(car.includes('0.2f'));
-    assert(car.includes('balance_params.follow_speed'));
+test('FOLLOW supplies a speed target after the upright delay while steering remains separate', () => {
+    const commandBody = car.slice(car.lastIndexOf('car_follow_status = CAR_FOLLOW_ACTIVE;'));
+    assert(commandBody.includes('target_speed_mps = visual_valid ? balance_params.target_speed_mps : 0.0f'));
+    assert(commandBody.includes('balance_set_follow_command(target_speed_mps, car_turn_request)'));
+    assert(!commandBody.includes('follow_speed'));
+    assert(car.includes('balance_params.target_speed_mps'));
     assert(car.includes('balance_cancel_follow_command()'));
-    assert(car.includes('follow_speed = visual_valid ? balance_params.follow_speed : 0.0f'));
+    assert(!control.includes('requested_follow_speed'));
+    assert(!control.includes('follow_angle_applied'));
+    const stopBody = car.slice(car.indexOf('void car_follow_stop(void)'), car.indexOf('void car_track_update('));
+    assert(stopBody.includes('car_reset_turn()'));
+    assert(car.includes('car_curve_mode = 0'));
     assert(car.includes('BOARD_FOLLOW_TURN_PWM_SIGN'));
-    for (const text of ['FOLLOW SPEED', 'FOLLOW ANGLE APPLIED', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
+    for (const text of ['TARGET SPEED M/S', 'SPEED ENABLE', 'SPEED ANGLE', 'STEERING KP', 'STEERING KD', 'CURVE KP', 'CURVE KD'])
         assert(menu.includes(text), text);
-    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
-    assert(image.includes('if (car_params.running == 0)'));
+    assert(image.includes('if (car_params.running == 0 || balance_state.imu_ready == 0)'));
     assert(!image.includes('car_params.base_speed <= 0'));
 });
 
@@ -241,15 +231,43 @@ test('FOLLOW fault handling stops the follow command immediately while RUN remai
     const trackBody = car.slice(car.indexOf('void car_track_update('));
     assert(trackBody.includes('car_follow_status != CAR_FOLLOW_IDLE && balance_state.fault != BALANCE_FAULT_NONE'));
     assert(trackBody.includes('car_follow_stop()'));
-    assert(trackBody.includes('balance_cancel_follow_command()'));
+    assert(car.includes('balance_cancel_follow_command()'));
 });
 
-test('encoders are display-only 20 ms accumulators', () => {
+test('encoder counts are accumulated at 5 ms and consumed by speed control every 20 ms', () => {
     const left = [3, 3, 3, 3].reduce((sum, value) => sum + value, 0);
     const right = [7, 7, 7, 7].reduce((sum, value) => sum + value, 0);
     assert.equal(left, 12); assert.equal(right, 28);
     assert(control.includes('if (++encoder_sample_phase < 4) return'));
-    assert(!controlHeader.match(/speed_(?:kp|ki|filter|integral|output|enabled|period)/));
+    assert(control.includes('left_count_sum'));
+    assert(control.includes('right_count_sum'));
+    assert(controlHeader.match(/speed_(?:kp|ki|filter|integral|angle|enabled)/));
+    assert(controlHeader.includes('speed_raw_mps'));
+    assert(controlHeader.includes('speed_target_applied_mps'));
+    assert(controlHeader.includes('speed_error_mps'));
+    assert(control.includes('left_counts_per_rev'));
+    assert(control.includes('right_counts_per_rev'));
+    assert(control.includes('0.065f'));
+});
+
+test('one-wheel-revolution calibration gives a physical 1.5 m/s target and persists both encoders', () => {
+    const countsPerRev = 1000;
+    const targetCounts20ms = 1.5 * 0.02 * countsPerRev / (Math.PI * 0.065);
+    near(targetCounts20ms, 146.9124476, 0.001);
+    assert(control.includes('BALANCE_ENCODER_FLASH_PAGE         (11u)'));
+    assert(control.includes('record.checksum = balance_encoder_checksum(&record)'));
+    assert(control.includes('count = total - encoder_calibration_start_count'));
+    assert(control.includes('count == 0 || count > BALANCE_ENCODER_MAX_COUNTS'));
+    assert(control.includes('balance_encoder_flash_save()'));
+    assert(menu.includes('CAL LEFT 1 REV'));
+    assert(menu.includes('CAL RIGHT 1 REV'));
+    assert(menu.includes('ENCODER CAL VALID'));
+    assert(control.includes('(float)balance_state.left_count / balance_state.left_counts_per_rev'));
+    assert(control.includes('(float)balance_state.right_count / balance_state.right_counts_per_rev'));
+    const underTargetAngle = speedAngle(0, 1.5, 0, 0).angle;
+    const overTargetAngle = speedAngle(0, 0, 1.5, 0).angle;
+    assert(-1000 * underTargetAngle > 0);
+    assert(-1000 * overTargetAngle < 0);
 });
 
 test('manual calibration timing resets on movement and collects five clean seconds', () => {
@@ -299,18 +317,18 @@ test('Flash calibration is separate on page 10 and guarded by magic/version/chec
     assert(runtime.includes('calibration_save_pending'));
 });
 
-test('V8 migration keeps upright fields and resets the old angle field to V9 speed zero', () => {
-    assert(control.includes('#define BALANCE_PARAMS_FLASH_VERSION       (9u)'));
-    assert(control.includes('typedef struct {'));
-    assert(control.includes('balance_v8_follow_check'));
-    assert(control.includes('version == 8u'));
-    assert(control.includes('profiles[gear - 1u].follow_speed = 0.0f'));
-    const conversion = control.slice(control.indexOf('static balance_params_t balance_params_from_v7'),
+test('V10 migration preserves upright fields and initializes the new speed loop', () => {
+    assert(control.includes('#define BALANCE_PARAMS_FLASH_VERSION       (10u)'));
+    assert(control.includes('version == 9u'));
+    assert(control.includes('speed_kp'));
+    assert(control.includes('speed_ki'));
+    assert(control.includes('speed_angle_limit'));
+    assert(control.includes('target_speed_mps'));
+    const conversion = control.slice(control.indexOf('static balance_params_t balance_params_from_v9'),
         control.indexOf('static void balance_params_flash_prepare'));
-    for (const field of ['angle_kp', 'rate_kp', 'middle_angle', 'pwm_limit', 'turn_direction',
+    for (const field of ['balance_kp', 'balance_kd', 'middle_angle', 'pwm_limit', 'turn_direction',
         'left_motor_deadzone', 'right_motor_deadzone']) assert(conversion.includes(field));
-    for (const field of ['speed_kp', 'speed_ki', 'q_angle', 'q_bias', 'r_angle', 'rate_limit'])
-        assert(!conversion.includes(`old->${field}`));
+    assert(!conversion.includes('target_speed_mps = old'));
 });
 
 test('car parameter V5 migration preserves layout but resets all old base PWM values to 800', () => {
@@ -320,17 +338,24 @@ test('car parameter V5 migration preserves layout but resets all old base PWM va
     assert(params.includes('stored_params.base_speed = car_default_params.base_speed'));
 });
 
-test('active menu/control contain no speed loop, Kalman, or rate cascade', () => {
-    for (const text of ['SPEED ENABLE', 'SPEED KP', 'SPEED KI', 'SPEED FILTER', 'TARGET SPEED',
-        'Q ANGLE', 'Q BIAS', 'R ANGLE', 'KALMAN ANGLE', 'RATE LIMIT', 'TARGET RATE', 'RATE ERROR', 'RATE OUTPUT']) {
-        assert(!menu.includes(text), text);
-    }
-    assert(!car.includes('speed_enabled'));
-    assert(!car.includes('target_speed'));
-    assert(menu.includes('FOLLOW SPEED'));
-    assert(menu.includes('&balance_params.follow_speed'));
-    assert(!menu.includes('"FOLLOW ANGLE", CAR_MENU_ITEM_VALUE'));
-    assert(car.includes('balance_params.follow_speed'));
+test('speed loop is active, default-enabled, and no open-loop FOLLOW lean remains', () => {
+    assert(menu.includes('SPEED ENABLE'));
+    assert(menu.includes('TARGET SPEED M/S'));
+    assert(menu.includes('SPEED ANGLE'));
+    assert(menu.includes('&balance_params.speed_kp'));
+    assert(menu.includes('&balance_params.speed_ki'));
+    assert(menu.includes('&balance_params.speed_angle_limit'));
+    assert(control.includes('.speed_enabled = 1'));
+    assert(control.includes('.target_speed_mps = 1.5f'));
+    assert(control.includes('.speed_kp = 2.0f'));
+    assert(control.includes('.speed_ki = 0.3f'));
+    assert(control.includes('.speed_angle_limit = 5.0f'));
+    assert(!menu.includes('FOLLOW SPEED'));
+    assert(!car.includes('balance_params.follow_speed'));
+    assert(!control.includes('follow_angle_per_speed'));
+    assert(!control.includes('follow_p_pwm_fraction'));
+    assert(control.includes('balance_state.speed_integral_angle = 0.0f'));
+    assert(control.includes('balance_state.speed_angle_applied = 0.0f'));
 });
 
 console.log(`${groups} groups passed; source-level numerical checks only, no firmware compilation.`);
