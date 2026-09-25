@@ -15,6 +15,7 @@ void cc_tc264_board_init(void);
 uint8_t cc_tc264_menu_key_mask(void);
 
 uint8_t cc_tc264_camera_init(void);
+uint8_t cc_tc264_camera_restart(void);
 uint8_t cc_tc264_camera_ready(void);
 uint8_t cc_tc264_camera_set_exposure(uint16_t exposure);
 uint8_t cc_tc264_camera_set_gain(uint8_t gain);

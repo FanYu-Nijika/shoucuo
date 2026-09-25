@@ -80,6 +80,16 @@ uint8_t cc_tc264_camera_init(void)
     return camera_online;
 }
 
+uint8_t cc_tc264_camera_restart(void)
+{
+#if BOARD_CAMERA_ENABLE
+    camera_online = mt9v03x_restart() == 0 ? 1 : 0;
+#else
+    camera_online = 0;
+#endif
+    return camera_online;
+}
+
 uint8_t cc_tc264_camera_ready(void)
 {
     return camera_online;

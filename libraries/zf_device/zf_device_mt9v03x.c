@@ -72,9 +72,11 @@ static  uint16    mt9v03x_version = 0x00;                   // 定义摄像头版本号
 int16   timeout = MT9V03X_INIT_TIMEOUT;                     // 定义超时溢出时长
 
 vuint8  mt9v03x_lost_flag = 1;                              // 图像丢失标志位
-uint8   mt9v03x_dma_int_num;                                // 当前DMA中断次数
+vuint8  mt9v03x_dma_int_num;                                // 当前DMA中断次数
 vuint8  mt9v03x_dma_init_flag;                              // 是否需要重新初始化
-uint8   mt9v03x_link_list_num;
+vuint8  mt9v03x_link_list_num;
+static volatile uint8 mt9v03x_recover_pending;
+static volatile uint8 mt9v03x_recovering;
 
 // 需要配置到摄像头的数据 不允许在这修改参数
 static int16 mt9v03x_set_confing_buffer[MT9V03X_CONFIG_FINISH][2]=
@@ -241,89 +243,89 @@ static void mt9v03x_uart_handler (void)
 //-------------------------------------------------------------------------------------------------------------------
 static void mt9v03x_vsync_handler(void)
 {
-    uint32 reset_start_us;
-
     exti_flag_clear(MT9V03X_VSYNC_PIN);
-    /* CPU0 owns the completed image until its copy finishes. */
-    if(mt9v03x_finish_flag != 0) return;
+    if (mt9v03x_recovering != 0 || mt9v03x_finish_flag != 0) return;
 
-    mt9v03x_dma_int_num = 0;
-    if(mt9v03x_dma_init_flag || mt9v03x_lost_flag)
-    {
+    if (mt9v03x_recover_pending != 0 || mt9v03x_dma_init_flag != 0 || mt9v03x_lost_flag != 0) {
         dma_disable(MT9V03X_DMA_CH);
         clear_dma_flag(MT9V03X_DMA_CH);
         IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
-        IfxDma_resetChannel(&MODULE_DMA, MT9V03X_DMA_CH);
-        reset_start_us = system_getval_us();
-        while(!IfxDma_isChannelReset(&MODULE_DMA, MT9V03X_DMA_CH))
-        {
-            if(system_getval_us() - reset_start_us >= 100)
-            {
-                mt9v03x_dma_init_flag = 1;
-                return;
-            }
-        }
-        mt9v03x_link_list_num = dma_init(MT9V03X_DMA_CH,
-                                         MT9V03X_DATA_ADD,
-                                         mt9v03x_image[0],
-                                         MT9V03X_PCLK_PIN,
-                                         EXTI_TRIGGER_RISING,
-                                         MT9V03X_IMAGE_SIZE);           // 如果超频到300M 倒数第二个参数请设置为FALLING
-        mt9v03x_dma_init_flag = 0;
-        /* Rebuild here, then arm the next frame at its VSYNC edge. */
+        mt9v03x_dma_int_num = 0;
         mt9v03x_lost_flag = 0;
+        mt9v03x_recover_pending = 1;
         return;
     }
-    else
-    {
-        if(1 == mt9v03x_link_list_num)
-        {
-            dma_set_destination(MT9V03X_DMA_CH, mt9v03x_image[0]);      // 没有采用链接传输模式 重新设置目的地址
-        }
-        dma_enable(MT9V03X_DMA_CH);
-    }
+
+    mt9v03x_dma_int_num = 0;
+    if (mt9v03x_link_list_num == 1) dma_set_destination(MT9V03X_DMA_CH, mt9v03x_image[0]);
+    clear_dma_flag(MT9V03X_DMA_CH);
+    IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
+    dma_enable(MT9V03X_DMA_CH);
     mt9v03x_lost_flag = 1;
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-//  函数简介      MT9V03X摄像头DMA完成中断
-//  参数说明      void
-//  返回参数      void
-//  使用示例      mt9v03x_dma_handler();
-//-------------------------------------------------------------------------------------------------------------------
 static void mt9v03x_dma_handler(void)
 {
     clear_dma_flag(MT9V03X_DMA_CH);
 
-    if(IfxDma_getChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH)) // 图像错位判断
-    {
-        mt9v03x_finish_flag = 0;
+    if (IfxDma_getChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH)) {
         dma_disable(MT9V03X_DMA_CH);
         IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
+        mt9v03x_dma_int_num = 0;
+        mt9v03x_finish_flag = 0;
+        mt9v03x_lost_flag = 0;
         mt9v03x_dma_init_flag = 1;
+        mt9v03x_recover_pending = 1;
+        return;
     }
-    else
-    {
-        mt9v03x_dma_int_num++;
-        if(mt9v03x_dma_int_num >= mt9v03x_link_list_num)
-        {
-            // 采集完成
-            // 一副图像从采集开始到采集结束耗时3.8MS左右(50FPS、188*120分辨率)
-            mt9v03x_dma_int_num = 0;
-            mt9v03x_lost_flag   = 0;
-            mt9v03x_finish_flag = 1;
-            dma_disable(MT9V03X_DMA_CH);
-        }
-    }
+
+    mt9v03x_dma_int_num++;
+    if (mt9v03x_dma_int_num < mt9v03x_link_list_num) return;
+
+    mt9v03x_dma_int_num = 0;
+    mt9v03x_lost_flag = 0;
+    mt9v03x_finish_flag = 1;
+    dma_disable(MT9V03X_DMA_CH);
 }
 
-//-------------------------------------------------------------------------------------------------------------------
-// 函数简介     获取摄像头固件版本
-// 参数说明     void
-// 返回参数     uint16          0-获取错误 N-版本号
-// 使用示例     mt9v03x_get_version();                          // 调用该函数前请先初始化串口
-// 备注信息
-//-------------------------------------------------------------------------------------------------------------------
+void mt9v03x_request_dma_recover(void)
+{
+    if (mt9v03x_recovering == 0) mt9v03x_recover_pending = 1;
+}
+
+uint8 mt9v03x_dma_recovery_task(void)
+{
+    uint32 reset_start_us;
+
+    if (mt9v03x_recover_pending == 0 || mt9v03x_recovering != 0) return 0;
+    mt9v03x_recovering = 1;
+    mt9v03x_recover_pending = 0;
+    dma_disable(MT9V03X_DMA_CH);
+    clear_dma_flag(MT9V03X_DMA_CH);
+    IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
+    IfxDma_resetChannel(&MODULE_DMA, MT9V03X_DMA_CH);
+
+    reset_start_us = system_getval_us();
+    while (!IfxDma_isChannelReset(&MODULE_DMA, MT9V03X_DMA_CH)) {
+        if (system_getval_us() - reset_start_us >= 200) {
+            mt9v03x_dma_init_flag = 1;
+            mt9v03x_recover_pending = 1;
+            mt9v03x_recovering = 0;
+            return 0;
+        }
+    }
+
+    mt9v03x_link_list_num = dma_init(MT9V03X_DMA_CH, MT9V03X_DATA_ADD, mt9v03x_image[0],
+                                     MT9V03X_PCLK_PIN, EXTI_TRIGGER_RISING, MT9V03X_IMAGE_SIZE);
+    mt9v03x_dma_int_num = 0;
+    mt9v03x_finish_flag = 0;
+    mt9v03x_lost_flag = 0;
+    mt9v03x_dma_init_flag = 0;
+    mt9v03x_recovering = 0;
+    return mt9v03x_link_list_num != 0;
+}
+
+
 uint16 mt9v03x_get_version (void)
 {
     uint16 temp;
@@ -533,8 +535,31 @@ uint8 mt9v03x_init (void)
         }
         mt9v03x_finish_flag = 0;
         mt9v03x_lost_flag = 0;
+        mt9v03x_dma_int_num = 0;
+        mt9v03x_dma_init_flag = 0;
+        mt9v03x_recover_pending = 0;
         mt9v03x_link_list_num = camera_init(MT9V03X_DATA_ADD, mt9v03x_image[0], MT9V03X_IMAGE_SIZE);
     }while(0);
+    return return_state;
+}
+
+uint8 mt9v03x_restart(void)
+{
+    uint8 return_state;
+
+    mt9v03x_recovering = 1;
+    mt9v03x_recover_pending = 0;
+    dma_disable(MT9V03X_DMA_CH);
+    clear_dma_flag(MT9V03X_DMA_CH);
+    IfxDma_clearChannelTransactionRequestLost(&MODULE_DMA, MT9V03X_DMA_CH);
+    set_camera_type(NO_CAMERE, NULL, NULL, NULL);
+    mt9v03x_finish_flag = 0;
+    mt9v03x_lost_flag = 0;
+    mt9v03x_dma_int_num = 0;
+    mt9v03x_dma_init_flag = 0;
+
+    return_state = mt9v03x_init();
+    mt9v03x_recovering = 0;
     return return_state;
 }
 

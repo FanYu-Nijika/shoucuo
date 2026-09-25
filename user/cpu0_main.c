@@ -55,6 +55,9 @@
 
 #define PIT_NUM                 (CCU60_CH0 )
 #define CAR_CONTROL_PERIOD_MS   (5)
+#define CAMERA_DMA_RECOVER_MS   (80)
+#define CAMERA_HARD_RESTART_MS  (600)
+#define CAMERA_RETRY_MS         (2000)
 
 
 volatile uint32 car_time_ms = 0;
@@ -105,6 +108,10 @@ static void update_display_slot(uint8_t slot)
 int core0_main(void)
 {
     uint32 last_frame_ms = 0;
+    uint32 camera_watchdog_ms = 0;
+    uint32 camera_last_dma_recover_ms = 0;
+    uint32 camera_last_restart_ms = 0;
+    uint32 camera_watchdog_frame_count = 0;
     uint8 next_frame_slot = 0;
 
     clock_init();                   // 获取时钟频率<务必保留>
@@ -122,6 +129,8 @@ int core0_main(void)
     balance_runtime_init();
     car_vofa_debug_init();
     pit_ms_init(PIT_NUM, CAR_CONTROL_PERIOD_MS);
+    camera_watchdog_ms = system_getval_ms();
+    camera_last_restart_ms = camera_watchdog_ms;
     while (TRUE) {
         // 此�?�编写需要循�?执�?�的代码
 
@@ -163,6 +172,46 @@ int core0_main(void)
         }
 
         car_camera_age_ms = car_camera_frame_count == 0 ? 0 : system_getval_ms() - car_camera_last_frame_ms;
+
+        mt9v03x_dma_recovery_task();
+        {
+            uint32 now_ms = system_getval_ms();
+            uint32 stale_ms;
+
+            if (car_camera_frame_count != camera_watchdog_frame_count) {
+                camera_watchdog_frame_count = car_camera_frame_count;
+                camera_watchdog_ms = now_ms;
+            }
+            stale_ms = now_ms - camera_watchdog_ms;
+
+            if (cc_tc264_camera_ready() != 0) {
+                if (stale_ms >= CAMERA_DMA_RECOVER_MS && now_ms - camera_last_dma_recover_ms >= CAMERA_DMA_RECOVER_MS) {
+                    mt9v03x_request_dma_recover();
+                    camera_last_dma_recover_ms = now_ms;
+                }
+                if (stale_ms >= CAMERA_HARD_RESTART_MS && now_ms - camera_last_restart_ms >= CAMERA_HARD_RESTART_MS) {
+                    uint8 camera_ready = cc_tc264_camera_restart();
+
+                    camera_last_restart_ms = now_ms;
+                    car_set_camera_ready(camera_ready);
+                    if (camera_ready != 0) {
+                        cc_tc264_camera_set_exposure(car_params.exposure);
+                        cc_tc264_camera_set_gain(car_params.gain);
+                        camera_watchdog_ms = system_getval_ms();
+                    }
+                }
+            } else if (now_ms - camera_last_restart_ms >= CAMERA_RETRY_MS) {
+                uint8 camera_ready = cc_tc264_camera_restart();
+
+                camera_last_restart_ms = now_ms;
+                car_set_camera_ready(camera_ready);
+                if (camera_ready != 0) {
+                    cc_tc264_camera_set_exposure(car_params.exposure);
+                    cc_tc264_camera_set_gain(car_params.gain);
+                    camera_watchdog_ms = system_getval_ms();
+                }
+            }
+        }
 
         if (car_result_ready != 0) {
             car_result_t result;

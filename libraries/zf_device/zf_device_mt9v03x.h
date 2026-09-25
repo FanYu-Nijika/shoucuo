@@ -157,7 +157,10 @@ extern uint8    mt9v03x_image[MT9V03X_H][MT9V03X_W];                            
 uint16      mt9v03x_get_version         (void);                                 // 获取摄像头固件版本
 uint8       mt9v03x_set_exposure_time   (uint16 light);                         // 单独设置摄像头曝光时间
 uint8       mt9v03x_set_reg             (uint8 addr, uint16 data);              // 对摄像头内部寄存器进行写操作
-uint8       mt9v03x_init                (void);                                 // MT9V03X 摄像头初始化
+uint8       mt9v03x_init                (void);
+void        mt9v03x_request_dma_recover (void);
+uint8       mt9v03x_dma_recovery_task   (void);
+uint8       mt9v03x_restart             (void);                                 // MT9V03X 摄像头初始化
 //================================================声明 MT9V03X 基础函数================================================
 
 #endif

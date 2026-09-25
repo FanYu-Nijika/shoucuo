@@ -296,7 +296,7 @@ uint8 uart_write_buffer_nonblocking (uart_index_enum uart_n, const uint8 *buff, 
 
     if (len == 0) return 1;
     if (IfxAsclin_Asc_getWriteCount(uart_handle) < len) return 0;
-    return IfxAsclin_Asc_write(uart_handle, buff, &count, TIME_NULL) && count == 0;
+    return IfxAsclin_Asc_write(uart_handle, buff, &count, TIME_NULL);
 }
 
 
