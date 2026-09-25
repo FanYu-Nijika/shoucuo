@@ -40,7 +40,7 @@
 #include "car_menu.h"
 #include "car.h"
 #include "car_menu_port.h"
-#include "car_seekfree_debug.h"
+#include "car_vofa_debug.h"
 #include "balance_control.h"
 #include "balance_runtime.h"
 #include "car_shared.h"
@@ -120,7 +120,7 @@ int core0_main(void)
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     /* All slow peripheral/UI initialization is complete before automatic balancing. */
     balance_runtime_init();
-    car_seekfree_debug_init();
+    car_vofa_debug_init();
     pit_ms_init(PIT_NUM, CAR_CONTROL_PERIOD_MS);
     while (TRUE) {
         // 此�?�编写需要循�?执�?�的代码
@@ -194,7 +194,7 @@ int core0_main(void)
             car_menu_handle_center();
         }
         balance_runtime_task();
-        car_seekfree_debug_task();
+        car_vofa_debug_task();
         car_menu_task();
 
         // 此�?�编写需要循�?执�?�的代码
@@ -240,7 +240,7 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     car_track_update(visual_snapshot.error, visual_snapshot.curvature, visual_snapshot.valid,
                      new_visual_result, visual_snapshot.capture_time_ms, now_ms);
     balance_runtime_update_5ms();
-    car_seekfree_debug_capture_5ms();
+    car_vofa_debug_capture_5ms();
     if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
     else car_time_ms = 0;
     gpio_set_level(BOARD_BUZZER_PIN, car_curve_mode != 0 ? GPIO_HIGH : GPIO_LOW);

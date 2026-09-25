@@ -9,7 +9,7 @@
 #include "car_menu.h"
 #include "car_menu_port.h"
 #include "car_params.h"
-#include "car_seekfree_debug.h"
+#include "car_vofa_debug.h"
 #include "car_shared.h"
 #include "car_uart_stream.h"
 #include "camera_car.h"
