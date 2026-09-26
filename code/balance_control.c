@@ -28,7 +28,7 @@ static const float speed_angle_step_deg = 0.04f;
 #define BALANCE_PARAMS_V7_WORDS            (16u)
 #define BALANCE_ENCODER_FLASH_PAGE         (11u)
 #define BALANCE_ENCODER_FLASH_MAGIC        (0x454E4331u)
-#define BALANCE_ENCODER_FLASH_VERSION      (1u)
+#define BALANCE_ENCODER_FLASH_VERSION      (2u)
 #define BALANCE_ENCODER_MAX_COUNTS         (1000000u)
 
 /* Fixed V7 layout is kept only for migration. Removed speed/Kalman/rate-limit fields never enter active control. */
@@ -448,12 +448,13 @@ static void balance_encoder_flash_load(void)
 
     flash_read_page_to_buffer(0, BALANCE_ENCODER_FLASH_PAGE);
     memcpy(&record, flash_union_buffer, sizeof(record));
-    if (record.magic != BALANCE_ENCODER_FLASH_MAGIC || record.version != BALANCE_ENCODER_FLASH_VERSION ||
+    if (record.magic != BALANCE_ENCODER_FLASH_MAGIC || (record.version != 1u && record.version != BALANCE_ENCODER_FLASH_VERSION) ||
         record.left_counts_per_rev == 0 || record.left_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
         record.right_counts_per_rev == 0 || record.right_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
         record.checksum != balance_encoder_checksum(&record)) return;
-    balance_state.left_counts_per_rev = record.left_counts_per_rev;
-    balance_state.right_counts_per_rev = record.right_counts_per_rev;
+    /* V1 followed the old camera direction; the new front swaps the physical wheels. */
+    balance_state.left_counts_per_rev = record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev;
+    balance_state.right_counts_per_rev = record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev;
     balance_state.encoder_calibration_valid = 1;
 }
 
@@ -554,13 +555,16 @@ static void balance_update_speed_20ms(void)
     step = applied_params.speed_ki * error * speed_dt_s;
     integral_candidate = balance_clamp(balance_state.speed_integral_angle + step, angle_limit);
     pi_candidate = applied_params.speed_kp * error + integral_candidate;
-    /* Increasing the target angle reduces upright PWM, so positive error deepens negative PWM saturation. */
+    /* Only integrate when the saturated PWM is not already driving farther in the requested direction. */
     if ((pi_candidate > angle_limit && error > 0.0f) || (pi_candidate < -angle_limit && error < 0.0f) ||
-        (fabsf(balance_state.balance_output) >= applied_params.pwm_limit && error * balance_state.common_pwm < 0.0f)) {
+        (fabsf(balance_state.balance_output) >= applied_params.pwm_limit &&
+         error * balance_state.common_pwm * BOARD_FOLLOW_FORWARD_PWM_SIGN > 0.0f)) {
         integral_candidate = balance_state.speed_integral_angle;
     }
     balance_state.speed_integral_angle = integral_candidate;
-    angle_target = balance_clamp(applied_params.speed_kp * error + integral_candidate, angle_limit);
+    /* Positive speed error must produce positive PWM in the new camera-forward direction. */
+    pi_candidate = applied_params.speed_kp * error + integral_candidate;
+    angle_target = -BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit);
     step = balance_clamp(angle_target - balance_state.speed_angle_applied, speed_angle_step_deg);
     balance_state.speed_angle_applied += step;
 }

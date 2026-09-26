@@ -122,7 +122,9 @@ int core0_main(void)
 
     car_menu_init();
 
-
+#if CAR_VOFA_TX_ENABLED
+    wireless_uart_init();
+#endif
     // 此�?�编写用户代�? 例�?��?��?�初始化代码�?
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     /* All slow peripheral/UI initialization is complete before automatic balancing. */
@@ -133,7 +135,9 @@ int core0_main(void)
     camera_last_restart_ms = camera_watchdog_ms;
     while (TRUE) {
         // 此�?�编写需要循�?执�?�的代码
-
+#if CAR_VOFA_TX_ENABLED
+        printf("%d\n", 1);
+#endif
         if (mt9v03x_finish_flag != 0) {
             uint32 now_ms = system_getval_ms();
             uint32 capture_time_ms = car_camera_completed_time_ms;

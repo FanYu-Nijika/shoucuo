@@ -104,7 +104,8 @@ static void reset_test(void)
     save_count = 0;
     save_success = 1;
     car_vofa_debug_init();
-    assert(strcmp(sent, "VOFA READY\n") == 0);
+    if (CAR_VOFA_TX_ENABLED) assert(strcmp(sent, "VOFA READY\n") == 0);
+    else assert(sent_length == 0);
     sent_length = 0;
     sent[0] = '\0';
 }
@@ -270,13 +271,38 @@ static void test_tx_backpressure_and_formatting(void)
     assert(sent_length == 0);
 }
 
+static void test_transmission_paused(void)
+{
+    reset_test();
+    balance_state.running = 1;
+    inject_text("SET BALANCE_KP 1200\nGET\nSAVE\n");
+    car_vofa_debug_task();
+    assert(balance_params.balance_kp == 1200.0f);
+    assert(apply_count == 1 && save_count == 0);
+    assert(sent_length == 0);
+
+    balance_state.running = 0;
+    inject_text("SAVE\n");
+    car_vofa_debug_task();
+    assert(save_count == 1 && sent_length == 0);
+    balance_state.angle = 1.0f;
+    car_vofa_debug_capture_5ms();
+    now_ms = 20;
+    car_vofa_debug_task();
+    assert(sent_length == 0);
+}
+
 int main(void)
 {
+#if CAR_VOFA_TX_ENABLED
     test_live_commands();
     test_errors_and_get();
     test_save();
     test_telemetry();
     test_receive_recovery();
     test_tx_backpressure_and_formatting();
+#else
+    test_transmission_paused();
+#endif
     return 0;
 }

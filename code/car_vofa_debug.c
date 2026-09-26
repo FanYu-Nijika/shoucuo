@@ -151,6 +151,7 @@ static uint8 car_vofa_queue_reply(const char *message, uint16 length)
 {
     uint8 slot;
 
+    if (!CAR_VOFA_TX_ENABLED) return 1;
     if (length == 0 || length >= CAR_VOFA_REPLY_FRAME_SIZE || reply_count >= CAR_VOFA_REPLY_QUEUE_COUNT) return 0;
     slot = reply_head;
     memcpy(reply_queue[slot], message, length);
@@ -176,6 +177,7 @@ static void car_vofa_flush_replies(void)
 {
     uint8 slot;
 
+    if (!CAR_VOFA_TX_ENABLED) return;
     while (reply_count != 0) {
         slot = reply_tail;
         if (!uart_write_buffer_nonblocking(BOARD_WIRELESS_UART, (const uint8 *)reply_queue[slot], reply_length[slot])) break;
@@ -377,7 +379,7 @@ void car_vofa_debug_init(void)
     /* UART2 is dedicated to the wireless bridge, so the ISR calls this receiver directly. */
     uart_init(BOARD_WIRELESS_UART, CAR_VOFA_UART_BAUD, BOARD_WIRELESS_UART_TX_PIN, BOARD_WIRELESS_UART_RX_PIN);
     uart_rx_interrupt(BOARD_WIRELESS_UART, 1);
-    uart_tx_interrupt(BOARD_WIRELESS_UART, 1);
+    if (CAR_VOFA_TX_ENABLED) uart_tx_interrupt(BOARD_WIRELESS_UART, 1);
     car_vofa_queue_text("VOFA READY\n");
     car_vofa_flush_replies();
     last_send_ms = system_getval_ms();
@@ -403,7 +405,7 @@ void car_vofa_debug_rx_isr(void)
 
 void car_vofa_debug_capture_5ms(void)
 {
-    if (vofa_ready == 0) return;
+    if (vofa_ready == 0 || !CAR_VOFA_TX_ENABLED) return;
     samples[0] = balance_state.angle;
     samples[1] = balance_state.target_angle;
     samples[2] = balance_state.angle_error;
@@ -429,6 +431,7 @@ void car_vofa_debug_task(void)
     car_vofa_flush_replies();
     car_vofa_process_rx();
     car_vofa_flush_replies();
+    if (!CAR_VOFA_TX_ENABLED) return;
     now = system_getval_ms();
     if (now - last_send_ms < CAR_VOFA_PERIOD_MS || reply_count != 0) return;
     last_send_ms = now;

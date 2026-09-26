@@ -14,6 +14,8 @@ const car = read('code/car.c');
 const menu = read('code/car_menu.c');
 const board = read('code/board_pins.h');
 const configuredRightTrim = Number(board.match(/#define BOARD_BALANCE_RIGHT_PWM_TRIM\s+\((\d+)\)/)[1]);
+const forwardPwmSign = Number(board.match(/#define BOARD_FOLLOW_FORWARD_PWM_SIGN\s+\((-?\d+)\)/)[1]);
+const turnPwmSign = Number(board.match(/#define BOARD_FOLLOW_TURN_PWM_SIGN\s+\((-?\d+)\)/)[1]);
 const params = read('code/car_params.c');
 const image = read('code/image.c');
 const cpu0 = read('user/cpu0_main.c');
@@ -37,7 +39,7 @@ function speedFilter(previous, raw) {
 function speedAngle(previous, target, measured, integral) {
     const error = target - measured;
     const nextIntegral = integral + error * 0.02;
-    let output = clamp(2.0 * error + 0.3 * nextIntegral, 5);
+    let output = -forwardPwmSign * clamp(2.0 * error + 0.3 * nextIntegral, 5);
     if (output > previous + 0.04) output = previous + 0.04;
     if (output < previous - 0.04) output = previous - 0.04;
     return {angle: output, integral: nextIntegral};
@@ -87,13 +89,13 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     near(speedFilter(0, 1), 0.25);
     near(speedFilter(0.25, 1), 0.4375);
     let output = speedAngle(0, 1.5, 0.25, 0);
-    assert(output.angle > 0);
-    output = speedAngle(0, 0, 1.0, 0);
     assert(output.angle < 0);
+    output = speedAngle(0, 0, 1.0, 0);
+    assert(output.angle > 0);
     output = speedAngle(0, 10, 0, 0);
-    near(output.angle, 0.04);
-    output = speedAngle(0, -10, 0, 0);
     near(output.angle, -0.04);
+    output = speedAngle(0, -10, 0, 0);
+    near(output.angle, 0.04);
     assert(control.includes('if (++encoder_sample_phase < 4) return'));
     assert(control.includes('speed_kp'));
     assert(control.includes('speed_ki'));
@@ -102,7 +104,7 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     assert(control.includes('speed_filtered_mps'));
     assert(control.includes('speed_error_mps'));
     assert(control.includes('speed_integral_angle'));
-    assert(control.includes('angle_target = balance_clamp'));
+    assert(control.includes('angle_target = -BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit)'));
     assert(control.includes('0.065f'));
     assert(control.includes('0.25f'));
     assert(control.includes('0.02f'));
@@ -140,15 +142,26 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('left and right motors match the current wheel wiring while encoders stay unchanged', () => {
-    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR1_PWM_PIN)'));
-    assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR2_PWM_PIN)'));
-    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR3_PWM_PIN)'));
-    assert(board.includes('#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR4_PWM_PIN)'));
-    assert(board.includes('#define BOARD_LEFT_ENCODER_INDEX           (BOARD_ENCODER_H4_INDEX)'));
-    assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H7_INDEX)'));
+test('new camera-forward direction swaps wheel ownership and retains positive forward counts', () => {
+    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)'));
+    assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR2_PWM_PIN)'));
+    assert(board.includes('#define BOARD_LEFT_ENCODER_INDEX           (BOARD_ENCODER_H7_INDEX)'));
+    assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H4_INDEX)'));
     assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)'));
     assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)'));
+    near(120 * 1, 120);  // H7 is the new left wheel when it rolls toward the camera.
+    near(-120 * -1, 120);  // H4 is the new right wheel in the same motion.
+    assert.equal(forwardPwmSign, 1);
+    assert.equal(turnPwmSign, 1);
+    assert(control.includes('record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev'));
+    assert(control.includes('record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev'));
+    assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (2u)'));
+    assert(image.includes('forward_lean = balance_state.angle - balance_params.middle_angle'));
+    const rightOfTrackTurn = 10 * 2 * turnPwmSign;
+    const output = allocate(1000, rightOfTrackTurn, 5000);
+    assert(output.left > output.right);
 });
 
 test('FOLLOW holds upright for two seconds after RUN starts, while stale visual commands expire', () => {
@@ -182,13 +195,14 @@ test('FOLLOW START requests RUN before enabling vision control', () => {
     assert(!startBody.includes('line_valid'));
 });
 
-test('bottom-row protection sends CENTER request and performs full STOP', () => {
+test('bottom-row grayscale protection sends CENTER request and performs full STOP', () => {
     const protectBody = image.slice(image.indexOf('uint8_t protect('), image.indexOf('static int Calculate_Max_Preview_Length'));
     const centerBody = menu.slice(menu.indexOf('void car_menu_handle_center(void)'), menu.indexOf('uint8_t car_menu_current_profile'));
     const stopBody = menu.slice(menu.indexOf('static void car_menu_stop(void)'), menu.indexOf('static void car_menu_start(void)'));
-    assert(protectBody.includes('os_threshold < 60'));
-    assert(protectBody.includes('binary_image[row * width + i] == 0'));
-    assert(protectBody.includes('threshold_lost != 0 || sum >= width - 18'));
+    assert(image.includes('#define LOST_LINE_GRAY_THRESHOLD 60'));
+    assert(image.includes('#define LOST_LINE_CONFIRM_FRAMES 2'));
+    assert(protectBody.includes('gray_sum += gray_frame[row * width + col]'));
+    assert(protectBody.includes('gray_sum < LOST_LINE_GRAY_THRESHOLD * sample_count'));
     assert(image.includes('protect(gray_frame) != 0) car_center_stop_request = 1'));
     assert(cpu0.includes('car_menu_handle_center()'));
     assert(centerBody.includes('car_menu_stop()'));

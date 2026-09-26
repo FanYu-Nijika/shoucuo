@@ -668,8 +668,8 @@ static int Update_Dynamic_Preview_Row(void)
     current_preview_row = base_row;
     if (car_params.running == 0 || balance_state.imu_ready == 0) return current_preview_row;
 
-    /* On this car COMP ANGLE decreases when the body leans forward. */
-    forward_lean = balance_params.middle_angle - balance_state.angle;
+    /* The camera now faces the old rear, so leaning toward the new front increases COMP ANGLE. */
+    forward_lean = balance_state.angle - balance_params.middle_angle;
     if (!(forward_lean > 0.0f)) return current_preview_row;
     if (forward_lean > DYNAMIC_PREVIEW_FAST_LEAN_DEG) forward_lean = DYNAMIC_PREVIEW_FAST_LEAN_DEG;
     offset = (int)(forward_lean * DYNAMIC_PREVIEW_ROW_OFFSET / DYNAMIC_PREVIEW_FAST_LEAN_DEG);
