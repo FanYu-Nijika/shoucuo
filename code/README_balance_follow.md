@@ -6,7 +6,7 @@
 - 姿态采用互补滤波：`angle = Ka * accel_angle + (1 - Ka) * (last_angle + gyro_rate * 0.005)`。`ACC WEIGHT KA` 默认 0.01。
 - 直立控制每 5 ms 使用直接 PD：`PWM = BALANCE KP * (COMP ANGLE - TARGET ANGLE) + BALANCE KD * CONTROL RATE`，不再对 FOLLOW 的 P 项单独施加 60% 限幅。
 - 编码器每 5 ms 读取、每 20 ms 累计左右计数。按各轮的一圈标定计数和 6.5 cm 轮径换算车速，左右轮速度取平均值并以 0.25 权重低通。
-- 速度 PI 每 20 ms 更新：误差为目标车速减滤波车速，输出负号方向的目标倾角修正。RUN 目标为 0 m/s；`FOLLOW START` 先请求 RUN，直立真正启动并等待 2 秒后，把目标以 1 m/s² 升至菜单设定值（默认 1.5 m/s）。
+- 速度 PI 每 20 ms 更新：误差为目标车速减滤波车速，正误差调高目标倾角，负误差调低目标倾角。RUN 目标为 0 m/s；`FOLLOW START` 先请求 RUN，直立真正启动并等待 2 秒后，把目标以 1 m/s² 升至菜单设定值（默认 1.5 m/s）。
 - 摄像头直弯 PD 直接产生左右 PWM 差速。控制器先限制共同直立输出，再用剩余 PWM 空间分配差速。
 - 速度 PI 的目标倾角修正限于 ±5°，每 20 ms 最多变化 0.04°（2°/s）。新有效图像更新差速；丢线或图像超过 120 ms 时差速清零、速度目标平滑回零。`FOLLOW STOP` 保留 RUN 的零速闭环；`STOP` 关闭电机并清空积分。
 - 新右轮按 `BOARD_BALANCE_RIGHT_PWM_TRIM` 减少 PWM，补偿机械差异；电机测试保持原始 PWM。

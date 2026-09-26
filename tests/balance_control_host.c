@@ -28,7 +28,7 @@ static float speed_angle_step(float previous, float target, float measured, floa
     float requested;
 
     *integral += error * 0.02f;
-    requested = -(2.0f * error + 0.3f * *integral);
+    requested = 2.0f * error + 0.3f * *integral;
     if (requested > 5.0f) requested = 5.0f;
     if (requested < -5.0f) requested = -5.0f;
     if (requested - previous > 0.04f) return previous + 0.04f;
@@ -43,16 +43,16 @@ static void test_speed_loop_math(void)
     float angle = speed_angle_step(0.0f, 1.5f, filtered, &integral);
 
     near_value(filtered, 0.25f);
-    assert(angle < 0.0f);
+    assert(angle > 0.0f);
     integral = 0.0f;
     angle = speed_angle_step(0.0f, 0.0f, 1.0f, &integral);
-    assert(angle > 0.0f);
+    assert(angle < 0.0f);
     integral = 12.0f;
     angle = speed_angle_step(0.0f, 0.0f, 0.0f, &integral);
-    assert(angle < 0.0f);
+    assert(angle > 0.0f);
     integral = 0.0f;
     angle = speed_angle_step(0.0f, 10.0f, 0.0f, &integral);
-    near_value(angle, -0.04f);
+    near_value(angle, 0.04f);
 }
 
 int main(void)

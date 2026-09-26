@@ -371,7 +371,7 @@ static uint8_t balance_run_control(void)
     float turn;
     float right_control;
 
-    /* Positive speed error must lower the target angle and increase forward PWM. */
+    /* The speed loop corrects the upright target; wheel speed never adds PWM directly. */
     balance_state.target_angle = applied_params.middle_angle + balance_state.speed_angle_applied;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
@@ -554,13 +554,13 @@ static void balance_update_speed_20ms(void)
     step = applied_params.speed_ki * error * speed_dt_s;
     integral_candidate = balance_clamp(balance_state.speed_integral_angle + step, angle_limit);
     pi_candidate = applied_params.speed_kp * error + integral_candidate;
-    /* The speed integral may unwind a saturated angle or PWM, but must not deepen saturation. */
+    /* Increasing the target angle reduces upright PWM, so positive error deepens negative PWM saturation. */
     if ((pi_candidate > angle_limit && error > 0.0f) || (pi_candidate < -angle_limit && error < 0.0f) ||
-        (fabsf(balance_state.balance_output) >= applied_params.pwm_limit && error * balance_state.common_pwm > 0.0f)) {
+        (fabsf(balance_state.balance_output) >= applied_params.pwm_limit && error * balance_state.common_pwm < 0.0f)) {
         integral_candidate = balance_state.speed_integral_angle;
     }
     balance_state.speed_integral_angle = integral_candidate;
-    angle_target = -balance_clamp(applied_params.speed_kp * error + integral_candidate, angle_limit);
+    angle_target = balance_clamp(applied_params.speed_kp * error + integral_candidate, angle_limit);
     step = balance_clamp(angle_target - balance_state.speed_angle_applied, speed_angle_step_deg);
     balance_state.speed_angle_applied += step;
 }

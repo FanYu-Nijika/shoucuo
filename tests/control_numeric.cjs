@@ -37,7 +37,7 @@ function speedFilter(previous, raw) {
 function speedAngle(previous, target, measured, integral) {
     const error = target - measured;
     const nextIntegral = integral + error * 0.02;
-    let output = clamp(-(2.0 * error + 0.3 * nextIntegral), 5);
+    let output = clamp(2.0 * error + 0.3 * nextIntegral, 5);
     if (output > previous + 0.04) output = previous + 0.04;
     if (output < previous - 0.04) output = previous - 0.04;
     return {angle: output, integral: nextIntegral};
@@ -87,13 +87,13 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     near(speedFilter(0, 1), 0.25);
     near(speedFilter(0.25, 1), 0.4375);
     let output = speedAngle(0, 1.5, 0.25, 0);
-    assert(output.angle < 0);
-    output = speedAngle(0, 0, 1.0, 0);
     assert(output.angle > 0);
+    output = speedAngle(0, 0, 1.0, 0);
+    assert(output.angle < 0);
     output = speedAngle(0, 10, 0, 0);
-    near(output.angle, -0.04);
-    output = speedAngle(0, -10, 0, 0);
     near(output.angle, 0.04);
+    output = speedAngle(0, -10, 0, 0);
+    near(output.angle, -0.04);
     assert(control.includes('if (++encoder_sample_phase < 4) return'));
     assert(control.includes('speed_kp'));
     assert(control.includes('speed_ki'));
@@ -102,7 +102,7 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     assert(control.includes('speed_filtered_mps'));
     assert(control.includes('speed_error_mps'));
     assert(control.includes('speed_integral_angle'));
-    assert(control.includes('angle_target = -balance_clamp'));
+    assert(control.includes('angle_target = balance_clamp'));
     assert(control.includes('0.065f'));
     assert(control.includes('0.25f'));
     assert(control.includes('0.02f'));
