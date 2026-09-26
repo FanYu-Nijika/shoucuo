@@ -140,9 +140,11 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('new logical wheels use old opposite-side motor and encoder resources', () => {
-    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)'));
-    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)'));
+test('left and right motors match the current wheel wiring while encoders stay unchanged', () => {
+    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR1_PWM_PIN)'));
+    assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR2_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR3_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR4_PWM_PIN)'));
     assert(board.includes('#define BOARD_LEFT_ENCODER_INDEX           (BOARD_ENCODER_H4_INDEX)'));
     assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H7_INDEX)'));
     assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)'));

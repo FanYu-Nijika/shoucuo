@@ -15,7 +15,7 @@ static uint16_t right_encoder_previous;
 
 static void write_motor_pair(pwm_channel_enum forward_pin, pwm_channel_enum reverse_pin, int32_t command, int8_t *last_direction)
 {
-    int32_t value = cc_math_clamp_i32(command, -PWM_DUTY_MAX, PWM_DUTY_MAX);
+    int32_t value = cc_math_clamp_i32(command, -PWM_DUTY_MAX/2, PWM_DUTY_MAX/2);
     uint32_t duty;
     int8_t direction;
 
