@@ -36,7 +36,6 @@
 #include "isr_config.h"
 #include "isr.h"
 #include "car_shared.h"
-#include "car_vofa_debug.h"
 
 extern vuint8 mt9v03x_lost_flag;
 
@@ -216,7 +215,6 @@ IFX_INTERRUPT(uart1_rx_isr, 0, UART1_RX_INT_PRIO)
 IFX_INTERRUPT(uart2_tx_isr, 0, UART2_TX_INT_PRIO)
 {
     interrupt_global_enable(0);                     // ¿ªÆôÖÐ¶ÏÇ¶Ì×
-    IfxAsclin_Asc_isrTransmit(&uart2_handle);
 
 
 }
@@ -224,7 +222,6 @@ IFX_INTERRUPT(uart2_tx_isr, 0, UART2_TX_INT_PRIO)
 IFX_INTERRUPT(uart2_rx_isr, 0, UART2_RX_INT_PRIO)
 {
     interrupt_global_enable(0);                     // ¿ªÆôÖÐ¶ÏÇ¶Ì×
-    car_vofa_debug_rx_isr();
 
 
 

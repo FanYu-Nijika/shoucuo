@@ -61,8 +61,7 @@ static uint8 uart0_tx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart0_rx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart1_tx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart1_rx_buffer[1 + sizeof(Ifx_Fifo) + 8];
-#define UART2_TX_BUFFER_SIZE 512
-static uint8 uart2_tx_buffer[UART2_TX_BUFFER_SIZE + sizeof(Ifx_Fifo) + 8];
+static uint8 uart2_tx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart2_rx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart3_tx_buffer[1 + sizeof(Ifx_Fifo) + 8];
 static uint8 uart3_rx_buffer[1 + sizeof(Ifx_Fifo) + 8];
@@ -139,7 +138,7 @@ void uart_set_buffer (uart_index_enum uartn)
         {
             uart_config.txBuffer     = &uart2_tx_buffer;
             uart_config.rxBuffer     = &uart2_rx_buffer;
-            uart_config.txBufferSize = UART2_TX_BUFFER_SIZE;
+            uart_config.txBufferSize = 1;
             uart_config.rxBufferSize = 1;
         }break;
         case UART_3:
@@ -286,17 +285,6 @@ void uart_write_buffer (uart_index_enum uart_n, const uint8 *buff, uint32 len)
     uart_handle = uart_get_handle(uart_n);
 
     IfxAsclin_write8(uart_handle->asclin, buff, len);
-}
-
-/* Queue a complete frame only when the software FIFO has room for every byte. */
-uint8 uart_write_buffer_nonblocking (uart_index_enum uart_n, const uint8 *buff, uint32 len)
-{
-    IfxAsclin_Asc *uart_handle = uart_get_handle(uart_n);
-    Ifx_SizeT count = len;
-
-    if (len == 0) return 1;
-    if (IfxAsclin_Asc_getWriteCount(uart_handle) < len) return 0;
-    return IfxAsclin_Asc_write(uart_handle, buff, &count, TIME_NULL);
 }
 
 
