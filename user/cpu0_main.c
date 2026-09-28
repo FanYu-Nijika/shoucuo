@@ -42,6 +42,7 @@
 #include "car_menu_port.h"
 #include "balance_control.h"
 #include "balance_runtime.h"
+#include "balance_vofa.h"
 #include "car_shared.h"
 #include "image.h"
 
@@ -130,7 +131,6 @@ int core0_main(void)
     wireless_uart_init();
     cpu_wait_event_ready();         // 等待所有核心初始化完毕
     while (TRUE) {
-        printf("1\n");
         // 此�?�编写需要循�?执�?�的代码
         if (mt9v03x_finish_flag != 0) {
             uint32 now_ms = system_getval_ms();
@@ -241,6 +241,7 @@ int core0_main(void)
             car_menu_handle_center();
         }
         balance_runtime_task();
+        balance_vofa_task();
         car_menu_task();
 
         // 此�?�编写需要循�?执�?�的代码
