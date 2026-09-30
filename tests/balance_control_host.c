@@ -124,13 +124,13 @@ int main(void)
     assert(balance_state.turn_pwm_command == 300.0f);
 
     balance_update_5ms(0.0f, 1000.0f, 1, 1);
-    assert(balance_state.common_pwm == 5000.0f);
-    assert(balance_state.turn_output == BOARD_BALANCE_RIGHT_PWM_TRIM * 0.5f);
-    assert(balance_state.left_pwm == 5000 && balance_state.right_pwm == 5000 - BOARD_BALANCE_RIGHT_PWM_TRIM);
+    assert(balance_state.common_pwm == balance_state.balance_output);
+    assert(balance_state.common_pwm > 10000.0f);
+    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
 
     balance_update_5ms(0.0f, 0.0f, 0, 0);
     assert(!balance_state.output_updated && balance_state.fault == BALANCE_FAULT_IMU);
-    assert(balance_state.left_pwm == 5000 && balance_state.right_pwm == 5000 - BOARD_BALANCE_RIGHT_PWM_TRIM);
+    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
     balance_stop();
     assert(!balance_state.running && balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
     return 0;

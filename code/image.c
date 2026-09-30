@@ -18,10 +18,6 @@
 #define CROSS_SKEW_TURN_DIFF 6
 #define DYNAMIC_PREVIEW_ROW_OFFSET 25
 #define DYNAMIC_PREVIEW_FAST_LEAN_DEG 8.0f
-#define LOST_LINE_CHECK_ROWS 5
-#define LOST_LINE_CHECK_HALF_WIDTH 50
-#define LOST_LINE_GRAY_THRESHOLD 60
-#define LOST_LINE_CONFIRM_FRAMES 2
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -99,6 +95,7 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
     if (gray_frame == 0 || binary_frame == 0 || result == 0) return;
     memset(result, 0, sizeof(*result));
+    if (protect(gray_frame) != 0) car_center_stop_request = 1;
     binary_image = binary_frame;
     Cross_Flag = 0;
     Cross_Count = 0;
@@ -119,7 +116,6 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
 
 
     threshold_update();
-    if (protect(gray_frame) != 0) car_center_stop_request = 1;
     // Longest_White_Column();
     Longest_White_Column();
     xieru_type = Judge_xierushizi_type();
@@ -607,45 +603,15 @@ static uint8 Repair_Right_Skew(int skew_up)
 
 
 uint8_t protect(const uint8 *gray_frame) {
-    static uint8_t lost_count = 0;
-    uint32_t gray_sum = 0;
-    int row, col, sample_count = 0;
-    int start_row, start_col, end_col;
+    int i;
 
-    if (car_params.running == 0) {
-        lost_count = 0;
-        return 0;
-    }
-    if (gray_frame == 0 || width == 0 || height == 0) {
-        lost_count = 0;
-        return 0;
-    }
+    if (car_params.running == 0 || gray_frame == 0 || width == 0 || height <= 115) return 0;
 
-    start_row = height - LOST_LINE_CHECK_ROWS;
-    start_col = width / 2 - LOST_LINE_CHECK_HALF_WIDTH;
-    end_col = width / 2 + LOST_LINE_CHECK_HALF_WIDTH;
-    if (start_row < 0) start_row = 0;
-    if (start_col < 0) start_col = 0;
-    if (end_col > width) end_col = width;
-
-    for (row = start_row; row < height; row++) {
-        for (col = start_col; col < end_col; col++) {
-            gray_sum += gray_frame[row * width + col];
-            sample_count++;
-        }
+    /* 使用原始灰度，避免二值化或显示标记影响停车判断。 */
+    for (i = 1; i <= 4; i++) {
+        if (gray_frame[115 * width + width * i / 5] >= 100) return 0;
     }
-
-    if (sample_count == 0) {
-        lost_count = 0;
-        return 0;
-    }
-    if (gray_sum < LOST_LINE_GRAY_THRESHOLD * sample_count) {
-        if (lost_count < LOST_LINE_CONFIRM_FRAMES) lost_count++;
-    } else {
-        lost_count = 0;
-    }
-
-    return lost_count >= LOST_LINE_CONFIRM_FRAMES;
+    return 1;
 }
 
 static int Calculate_Max_Preview_Length(void)

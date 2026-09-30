@@ -9,6 +9,8 @@
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = 0.005f;
+/* The driver defines 10000 as 100% duty; clamp before narrowing to int16_t. */
+static const float balance_motor_pwm_max = 10000.0f;
 static const float speed_dt_s = 0.02f;
 static const float wheel_circumference_m = 0.065f * 3.14159265f;
 static const float speed_filter_weight = 0.25f;
@@ -328,8 +330,8 @@ static void balance_clear_outputs(void)
 
 static int16_t balance_pwm_from_float(float value)
 {
-    if (value >= (float)applied_params.pwm_limit) return applied_params.pwm_limit;
-    if (value <= -(float)applied_params.pwm_limit) return (int16_t)-applied_params.pwm_limit;
+    if (value >= balance_motor_pwm_max) return 10000;
+    if (value <= -balance_motor_pwm_max) return -10000;
     return (int16_t)value;
 }
 
@@ -369,6 +371,7 @@ static uint8_t balance_run_control(void)
 {
     float common;
     float turn;
+    float turn_headroom;
     float right_control;
 
     /* The speed loop corrects the upright target; wheel speed never adds PWM directly. */
@@ -379,11 +382,13 @@ static uint8_t balance_run_control(void)
     balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
     balance_state.balance_output = balance_state.p_output + balance_state.d_output;
     if (!balance_is_finite(balance_state.balance_output)) return 0;
-    common = balance_clamp(balance_state.balance_output, applied_params.pwm_limit);
+    common = balance_state.balance_output;
     balance_state.common_pwm = common;
     balance_state.turn_pwm_command = balance_clamp(requested_turn_pwm, applied_params.turn_pwm_limit);
     /* Steering only uses the PWM left after upright control, so it cannot clip one wheel's balance command. */
-    turn = balance_clamp(balance_state.turn_pwm_command, applied_params.pwm_limit - fabsf(common));
+    turn_headroom = balance_motor_pwm_max - fabsf(common);
+    if (turn_headroom < 0.0f) turn_headroom = 0.0f;
+    turn = balance_clamp(balance_state.turn_pwm_command, turn_headroom);
     right_control = common - turn;
     balance_state.left_control_pwm = balance_pwm_from_float(common + turn);
     balance_state.right_control_pwm = balance_pwm_from_float(right_control);
@@ -557,7 +562,7 @@ static void balance_update_speed_20ms(void)
     pi_candidate = applied_params.speed_kp * error + integral_candidate;
     /* Only integrate when the saturated PWM is not already driving farther in the requested direction. */
     if ((pi_candidate > angle_limit && error > 0.0f) || (pi_candidate < -angle_limit && error < 0.0f) ||
-        (fabsf(balance_state.balance_output) >= applied_params.pwm_limit &&
+        (fabsf(balance_state.balance_output) >= balance_motor_pwm_max &&
          error * balance_state.common_pwm * BOARD_FOLLOW_FORWARD_PWM_SIGN > 0.0f)) {
         integral_candidate = balance_state.speed_integral_angle;
     }

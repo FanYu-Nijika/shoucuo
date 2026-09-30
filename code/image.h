@@ -85,6 +85,6 @@ void Extend_Left_Line(int start,int end);
 void Extend_Right_Line(int start,int end);
 
 void Set_Binary_Point(int x,int y);
-uint8_t protect();
+uint8_t protect(const uint8 *gray_frame);
 
 #endif

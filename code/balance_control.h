@@ -19,7 +19,7 @@ typedef struct {
     float middle_angle;
     float accel_weight;
     float target_speed_mps;
-    int16_t pwm_limit;
+    int16_t pwm_limit; /* Legacy Flash slot; upright output no longer uses this limit. */
     int16_t turn_pwm_limit;
     int8_t turn_direction;
     /* Keep these slots for V8 Flash profiles; motor dead zones are not used by the balance loop. */

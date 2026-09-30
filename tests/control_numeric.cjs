@@ -46,9 +46,9 @@ function speedAngle(previous, target, measured, integral) {
 }
 
 function allocate(balanceRaw, turnCommand, pwmLimit) {
-    const common = clamp(balanceRaw, pwmLimit);
-    const turn = clamp(turnCommand, pwmLimit - Math.abs(common));
-    return {left: common + turn, right: common - turn, common, turn};
+    const common = balanceRaw;
+    const turn = clamp(turnCommand, Math.max(0, pwmLimit - Math.abs(common)));
+    return {left: clamp(common + turn, pwmLimit), right: clamp(common - turn, pwmLimit), common, turn};
 }
 
 function rightTrim(controlValue, trim = configuredRightTrim, limit = 5000) {
@@ -66,15 +66,19 @@ test('complementary filter uses 5 ms gyro integration and adjustable acceleromet
     assert(control.includes('static const float balance_dt_s = 0.005f'));
 });
 
-test('direct hard upright PD preserves 1000/25.0556 scale and PWM safety clamp', () => {
+test('direct upright PD preserves raw output and only bounds hardware duty', () => {
     const raw = 1000 * 1 + 25.0556 * 2;
     near(raw, 1050.1112, 1e-6);
     assert(control.includes('balance_state.p_output = applied_params.balance_kp * balance_state.angle_error'));
     assert(control.includes('balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate'));
     assert(!control.includes('target_rate'));
     assert(!control.includes('rate_error'));
-    assert.equal(clamp(25000, 5000), 5000);
-    assert.equal(clamp(-25000, 5000), -5000);
+    assert(control.includes('common = balance_state.balance_output;'));
+    assert(!control.includes('balance_clamp(balance_state.balance_output, applied_params.pwm_limit)'));
+    assert(!menu.includes('"PWM LIMIT"'));
+    assert.equal(allocate(25000, 300, 10000).common, 25000);
+    assert.equal(allocate(25000, 300, 10000).left, 10000);
+    assert.equal(allocate(-25000, 300, 10000).right, -10000);
 });
 
 test('upright gains have no artificial tuning ceiling', () => {
@@ -195,14 +199,18 @@ test('FOLLOW START requests RUN before enabling vision control', () => {
     assert(!startBody.includes('line_valid'));
 });
 
-test('bottom-row grayscale protection sends CENTER request and performs full STOP', () => {
-    const protectBody = image.slice(image.indexOf('uint8_t protect('), image.indexOf('static int Calculate_Max_Preview_Length'));
+test('row 115 four-point grayscale protection sends CENTER request immediately and performs full STOP', () => {
+    const protectBody = image.slice(image.lastIndexOf('uint8_t protect('), image.indexOf('static int Calculate_Max_Preview_Length'));
     const centerBody = menu.slice(menu.indexOf('void car_menu_handle_center(void)'), menu.indexOf('uint8_t car_menu_current_profile'));
     const stopBody = menu.slice(menu.indexOf('static void car_menu_stop(void)'), menu.indexOf('static void car_menu_start(void)'));
-    assert(image.includes('#define LOST_LINE_GRAY_THRESHOLD 60'));
-    assert(image.includes('#define LOST_LINE_CONFIRM_FRAMES 2'));
-    assert(protectBody.includes('gray_sum += gray_frame[row * width + col]'));
-    assert(protectBody.includes('gray_sum < LOST_LINE_GRAY_THRESHOLD * sample_count'));
+    assert(protectBody.includes('car_params.running == 0'));
+    assert(protectBody.includes('height <= 115'));
+    assert(protectBody.includes('for (i = 1; i <= 4; i++)'));
+    assert(protectBody.includes('if (gray_frame[115 * width + width * i / 5] >= 100) return 0'));
+    assert(protectBody.includes('return 1;'));
+    assert(!protectBody.includes('lost_count'));
+    assert(!protectBody.includes('gray_sum'));
+    assert(image.indexOf('protect(gray_frame)') < image.indexOf('memcpy(binary_image, gray_frame'));
     assert(image.includes('protect(gray_frame) != 0) car_center_stop_request = 1'));
     assert(cpu0.includes('car_menu_handle_center()'));
     assert(centerBody.includes('car_menu_stop()'));
