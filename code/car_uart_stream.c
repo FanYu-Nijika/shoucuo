@@ -25,17 +25,14 @@ void car_uart_stream_init(void)
     seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
     stream_enabled = 0;
 }
-
 void car_uart_stream_start(void)
 {
     stream_enabled = 1;
 }
-
 void car_uart_stream_stop(void)
 {
     stream_enabled = 0;
 }
-
 uint8 car_uart_stream_is_enabled(void)
 {
     return stream_enabled;

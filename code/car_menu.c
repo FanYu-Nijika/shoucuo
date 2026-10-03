@@ -41,7 +41,8 @@ enum {
     CAR_MENU_ACTION_IMU_CALIBRATE,
     CAR_MENU_ACTION_UART,
     CAR_MENU_ACTION_CAL_LEFT,
-    CAR_MENU_ACTION_CAL_RIGHT
+    CAR_MENU_ACTION_CAL_RIGHT,
+    CAR_MENU_ACTION_COPY_GEAR
 };
 
 enum {
@@ -81,7 +82,8 @@ enum {
     CAR_MENU_ERROR_RUNNING,
     CAR_MENU_ERROR_CAL_REQUIRED,
     CAR_MENU_ERROR_IMU,
-    CAR_MENU_ERROR_ENCODER
+    CAR_MENU_ERROR_ENCODER,
+    CAR_MENU_ERROR_FLASH
 };
 
 #define CAR_MENU_VISIBLE_ROWS             (8)
@@ -109,6 +111,7 @@ typedef struct {
 } car_menu_item_t;
 
 static uint8_t car_menu_current_gear = 1;
+static uint8_t car_menu_copy_target = 2;
 static volatile uint8_t car_menu_motor_test_active;
 static volatile int16_t car_menu_test_left_pwm;
 static volatile int16_t car_menu_test_right_pwm;
@@ -138,6 +141,8 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "FOLLOW STOP", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_FOLLOW_STOP},
     {0, CAR_MENU_PAGE_RUN, "SWITCH GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_current_gear, 1, 4, 1, 0, CAR_MENU_APPLY_PROFILE, 0},
     {0, CAR_MENU_PAGE_RUN, "SAVE FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SAVE_FLASH},
+    {0, CAR_MENU_PAGE_RUN, "COPY TO GEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_menu_copy_target, 1, 4, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "COPY FLASH", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_COPY_GEAR},
     {0, CAR_MENU_PAGE_RUN, "RUNNING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_running, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "TARGET SPEED M/S", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.target_speed_mps, 0, 3, 0.1, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_RUN, "SPEED ENABLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &balance_params.speed_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_BALANCE, 0},
@@ -590,6 +595,19 @@ static void car_menu_save_flash(void)
     car_menu_dirty = 1;
 }
 
+static void car_menu_copy_gear(void)
+{
+    if (car_running || balance_start_pending || car_menu_motor_test_active || car_follow_status != CAR_FOLLOW_IDLE) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+    } else if (car_params_flash_copy(car_menu_current_gear, car_menu_copy_target) &&
+               balance_params_flash_copy(car_menu_current_gear, car_menu_copy_target)) {
+        car_menu_error = CAR_MENU_ERROR_NONE;
+    } else {
+        car_menu_error = CAR_MENU_ERROR_FLASH;
+    }
+    car_menu_dirty = 1;
+}
+
 static void car_menu_reset_defaults(void)
 {
     if (car_running != 0 || balance_start_pending != 0 || car_menu_motor_test_active != 0) {
@@ -637,6 +655,7 @@ static void car_menu_execute_action(uint8_t action)
     } else if (action == CAR_MENU_ACTION_MOTOR_TEST_START) car_menu_motor_test_start();
     else if (action == CAR_MENU_ACTION_MOTOR_TEST_STOP) car_menu_motor_test_stop();
     else if (action == CAR_MENU_ACTION_SAVE_FLASH) car_menu_save_flash();
+    else if (action == CAR_MENU_ACTION_COPY_GEAR) car_menu_copy_gear();
     else if (action == CAR_MENU_ACTION_RESET_DEFAULTS) car_menu_reset_defaults();
     else if (action == CAR_MENU_ACTION_IMU_CALIBRATE) {
         if (balance_runtime_request_calibration()) car_menu_error = CAR_MENU_ERROR_NONE;
@@ -829,6 +848,7 @@ static const char *car_menu_error_text(void)
     if (car_menu_error == CAR_MENU_ERROR_CAL_REQUIRED) return "IMU CAL REQUIRED";
     if (car_menu_error == CAR_MENU_ERROR_IMU) return "IMU OFFLINE";
     if (car_menu_error == CAR_MENU_ERROR_ENCODER) return "ENCODER CAL ERROR";
+    if (car_menu_error == CAR_MENU_ERROR_FLASH) return "FLASH COPY FAILED";
     if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_LEFT) return "TURN LEFT 1 REV";
     if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_RIGHT) return "TURN RIGHT 1 REV";
     if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_SAVED) return "ENCODER CAL SAVED";
@@ -995,9 +1015,17 @@ static void car_menu_release_display_slot(uint8_t slot)
 static void car_menu_draw_image_pixels(void)
 {
     uint8_t slot = car_menu_acquire_display_slot();
+    uint16_t preview_row = 0;
 
     if (slot < CAR_FRAME_SLOT_COUNT) {
+        uint16_t marker_y;
+
+        /* Keep the row with its displayed frame; a newer CPU1 result may arrive while drawing. */
+        preview_row = car_frame_slot_preview_row[slot];
         ips200_show_gray_image(4, 44, &car_gray_frames[slot][0][0], CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148, 94, 0);
+        /* Draw after scaling because the LCD's nearest-row sampling can skip a one-row source marker. */
+        marker_y = 44 + preview_row * 94 / CAR_IMAGE_HEIGHT;
+        car_menu_fill(4, marker_y, 148, 1, RGB565_BLACK);
         ips200_show_gray_image(168, 44, &car_binary_frames[slot][0][0], CAR_IMAGE_WIDTH, CAR_IMAGE_HEIGHT, 148, 94, 1);
         car_menu_release_display_slot(slot);
     } else {
@@ -1011,7 +1039,7 @@ static void car_menu_draw_image_pixels(void)
     if (car_curve_mode != 0) car_menu_text(4, 166, "CURVE PID: ON", RGB565_WHITE, RGB565_BLACK);
     else car_menu_text(4, 166, "CURVE PID: OFF", RGB565_WHITE, RGB565_BLACK);
     car_menu_text(160, 166, "ROW:", RGB565_WHITE, RGB565_BLACK);
-    ips200_show_uint(244, 166, car_result.preview_row, 3);
+    ips200_show_uint(244, 166, preview_row, 3);
 }
 
 static void car_menu_draw_image(void)

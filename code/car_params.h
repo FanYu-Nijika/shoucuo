@@ -118,5 +118,6 @@ void car_params_reset(void);
 uint8_t car_params_flash_load(void);
 void car_params_flash_switch(uint8_t gear);
 void car_params_flash_save(uint8_t gear);
+uint8_t car_params_flash_copy(uint8_t source, uint8_t target);
 
 #endif

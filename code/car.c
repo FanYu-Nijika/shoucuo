@@ -20,11 +20,11 @@ volatile uint8 car_follow_status;
 volatile uint8 car_follow_enabled;
 volatile float car_turn_request;
 
-/* FOLLOW waits for a running upright controller, then holds zero lean and turn for two seconds. */
-#define CAR_FOLLOW_DELAY_MS (2000)
+/* Reuse the timer for a two-second motor stop, then a two-second forward lean while tracking. */
+#define CAR_FOLLOW_STAGE_MS (2000)
 
 static uint8 derivative_ready;
-static uint32 follow_upright_started_ms;
+static uint32 follow_stage_started_ms;
 static uint32 last_control_capture_ms;
 static float last_error;
 static float curve_blend;
@@ -65,7 +65,7 @@ void car_init(void)
     car_running = 0;
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
-    follow_upright_started_ms = 0;
+    follow_stage_started_ms = 0;
     car_reset_turn();
 }
 
@@ -87,12 +87,9 @@ void car_stop(void)
 
 uint8 car_follow_start(void)
 {
-    car_reset_turn();
-    car_follow_enabled = 0;
-    car_follow_status = CAR_FOLLOW_WAIT_RUN;
-    follow_upright_started_ms = 0;
-    balance_cancel_follow_command();
-    if (car_running == 0) balance_runtime_request_start();
+    balance_runtime_stop();
+    follow_stage_started_ms = system_getval_ms();
+    car_follow_status = CAR_FOLLOW_WAIT_DELAY;
     return 1;
 }
 
@@ -100,7 +97,7 @@ void car_follow_stop(void)
 {
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
-    follow_upright_started_ms = 0;
+    follow_stage_started_ms = 0;
     car_reset_turn();
     balance_cancel_follow_command();
 }
@@ -112,6 +109,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     float d_error = 0;
     float turn;
     float target_speed_mps;
+    float lean_angle;
     uint32 elapsed_ms;
     uint8 visual_fresh = capture_ms != 0 && now_ms - capture_ms <= visual_timeout_ms;
     uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature);
@@ -120,23 +118,27 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         car_follow_stop();
         return;
     }
-    /* A failed or stopped RUN restarts the full upright interval before FOLLOW can act again. */
-    if (car_follow_status != CAR_FOLLOW_IDLE && car_running == 0) {
+    if (car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
+        if (now_ms - follow_stage_started_ms < CAR_FOLLOW_STAGE_MS) {
+            car_reset_turn();
+            balance_set_follow_command(0.0f, 0.0f, 0.0f);
+            return;
+        }
+        car_follow_status = CAR_FOLLOW_WAIT_RUN;
+        balance_runtime_request_start();
+    }
+    if (car_follow_status == CAR_FOLLOW_ACTIVE && car_running == 0) {
         car_follow_enabled = 0;
         car_follow_status = CAR_FOLLOW_WAIT_RUN;
-        follow_upright_started_ms = 0;
     }
     if (car_follow_status == CAR_FOLLOW_WAIT_RUN && car_running != 0) {
-        follow_upright_started_ms = now_ms;
-        car_follow_status = CAR_FOLLOW_WAIT_DELAY;
-    }
-    if (car_follow_status == CAR_FOLLOW_WAIT_DELAY && now_ms - follow_upright_started_ms >= CAR_FOLLOW_DELAY_MS) {
+        follow_stage_started_ms = now_ms;
         car_follow_status = CAR_FOLLOW_ACTIVE;
         car_follow_enabled = 1;
     }
-    if (car_follow_status == CAR_FOLLOW_WAIT_RUN || car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
+    if (car_follow_status == CAR_FOLLOW_WAIT_RUN) {
         car_reset_turn();
-        balance_set_follow_command(0.0f, 0.0f);
+        balance_set_follow_command(0.0f, 0.0f, 0.0f);
         return;
     }
 
@@ -168,10 +170,11 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
 
     if (!car_follow_enabled) {
         car_follow_status = CAR_FOLLOW_IDLE;
-        balance_set_follow_command(0.0f, 0.0f);
+        balance_set_follow_command(0.0f, 0.0f, 0.0f);
         return;
     }
     car_follow_status = CAR_FOLLOW_ACTIVE;
     target_speed_mps = visual_valid ? balance_params.target_speed_mps : 0.0f;
-    balance_set_follow_command(target_speed_mps, car_turn_request);
+    lean_angle = now_ms - follow_stage_started_ms < CAR_FOLLOW_STAGE_MS ? 5.0f * BOARD_FOLLOW_FORWARD_PWM_SIGN : 0.0f;
+    balance_set_follow_command(target_speed_mps, car_turn_request, lean_angle);
 }

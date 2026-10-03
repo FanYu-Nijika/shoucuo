@@ -14,6 +14,7 @@ volatile car_frame_state_t car_frame_state[CAR_FRAME_SLOT_COUNT];
 volatile uint32_t car_frame_slot_sequence[CAR_FRAME_SLOT_COUNT];
 volatile uint32_t car_frame_slot_period_ms[CAR_FRAME_SLOT_COUNT];
 volatile uint32_t car_frame_slot_capture_time_ms[CAR_FRAME_SLOT_COUNT];
+volatile uint16_t car_frame_slot_preview_row[CAR_FRAME_SLOT_COUNT];
 volatile uint8_t car_result_ready;
 volatile uint32_t car_capture_drop_count;
 volatile uint32_t car_processing_drop_count;
@@ -75,6 +76,7 @@ void car_shared_clear(void)
         car_frame_slot_sequence[slot] = 0;
         car_frame_slot_period_ms[slot] = 20;
         car_frame_slot_capture_time_ms[slot] = 0;
+        car_frame_slot_preview_row[slot] = 0;
     }
     __dsync();
 }

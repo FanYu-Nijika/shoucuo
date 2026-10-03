@@ -34,9 +34,9 @@ volatile balance_imu_status_t balance_imu_status;
 #define BALANCE_MANUAL_STATIC_ACCEL_MAX     (1.05f)
 #define BALANCE_MANUAL_STATIC_GYRO_MAX      (5.0f)
 #define BALANCE_TRIM_STATIC_GYRO_MAX        (1.5f)
-#define BALANCE_TRIM_ALPHA                  (0.001f)
-#define BALANCE_TRIM_WAIT_SAMPLES           (200)
-#define BALANCE_IMU_INVALID_STREAK_LIMIT    (3)
+#define BALANCE_TRIM_ALPHA                  (0.00040012f)
+#define BALANCE_TRIM_WAIT_SAMPLES           (500)
+#define BALANCE_IMU_INVALID_STREAK_LIMIT    (8)
 #define BALANCE_IMU_RETRY_INTERVAL_MS       (500)
 
 typedef struct {
@@ -462,7 +462,7 @@ static void balance_runtime_update_bias_trim(void)
 
 static void balance_runtime_imu_failed(void)
 {
-    balance_update_5ms(0.0f, 0.0f, 0, 0);
+    balance_update_2ms(0.0f, 0.0f, 0, 0);
     /* While balancing, retain the last motor command and resume on the next valid sample. */
     if (balance_state.running) return;
     imu_initialized = 0;
@@ -574,7 +574,7 @@ uint8 balance_runtime_request_calibration(void)
     return 1;
 }
 
-void balance_runtime_update_5ms(void)
+void balance_runtime_update_2ms(void)
 {
     float angle = 0.0f;
     float rate = 0.0f;
@@ -585,7 +585,7 @@ void balance_runtime_update_5ms(void)
     uint8 accel_valid;
 
     cc_tc264_balance_encoder_read(&left_count, &right_count);
-    balance_sample_encoders_5ms(left_count, right_count);
+    balance_sample_encoders_2ms(left_count, right_count);
     if (motor_test_active) {
         balance_start_pending = 0;
         car_running = 0;
@@ -632,9 +632,9 @@ void balance_runtime_update_5ms(void)
     }
 
     balance_runtime_update_bias_trim();
-    balance_update_5ms(angle, rate, 1, accel_valid);
-    /* A pending FOLLOW also needs upright RUN before its two-second hold can begin. */
-    if (car_follow_status != CAR_FOLLOW_IDLE && !balance_state.running) balance_start_pending = 1;
+    balance_update_2ms(angle, rate, 1, accel_valid);
+    /* WAIT_DELAY must keep the motors off; only request RUN after the two-second stop. */
+    if (car_follow_status == CAR_FOLLOW_WAIT_RUN && !balance_state.running) balance_start_pending = 1;
     if (balance_start_pending && !balance_state.running) {
         balance_start_pending = 0;
         /* Warmup seeds the filter once; while stopped it keeps tracking attitude, so RUN must not replace it with one noisy frame. */

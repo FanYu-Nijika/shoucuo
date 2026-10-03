@@ -106,6 +106,7 @@ void core1_main(void)
                 car_frame_state[(uint8_t)selected] = CAR_FRAME_FREE;
                 __dsync();
             } else {
+                car_frame_slot_preview_row[(uint8_t)selected] = result.preview_row;
                 car_result = result;
                 __dsync();
                 car_frame_state[(uint8_t)selected] = CAR_FRAME_DISPLAY_READY;

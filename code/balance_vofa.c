@@ -46,29 +46,29 @@ static uint8 balance_vofa_parse_number(const char *text, int32_t *value)
 static void balance_vofa_apply_command(char *line)
 {
     balance_params_t params;
-    const char *name;
+    // const char *name;
     const char *number;
     int32_t value;
     uint8 field;
 
     if (strncmp(line, "KP=", 3) == 0) {
-        name = "KP";
+        // name = "KP";
         number = line + 3;
         field = 0;
     } else if (strncmp(line, "KD=", 3) == 0) {
-        name = "KD";
+        // name = "KD";
         number = line + 3;
         field = 1;
     } else if (strncmp(line, "MID=", 4) == 0) {
-        name = "MID";
+        // name = "MID";
         number = line + 4;
         field = 2;
     } else {
-        printf("ERR\n");
+        // printf("ERR\n");
         return;
     }
     if (!balance_vofa_parse_number(number, &value) || (field != 2 && value < 0)) {
-        printf("ERR\n");
+        // printf("ERR\n");
         return;
     }
 
@@ -77,10 +77,10 @@ static void balance_vofa_apply_command(char *line)
     else if (field == 1) params.balance_kd = value / 100.0f;
     else params.middle_angle = value / 100.0f;
     if (!balance_apply_live_params(&params)) {
-        printf("ERR\n");
+        // printf("ERR\n");
         return;
     }
-    printf("OK %s=%ld\n", name, (long)value);
+    // printf("OK %s=%ld\n", name, (long)value);
 }
 
 static void balance_vofa_receive(void)
@@ -89,8 +89,9 @@ static void balance_vofa_receive(void)
 
     while (debug_read_ring_buffer(&byte, 1) == 1) {
         if (byte == '\n') {
-            if (command_overflow) printf("ERR\n");
-            else if (command_length != 0) {
+            if (command_overflow) {
+                // printf("ERR\n");
+            } else if (command_length != 0) {
                 if (command[command_length - 1] == '\r') command_length--;
                 if (command_length != 0) {
                     command[command_length] = '\0';
@@ -107,37 +108,26 @@ static void balance_vofa_receive(void)
     }
 }
 
-static uint8 balance_vofa_scale(float input, long *output)
-{
-    if (input != input || input < -21474800.0f || input > 21474800.0f) return 0;
-    *output = (long)(input * 100.0f);
-    return 1;
-}
-
 static void balance_vofa_send(void)
 {
-    float samples[8];
-    long values[8];
+    int32_t left_count;
+    int32_t right_count;
+    float raw_speed;
+    float filtered_speed;
     uint32 interrupt_state;
-    uint8 index;
 
     /* The PIT updates these fields separately; a short snapshot keeps one frame coherent. */
     interrupt_state = interrupt_global_disable();
-    samples[0] = balance_state.angle;
-    samples[1] = balance_state.target_angle;
-    samples[2] = balance_state.angle_error;
-    samples[3] = balance_state.gyro_rate;
-    samples[4] = balance_state.p_output;
-    samples[5] = balance_state.d_output;
-    samples[6] = balance_state.balance_output;
-    samples[7] = balance_state.common_pwm;
+    /* Schematic wheel labels use the old front; control names use the camera-facing front. */
+    left_count = balance_state.right_count;
+    right_count = balance_state.left_count;
+    raw_speed = balance_state.speed_raw_mps;
+    filtered_speed = balance_state.speed_filtered_mps;
     interrupt_global_enable(interrupt_state);
 
-    for (index = 0; index < 8; index++) {
-        if (!balance_vofa_scale(samples[index], &values[index])) return;
-    }
-    printf("bal:%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
-        values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7]);
+    // Count fields are the latest 20 ms window; printing stays outside the control interrupt.
+    printf("%ld,%ld,%ld,%ld\n", (long)left_count, (long)right_count,
+           (long)(raw_speed * 100.0f), (long)(filtered_speed * 100.0f));
 }
 
 void balance_vofa_task(void)

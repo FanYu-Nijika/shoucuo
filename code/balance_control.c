@@ -8,7 +8,7 @@
 #include "zf_common_interrupt.h"
 #include "zf_driver_flash.h"
 
-static const float balance_dt_s = 0.005f;
+static const float balance_dt_s = BALANCE_CONTROL_PERIOD_MS * 0.001f;
 /* The driver defines 10000 as 100% duty; clamp before narrowing to int16_t. */
 static const float balance_motor_pwm_max = 10000.0f;
 static const float speed_dt_s = 0.02f;
@@ -148,6 +148,7 @@ static uint32_t encoder_calibration_start_count;
 static uint8_t encoder_sample_phase;
 static float requested_speed_mps;
 static float requested_turn_pwm;
+static float requested_lean_angle;
 
 static uint8_t balance_is_finite(float value)
 {
@@ -162,6 +163,12 @@ static float balance_clamp(float value, float limit)
     if (value > limit) return limit;
     if (value < -limit) return -limit;
     return value;
+}
+
+static float balance_accel_weight_2ms(float weight_5ms)
+{
+    /* Preserve the filter time constant for existing Flash profiles; run powf only when applying parameters. */
+    return 1.0f - powf(1.0f - weight_5ms, balance_dt_s / 0.005f);
 }
 
 static uint8_t balance_params_profile_valid(uint8_t gear)
@@ -240,7 +247,7 @@ static balance_params_t balance_params_from_v9(const balance_params_v9_t *old)
     return migrated;
 }
 
-/* Build a complete V10 page in RAM. Migration is written only on SAVE FLASH. */
+/* Build a complete V10 page in RAM. Only saving or copying writes the migration. */
 static void balance_params_flash_prepare(void)
 {
     balance_params_t profiles[BALANCE_PARAMS_FLASH_PROFILE_COUNT];
@@ -306,6 +313,7 @@ void balance_cancel_follow_command(void)
 {
     requested_speed_mps = 0.0f;
     requested_turn_pwm = 0.0f;
+    requested_lean_angle = 0.0f;
     balance_state.speed_target_mps = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.turn_output = 0.0f;
@@ -374,8 +382,9 @@ static uint8_t balance_run_control(void)
     float turn_headroom;
     float right_control;
 
-    /* The speed loop corrects the upright target; wheel speed never adds PWM directly. */
-    balance_state.target_angle = applied_params.middle_angle + balance_state.speed_angle_applied;
+    /* Hold the launch lean relative to the saved balance angle, then resume the normal FOLLOW target. */
+    if (requested_lean_angle != 0.0f) balance_state.target_angle = applied_params.middle_angle + requested_lean_angle;
+    else balance_state.target_angle = applied_params.middle_angle + balance_state.speed_angle_applied;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
     if (!balance_is_finite(balance_state.p_output)) return 0;
@@ -401,7 +410,10 @@ static uint8_t balance_run_control(void)
 void balance_params_reset(void)
 {
     balance_params = balance_default_params;
-    if (!balance_state.running) applied_params = balance_default_params;
+    if (!balance_state.running) {
+        applied_params = balance_default_params;
+        applied_params.accel_weight = balance_accel_weight_2ms(balance_default_params.accel_weight);
+    }
 }
 
 void balance_params_flash_switch(uint8_t gear)
@@ -417,6 +429,7 @@ void balance_params_flash_switch(uint8_t gear)
     if (!balance_params_are_valid(&stored_params)) stored_params = balance_default_params;
     balance_params = stored_params;
     applied_params = stored_params;
+    applied_params.accel_weight = balance_accel_weight_2ms(stored_params.accel_weight);
     balance_clear_outputs();
 }
 
@@ -440,6 +453,30 @@ uint8_t balance_params_flash_save(uint8_t gear)
     if (flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE) != 0) return 0;
     flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
     return memcmp(&flash_union_buffer[offset], &stored_params, sizeof(stored_params)) == 0 ? 1 : 0;
+}
+
+uint8_t balance_params_flash_copy(uint8_t source, uint8_t target)
+{
+    uint32_t source_offset;
+    uint32_t target_offset;
+    balance_params_t stored_params;
+
+    if (!balance_params_profile_valid(source) || !balance_params_profile_valid(target) || balance_state.running) return 0;
+    if (source == target) return 1;
+    flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    if (flash_union_buffer[0].uint32_type != BALANCE_PARAMS_FLASH_MAGIC ||
+        flash_union_buffer[1].uint32_type == 0 ||
+        flash_union_buffer[1].uint32_type > BALANCE_PARAMS_FLASH_VERSION) return 0;
+    /* Old saved profiles use the same migration as SWITCH GEAR. */
+    if (flash_union_buffer[1].uint32_type != BALANCE_PARAMS_FLASH_VERSION) balance_params_flash_prepare();
+    source_offset = balance_params_profile_offset(source);
+    target_offset = balance_params_profile_offset(target);
+    memcpy(&stored_params, &flash_union_buffer[source_offset], sizeof(stored_params));
+    if (!balance_params_are_valid(&stored_params)) return 0;
+    memcpy(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params));
+    if (flash_write_page_from_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE) != 0) return 0;
+    flash_read_page_to_buffer(BALANCE_PARAMS_FLASH_SECTOR, BALANCE_PARAMS_FLASH_PAGE);
+    return memcmp(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params)) == 0;
 }
 
 static uint32_t balance_encoder_checksum(const balance_encoder_flash_t *record)
@@ -514,13 +551,13 @@ uint8_t balance_encoder_calibrate_toggle(uint8_t wheel)
     return 1;
 }
 
-void balance_set_follow_command(float target_speed_mps, float turn_pwm)
+void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle)
 {
     if (!balance_state.running) {
         balance_cancel_follow_command();
         return;
     }
-    if (!balance_is_finite(target_speed_mps) || !balance_is_finite(turn_pwm)) {
+    if (!balance_is_finite(target_speed_mps) || !balance_is_finite(turn_pwm) || !balance_is_finite(lean_angle)) {
         balance_state.fault = BALANCE_FAULT_NUMERIC;
         balance_cancel_follow_command();
         return;
@@ -530,6 +567,7 @@ void balance_set_follow_command(float target_speed_mps, float turn_pwm)
     requested_speed_mps = target_speed_mps;
     balance_state.speed_target_mps = target_speed_mps;
     requested_turn_pwm = turn_pwm;
+    requested_lean_angle = lean_angle;
 }
 
 static void balance_update_speed_20ms(void)
@@ -574,16 +612,18 @@ static void balance_update_speed_20ms(void)
     balance_state.speed_angle_applied += step;
 }
 
-void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count)
+void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
 {
     left_count_sum += left_count;
     right_count_sum += right_count;
     left_count_total += (uint32_t)(int32_t)left_count;
     right_count_total += (uint32_t)(int32_t)right_count;
-    if (++encoder_sample_phase < 4) return;
+    if (++encoder_sample_phase < 10) return;
     encoder_sample_phase = 0;
     balance_state.left_count = left_count_sum;
     balance_state.right_count = right_count_sum;
+    /* Keep the same 20 ms units as serial counts; publish together so CPU1 cannot mix two windows. */
+    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
     left_count_sum = 0;
     right_count_sum = 0;
     if (balance_state.encoder_calibration_valid) {
@@ -603,9 +643,10 @@ void balance_init(void)
 {
     balance_params = balance_default_params;
     applied_params = balance_default_params;
+    applied_params.accel_weight = balance_accel_weight_2ms(balance_default_params.accel_weight);
     memset((void *)&balance_state, 0, sizeof(balance_state));
     balance_state.fault = BALANCE_FAULT_NONE;
-    balance_state.control_period_ms = 5;
+    balance_state.control_period_ms = BALANCE_CONTROL_PERIOD_MS;
     complementary_initialized = 0;
     left_count_sum = 0;
     right_count_sum = 0;
@@ -660,6 +701,7 @@ uint8_t balance_apply_params(void)
         return 0;
     }
     applied_params = balance_params;
+    applied_params.accel_weight = balance_accel_weight_2ms(balance_params.accel_weight);
     balance_clear_outputs();
     return 1;
 }
@@ -667,18 +709,21 @@ uint8_t balance_apply_params(void)
 uint8_t balance_apply_live_params(const balance_params_t *params)
 {
     uint32 interrupt_state;
+    float accel_weight;
 
     if (!balance_params_are_valid(params)) return 0;
-    /* Copy both views in one short critical section so the 5 ms ISR never sees a mixed parameter set. */
+    accel_weight = balance_accel_weight_2ms(params->accel_weight);
+    /* Calculate the filter conversion before disabling interrupts to keep the 2 ms ISR responsive. */
     interrupt_state = interrupt_global_disable();
     balance_params = *params;
     applied_params = *params;
+    applied_params.accel_weight = accel_weight;
     if (!balance_state.running) balance_state.target_angle = applied_params.middle_angle;
     interrupt_global_enable(interrupt_state);
     return 1;
 }
 
-void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid)
+void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid)
 {
     balance_state.output_updated = 0;
     if (!valid) {

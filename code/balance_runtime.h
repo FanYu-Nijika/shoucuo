@@ -3,9 +3,9 @@
 
 #include "zf_common_typedef.h"
 
-#define BALANCE_IMU_WARMUP_SAMPLES  (40)
-#define BALANCE_CAL_STATIC_SAMPLES  (100)
-#define BALANCE_CALIBRATION_SAMPLES (1000)
+#define BALANCE_IMU_WARMUP_SAMPLES  (100)
+#define BALANCE_CAL_STATIC_SAMPLES  (250)
+#define BALANCE_CALIBRATION_SAMPLES (2500)
 
 typedef enum {
     BALANCE_IMU_CAL_REQUIRED = 0,
@@ -73,7 +73,7 @@ void balance_runtime_init(void);
 void balance_runtime_task(void);
 void balance_runtime_request_start(void);
 uint8 balance_runtime_request_calibration(void);
-void balance_runtime_update_5ms(void);
+void balance_runtime_update_2ms(void);
 void balance_runtime_stop(void);
 void balance_runtime_set_motor_test(uint8 enabled);
 

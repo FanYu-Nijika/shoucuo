@@ -54,7 +54,7 @@
 // �?例程�?开源库空工�? �?用作移�?�或者测试各类内外�??
 
 #define PIT_NUM                 (CCU60_CH0 )
-#define CAR_CONTROL_PERIOD_MS   (5)
+#define CAR_CONTROL_PERIOD_MS   (BALANCE_CONTROL_PERIOD_MS)
 #define CAMERA_DMA_RECOVER_MS   (80)
 #define CAMERA_HARD_RESTART_MS  (600)
 #define CAMERA_RETRY_MS         (2000)
@@ -268,9 +268,9 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     }
     if (previous_tick != 0) {
         car_balance_period_us = (start_ticks - previous_tick) / 100;
-        if (car_balance_period_us > 6000 && balance_state.running != 0) {
+        if (car_balance_period_us > CAR_CONTROL_PERIOD_MS * 1200 && balance_state.running != 0) {
             car_balance_overruns++;
-            if (++late_tick_count >= 3) {
+            if (++late_tick_count >= 8) {
                 balance_state.fault = BALANCE_FAULT_TIMING;
             }
         } else late_tick_count = 0;
@@ -286,13 +286,13 @@ IFX_INTERRUPT(cc60_pit_ch0_isr, 0, CCU6_0_CH0_ISR_PRIORITY)
     now_ms = system_getval_ms();
     car_track_update(visual_snapshot.error, visual_snapshot.curvature, visual_snapshot.valid,
                      new_visual_result, visual_snapshot.capture_time_ms, now_ms);
-    balance_runtime_update_5ms();
+    balance_runtime_update_2ms();
     if (car_running != 0) car_time_ms += CAR_CONTROL_PERIOD_MS;
     else car_time_ms = 0;
     gpio_set_level(BOARD_BUZZER_PIN, car_curve_mode != 0 ? GPIO_HIGH : GPIO_LOW);
     elapsed_us = (system_getval() - start_ticks) / 100;
     if (elapsed_us > car_balance_max_us) car_balance_max_us = elapsed_us;
-    if (elapsed_us >= 5000) {
+    if (elapsed_us >= CAR_CONTROL_PERIOD_MS * 1000) {
         car_balance_overruns++;
         balance_state.fault = BALANCE_FAULT_TIMING;
     }

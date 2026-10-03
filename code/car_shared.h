@@ -54,7 +54,7 @@ typedef struct {
 
 /* CPU0 publishes a small immutable visual-control snapshot.  The ISR reads
  * only the selected slot while the main loop fills the other slot, so camera
- * processing never blocks the 5 ms balance interrupt. */
+ * processing never blocks the 2 ms balance interrupt. */
 typedef struct {
     float error;
     float curvature;
@@ -72,6 +72,7 @@ extern volatile car_frame_state_t car_frame_state[CAR_FRAME_SLOT_COUNT];
 extern volatile uint32_t car_frame_slot_sequence[CAR_FRAME_SLOT_COUNT];
 extern volatile uint32_t car_frame_slot_period_ms[CAR_FRAME_SLOT_COUNT];
 extern volatile uint32_t car_frame_slot_capture_time_ms[CAR_FRAME_SLOT_COUNT];
+extern volatile uint16_t car_frame_slot_preview_row[CAR_FRAME_SLOT_COUNT];
 extern volatile uint8_t car_display_slot;
 extern volatile uint8_t car_display_read_slot;
 extern volatile uint8_t car_display_pending_free_slot;

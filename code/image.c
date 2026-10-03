@@ -16,8 +16,8 @@
 #define CROSS_SKEW_TURN_WINDOW 14
 #define CROSS_SKEW_TURN_GAP 5
 #define CROSS_SKEW_TURN_DIFF 6
-#define DYNAMIC_PREVIEW_ROW_OFFSET 25
-#define DYNAMIC_PREVIEW_FAST_LEAN_DEG 8.0f
+#define DYNAMIC_PREVIEW_START_COUNT 250
+#define DYNAMIC_PREVIEW_STEP_COUNT 20
 
 // #define CROSS_SKEW_NONE 11
 // #define CROSS_SKEW_LEFT 45
@@ -40,11 +40,12 @@ uint8 Cross_Flag;
 uint8 Cross_Count;
 uint8 xieru_type;
 static int current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
+static uint8 preview_curve_mode;
 
 uint8 ostu_deal_threshold(void);
 void threshold_update(void);
 float Calculate_Error(void);
-static int Update_Dynamic_Preview_Row(void);
+static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid);
 static float Calculate_Preview_Weight(int row, int top_row, int middle_row, int near_row);
 static float Calculate_Curve_Variance(void);
 uint8_t protect(const uint8 *gray_frame);
@@ -75,7 +76,10 @@ void image_init(void) {
     Cross_Flag = 0;
     Cross_Count = 0;
     left_index = right_index = 0;
-    current_preview_row = CAR_CONTROL_ROW_NEAR_DEFAULT;
+    current_preview_row = car_params.control_row_near;
+    if (current_preview_row < 3) current_preview_row = 3;
+    if (current_preview_row > height - 3) current_preview_row = height - 3;
+    preview_curve_mode = 0;
     // Search_Stop_Line = 0;
 }
 
@@ -177,14 +181,11 @@ void image_deal(uint8 start_y, uint8 end_y, uint8 *gray_frame, uint8 *binary_fra
         result->curvature = result->curve_variance / car_params.curvature_scale;
     if (result->curvature < 0.0) result->curvature = 0.0;
     if (result->curvature > 1.0) result->curvature = 1.0;
-    result->preview_row = Update_Dynamic_Preview_Row();
+    result->preview_row = Update_Dynamic_Preview_Row(result->curvature, line_valid);
     result->error_pixels = Calculate_Error() + car_params.center_offset_pixels;
     result->center_x = image_center + result->error_pixels;
     result->error_normalized = result->error_pixels / (width * 0.5);
     result->near_error_cm = result->error_pixels * 40.0 / (result->line_width > 0 ? result->line_width : 1);
-    /* Draw after all calculations so the marker cannot alter current frame detection. */
-    for (index = 0; index < MT9V03X_W - 1; index++)
-        gray_frame[result->preview_row * MT9V03X_W + index] = 0;
     if (line_valid == 0) return;
 
     result->line_valid = 1;
@@ -623,22 +624,30 @@ static int Calculate_Max_Preview_Length(void)
     return max_length;
 }
 
-static int Update_Dynamic_Preview_Row(void)
+static int Update_Dynamic_Preview_Row(float curvature, uint8 line_valid)
 {
     int base_row = car_params.control_row_near;
-    int offset;
-    float forward_lean;
+    int32_t average_count = balance_state.encoder_average_count;
+    int offset = 0;
 
     if (base_row < 3) base_row = 3;
     if (base_row > height - 3) base_row = height - 3;
-    current_preview_row = base_row;
-    if (car_params.running == 0 || balance_state.imu_ready == 0) return current_preview_row;
+    if (car_params.running == 0) {
+        current_preview_row = base_row;
+        preview_curve_mode = 0;
+        return current_preview_row;
+    }
 
-    /* The camera now faces the old rear, so leaning toward the new front increases COMP ANGLE. */
-    forward_lean = balance_state.angle - balance_params.middle_angle;
-    if (!(forward_lean > 0.0f)) return current_preview_row;
-    if (forward_lean > DYNAMIC_PREVIEW_FAST_LEAN_DEG) forward_lean = DYNAMIC_PREVIEW_FAST_LEAN_DEG;
-    offset = (int)(forward_lean * DYNAMIC_PREVIEW_ROW_OFFSET / DYNAMIC_PREVIEW_FAST_LEAN_DEG);
+    /* CPU0 switches curve PD after this result arrives; use this frame's variance to freeze the entry frame too. */
+    if (!line_valid) preview_curve_mode = 0;
+    else if (!preview_curve_mode && curvature >= car_params.curve_enter_threshold) preview_curve_mode = 1;
+    else if (preview_curve_mode && curvature <= car_params.curve_exit_threshold) preview_curve_mode = 0;
+    if (preview_curve_mode) return current_preview_row;
+
+    /* Recompute from PRE-SIGHT so slowing down restores rows without accumulating rounding or curve-time changes. */
+    if (average_count > DYNAMIC_PREVIEW_START_COUNT) {
+        offset = (average_count - DYNAMIC_PREVIEW_START_COUNT) / DYNAMIC_PREVIEW_STEP_COUNT;
+    }
     current_preview_row = base_row - offset;
     if (current_preview_row < 3) current_preview_row = 3;
     return current_preview_row;

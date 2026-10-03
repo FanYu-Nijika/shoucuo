@@ -335,6 +335,26 @@ void car_params_flash_save(uint8_t gear)
     flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
 }
 
+uint8_t car_params_flash_copy(uint8_t source, uint8_t target)
+{
+    uint32_t source_offset;
+    uint32_t target_offset;
+    car_params_t stored_params;
+
+    if (!car_params_flash_gear_valid(source) || !car_params_flash_gear_valid(target)) return 0;
+    if (source == target) return 1;
+    source_offset = car_params_flash_profile_offset(source);
+    target_offset = car_params_flash_profile_offset(target);
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    if (flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION ||
+        car_params_flash_profile_empty(source_offset)) return 0;
+    memcpy(&stored_params, &flash_union_buffer[source_offset], sizeof(stored_params));
+    memcpy(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params));
+    if (flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE) != 0) return 0;
+    flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
+    return memcmp(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params)) == 0;
+}
+
 static void car_params_flash_factory_init(void)
 {
     uint8_t gear;

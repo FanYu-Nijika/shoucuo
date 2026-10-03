@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define BALANCE_CONTROL_PERIOD_MS (2)
+
 typedef enum {
     BALANCE_FAULT_NONE = 0,
     BALANCE_FAULT_STOPPED,
@@ -17,7 +19,7 @@ typedef struct {
     float balance_kp;
     float balance_kd;
     float middle_angle;
-    float accel_weight;
+    float accel_weight; /* Menu/Flash weight remains referenced to 5 ms; applying parameters converts it to 2 ms. */
     float target_speed_mps;
     int16_t pwm_limit; /* Legacy Flash slot; upright output no longer uses this limit. */
     int16_t turn_pwm_limit;
@@ -52,6 +54,7 @@ typedef struct {
     float turn_output;
     int32_t left_count;
     int32_t right_count;
+    int32_t encoder_average_count; /* One coherent signed 20 ms mean for CPU1; no wheel calibration required. */
     uint32_t left_counts_per_rev;
     uint32_t right_counts_per_rev;
     uint16_t control_period_ms;
@@ -84,6 +87,7 @@ void balance_params_reset(void);
 void balance_params_flash_load(uint8_t gear);
 void balance_params_flash_switch(uint8_t gear);
 uint8_t balance_params_flash_save(uint8_t gear);
+uint8_t balance_params_flash_copy(uint8_t source, uint8_t target);
 uint8_t balance_start(void);
 uint8_t balance_seed_attitude(float angle);
 void balance_stop(void);
@@ -91,11 +95,11 @@ uint8_t balance_apply_params(void);
 uint8_t balance_apply_live_params(const balance_params_t *params);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
-/* Four 5 ms samples form one signed 20 ms speed measurement. */
-void balance_sample_encoders_5ms(int16_t left_count, int16_t right_count);
-void balance_set_follow_command(float target_speed_mps, float turn_pwm);
+/* Ten 2 ms samples form one signed 20 ms speed measurement. */
+void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count);
+void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle);
 void balance_cancel_follow_command(void);
 uint8_t balance_encoder_calibrate_toggle(uint8_t wheel);
-void balance_update_5ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);
+void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);
 
 #endif
