@@ -41,7 +41,7 @@ function speedFilter(previous, raw) {
 function speedAngle(previous, target, measured, integral) {
     const error = target - measured;
     const nextIntegral = integral + error * 0.02;
-    let output = -forwardPwmSign * clamp(2.0 * error + 0.3 * nextIntegral, 5);
+    let output = forwardPwmSign * clamp(2.0 * error + 0.3 * nextIntegral, 5);
     if (output > previous + 0.04) output = previous + 0.04;
     if (output < previous - 0.04) output = previous - 0.04;
     return {angle: output, integral: nextIntegral};
@@ -77,6 +77,7 @@ test('direct upright PD preserves raw output while both motor paths cap duty at 
     near(raw, 1050.1112, 1e-6);
     assert(control.includes('balance_state.p_output = applied_params.balance_kp * balance_state.angle_error'));
     assert(control.includes('balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate'));
+    assert(control.includes('balance_state.balance_output = -(balance_state.p_output + balance_state.d_output)'));
     assert(!control.includes('target_rate'));
     assert(!control.includes('rate_error'));
     assert(control.includes('common = balance_state.balance_output;'));
@@ -104,13 +105,13 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     near(speedFilter(0, 1), 0.25);
     near(speedFilter(0.25, 1), 0.4375);
     let output = speedAngle(0, 1.5, 0.25, 0);
-    assert(output.angle < 0);
-    output = speedAngle(0, 0, 1.0, 0);
     assert(output.angle > 0);
+    output = speedAngle(0, 0, 1.0, 0);
+    assert(output.angle < 0);
     output = speedAngle(0, 10, 0, 0);
-    near(output.angle, -0.04);
-    output = speedAngle(0, -10, 0, 0);
     near(output.angle, 0.04);
+    output = speedAngle(0, -10, 0, 0);
+    near(output.angle, -0.04);
     assert(control.includes('if (++encoder_sample_phase < 10) return'));
     assert(control.includes('speed_kp'));
     assert(control.includes('speed_ki'));
@@ -119,7 +120,7 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     assert(control.includes('speed_filtered_mps'));
     assert(control.includes('speed_error_mps'));
     assert(control.includes('speed_integral_angle'));
-    assert(control.includes('angle_target = -BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit)'));
+    assert(control.includes('angle_target = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit)'));
     assert(control.includes('0.065f'));
     assert(control.includes('0.25f'));
     assert(control.includes('0.02f'));
@@ -574,8 +575,8 @@ test('one-wheel-revolution calibration gives a physical 1.5 m/s target and persi
     assert(control.includes('(float)balance_state.right_count / balance_state.right_counts_per_rev'));
     const underTargetAngle = speedAngle(0, 1.5, 0, 0).angle;
     const overTargetAngle = speedAngle(0, 0, 1.5, 0).angle;
-    assert(-1000 * underTargetAngle > 0);
-    assert(-1000 * overTargetAngle < 0);
+    assert(1000 * underTargetAngle > 0);
+    assert(1000 * overTargetAngle < 0);
 });
 
 test('manual calibration timing resets on movement and collects five clean seconds', () => {

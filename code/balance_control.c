@@ -391,7 +391,8 @@ static uint8_t balance_run_control(void)
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
     if (!balance_is_finite(balance_state.p_output)) return 0;
     balance_state.d_output = applied_params.balance_kd * balance_state.gyro_rate;
-    balance_state.balance_output = balance_state.p_output + balance_state.d_output;
+    /* Reverse upright feedback for the current IMU mounting without changing the stored angle reference. */
+    balance_state.balance_output = -(balance_state.p_output + balance_state.d_output);
     if (!balance_is_finite(balance_state.balance_output)) return 0;
     common = balance_state.balance_output;
     balance_state.common_pwm = common;
@@ -611,7 +612,7 @@ static void balance_update_speed_20ms(void)
     balance_state.speed_integral_angle = integral_candidate;
     /* Positive speed error must produce positive PWM in the new camera-forward direction. */
     pi_candidate = applied_params.speed_kp * error + integral_candidate;
-    angle_target = -BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit);
+    angle_target = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit);
     step = balance_clamp(angle_target - balance_state.speed_angle_applied, speed_angle_step_deg);
     balance_state.speed_angle_applied += step;
 }

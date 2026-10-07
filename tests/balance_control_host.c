@@ -83,6 +83,7 @@ static void test_2ms_filter_and_pd(void)
     balance_update_2ms(1.0f, 2.0f, 1, 1);
     near_value(balance_state.p_output, 1000.0f);
     near_value(balance_state.d_output, balance_default_params.balance_kd * 2.0f);
+    near_value(balance_state.balance_output, -(1000.0f + balance_default_params.balance_kd * 2.0f));
     balance_stop();
     balance_params_reset();
     assert(balance_seed_attitude(0.0f));
@@ -120,6 +121,7 @@ int main(void)
 {
     balance_params_t old_params;
     balance_params_t params;
+    int sample;
 
     balance_init();
     memset(flash_union_buffer, 0xff, sizeof(flash_union_buffer));
@@ -191,21 +193,40 @@ int main(void)
     balance_update_2ms(0.0f, 0.0f, 1, 1);
     assert(balance_state.turn_pwm_command == 300.0f);
 
+    balance_update_2ms(params.middle_angle + 5.0f, 0.0f, 1, 1);
+    near_value(balance_state.balance_output, -5000.0f);
+    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
+    balance_update_2ms(params.middle_angle - 5.0f, 0.0f, 1, 1);
+    near_value(balance_state.balance_output, 5000.0f);
+    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+
     balance_update_2ms(2.9f, 0.0f, 1, 1);
-    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 2800);
+    assert(balance_state.left_pwm == -2800 && balance_state.right_pwm == -3000);
 
     balance_update_2ms(0.0f, 1000.0f, 1, 1);
     assert(balance_state.common_pwm == balance_state.balance_output);
-    assert(balance_state.common_pwm > 10000.0f);
-    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+    assert(balance_state.common_pwm < -10000.0f);
+    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
 
     balance_update_2ms(0.0f, -1000.0f, 1, 1);
-    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
+    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
 
     balance_update_2ms(0.0f, 0.0f, 0, 0);
     assert(!balance_state.output_updated && balance_state.fault == BALANCE_FAULT_IMU);
-    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
+    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
     balance_stop();
     assert(!balance_state.running && balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
+
+    balance_init();
+    balance_state.encoder_calibration_valid = 1;
+    balance_state.left_counts_per_rev = 1000;
+    balance_state.right_counts_per_rev = 1000;
+    assert(balance_seed_attitude(0.0f));
+    assert(balance_start());
+    balance_set_follow_command(1.5f, 0.0f, 0.0f, 0.0f);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(0, 0);
+    assert(balance_state.speed_angle_applied > 0.0f);
+    balance_update_2ms(0.0f, 0.0f, 1, 1);
+    assert(balance_state.left_pwm > 0 && balance_state.right_pwm > 0);
     return 0;
 }
