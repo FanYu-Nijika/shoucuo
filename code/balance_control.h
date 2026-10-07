@@ -97,7 +97,8 @@ uint8_t balance_params_are_valid(const balance_params_t *params);
 
 /* Ten 2 ms samples form one signed 20 ms speed measurement. */
 void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count);
-void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle);
+/* Blend the launch target with the normal speed-loop target without a reference-angle step. */
+void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight);
 void balance_cancel_follow_command(void);
 uint8_t balance_encoder_calibrate_toggle(uint8_t wheel);
 void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);

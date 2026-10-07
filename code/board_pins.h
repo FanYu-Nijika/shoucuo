@@ -33,8 +33,8 @@
 #define BOARD_SWITCH4_PIN                  (BOARD_KEY_COMMON_PIN)
 #define BOARD_SWITCH5_PIN                  (BOARD_KEY_RIGHT_PIN)
 
-// P23.1 经 R2 驱动 Q2，输出高电平时导通蜂鸣器驱动级。
-#define BOARD_BUZZER_PIN                   (P23_1)
+// 2026-10-02 原理图：P13.0 经 R2 驱动 Q2，输出高电平时导通蜂鸣器驱动级。
+#define BOARD_BUZZER_PIN                   (P13_0)
 #define BOARD_BUZZER_ENABLE                (1)
 
 // U8 缓冲器把 P33.5-P33.8 依次送到 PWM1-PWM4；P33.4 单独输出 PWM_SI。

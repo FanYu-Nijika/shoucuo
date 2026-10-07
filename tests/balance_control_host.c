@@ -186,7 +186,7 @@ int main(void)
     params = balance_params;
     params.turn_pwm_limit = 300;
     assert(balance_apply_live_params(&params));
-    balance_set_follow_command(0.0f, 1000.0f, 0.0f);
+    balance_set_follow_command(0.0f, 1000.0f, 0.0f, 0.0f);
     balance_update_2ms(0.0f, 0.0f, 1, 1);
     assert(balance_state.turn_pwm_command == 300.0f);
 

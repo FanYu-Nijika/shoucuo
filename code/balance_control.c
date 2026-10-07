@@ -149,6 +149,7 @@ static uint8_t encoder_sample_phase;
 static float requested_speed_mps;
 static float requested_turn_pwm;
 static float requested_lean_angle;
+static float requested_lean_weight;
 
 static uint8_t balance_is_finite(float value)
 {
@@ -314,6 +315,7 @@ void balance_cancel_follow_command(void)
     requested_speed_mps = 0.0f;
     requested_turn_pwm = 0.0f;
     requested_lean_angle = 0.0f;
+    requested_lean_weight = 0.0f;
     balance_state.speed_target_mps = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.turn_output = 0.0f;
@@ -382,9 +384,9 @@ static uint8_t balance_run_control(void)
     float turn_headroom;
     float right_control;
 
-    /* Hold the launch lean relative to the saved balance angle, then resume the normal FOLLOW target. */
-    if (requested_lean_angle != 0.0f) balance_state.target_angle = applied_params.middle_angle + requested_lean_angle;
-    else balance_state.target_angle = applied_params.middle_angle + balance_state.speed_angle_applied;
+    /* Blend both targets so a nonzero speed correction cannot cause a step at either end of the launch lean. */
+    balance_state.target_angle = applied_params.middle_angle +
+        (1.0f - requested_lean_weight) * balance_state.speed_angle_applied + requested_lean_weight * requested_lean_angle;
     balance_state.angle_error = balance_state.angle - balance_state.target_angle;
     balance_state.p_output = applied_params.balance_kp * balance_state.angle_error;
     if (!balance_is_finite(balance_state.p_output)) return 0;
@@ -551,13 +553,14 @@ uint8_t balance_encoder_calibrate_toggle(uint8_t wheel)
     return 1;
 }
 
-void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle)
+void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight)
 {
     if (!balance_state.running) {
         balance_cancel_follow_command();
         return;
     }
-    if (!balance_is_finite(target_speed_mps) || !balance_is_finite(turn_pwm) || !balance_is_finite(lean_angle)) {
+    if (!balance_is_finite(target_speed_mps) || !balance_is_finite(turn_pwm) || !balance_is_finite(lean_angle) ||
+        !balance_is_finite(lean_weight) || lean_weight < 0.0f || lean_weight > 1.0f) {
         balance_state.fault = BALANCE_FAULT_NUMERIC;
         balance_cancel_follow_command();
         return;
@@ -568,6 +571,7 @@ void balance_set_follow_command(float target_speed_mps, float turn_pwm, float le
     balance_state.speed_target_mps = target_speed_mps;
     requested_turn_pwm = turn_pwm;
     requested_lean_angle = lean_angle;
+    requested_lean_weight = lean_weight;
 }
 
 static void balance_update_speed_20ms(void)

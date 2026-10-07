@@ -4,12 +4,18 @@
 #include "zf_common_headfile.h"
 #include "car_params.h"
 
-/* START: stop -> WAIT_DELAY (2 s) -> WAIT_RUN -> ACTIVE (forward lean for first 2 s). STOP returns to IDLE. */
+/* START waits stopped for 2 s, waits for RUN, then holds zero-speed RUN for 2 s with camera tracking.
+ * The remaining 300 ms / 2 s / 300 ms stage timers are retained; the launch offset is disabled (0 degrees).
+ * STOP cancels every stage; a lost RUN without a fault restarts from WAIT_RUN and the full upright hold. */
 enum {
     CAR_FOLLOW_IDLE = 0,
     CAR_FOLLOW_WAIT_RUN,
     CAR_FOLLOW_WAIT_DELAY,
-    CAR_FOLLOW_ACTIVE
+    CAR_FOLLOW_ACTIVE,
+    CAR_FOLLOW_RUN_UPRIGHT,
+    CAR_FOLLOW_LEAN_IN,
+    CAR_FOLLOW_LEAN_HOLD,
+    CAR_FOLLOW_LEAN_OUT
 };
 
 extern volatile uint8 car_running;
