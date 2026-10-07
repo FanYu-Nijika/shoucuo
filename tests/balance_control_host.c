@@ -195,10 +195,10 @@ int main(void)
 
     balance_set_follow_command(0.0f, 20.0f * BOARD_FOLLOW_TURN_PWM_SIGN, 0.0f, 0.0f);
     balance_update_2ms(params.middle_angle - 1.0f, 0.0f, 1, 1);
-    assert(balance_state.left_pwm == 980 && balance_state.right_pwm == 1020);
+    assert(balance_state.left_pwm == 1020 && balance_state.right_pwm == 980);
     balance_set_follow_command(0.0f, -20.0f * BOARD_FOLLOW_TURN_PWM_SIGN, 0.0f, 0.0f);
     balance_update_2ms(params.middle_angle - 1.0f, 0.0f, 1, 1);
-    assert(balance_state.left_pwm == 1020 && balance_state.right_pwm == 980);
+    assert(balance_state.left_pwm == 980 && balance_state.right_pwm == 1020);
     balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
 
     balance_update_2ms(params.middle_angle + 5.0f, 0.0f, 1, 1);

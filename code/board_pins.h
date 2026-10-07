@@ -67,8 +67,8 @@
 #define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
 // 新车头朝原车尾，正 PWM 才是新前进方向；IMU 与直立 PD 的物理负反馈保持不变。
 #define BOARD_FOLLOW_FORWARD_PWM_SIGN      (1)
-// 接线不变时只反转循迹差速，保持已验证的直立共模输出方向。
-#define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
+// 根据实车反馈校正循迹方向，保持既有轮通道和已验证的直立共模方向。
+#define BOARD_FOLLOW_TURN_PWM_SIGN         (1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
 // H7=P20.3/P20.0、H4=P02.6/P02.7；控制左右沿用原映射，不改变各轮 Flash 标定归属。

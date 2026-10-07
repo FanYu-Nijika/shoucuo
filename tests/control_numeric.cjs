@@ -158,7 +158,7 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('steering reversal retains the current motor wiring and encoder calibration ownership', () => {
+test('corrected steering direction retains the current motor wiring and encoder calibration ownership', () => {
     assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)'));
     assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)'));
     assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)'));
@@ -170,17 +170,17 @@ test('steering reversal retains the current motor wiring and encoder calibration
     near(120 * 1, 120);  // Software LEFT still reads H7 with its existing count sign.
     near(-120 * -1, 120);  // Software RIGHT still reads H4 with its existing count sign.
     assert.equal(forwardPwmSign, 1);
-    assert.equal(turnPwmSign, -1);
+    assert.equal(turnPwmSign, 1);
     assert(control.includes('record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev'));
     assert(control.includes('record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev'));
     assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (2u)'));
     assert(image.includes('average_count = balance_state.encoder_average_count'));
     const rightOfTrackTurn = 10 * 2 * turnPwmSign;
     const output = allocate(1000, rightOfTrackTurn, 5000);
-    assert(output.left < output.right);
+    assert(output.left > output.right);
     near((output.left + output.right) / 2, 1000);
     const opposite = allocate(1000, -rightOfTrackTurn, 5000);
-    assert(opposite.left > opposite.right);
+    assert(opposite.left < opposite.right);
     near((opposite.left + opposite.right) / 2, 1000);
 });
 
