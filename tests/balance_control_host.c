@@ -193,27 +193,36 @@ int main(void)
     balance_update_2ms(0.0f, 0.0f, 1, 1);
     assert(balance_state.turn_pwm_command == 300.0f);
 
+    balance_set_follow_command(0.0f, 20.0f * BOARD_FOLLOW_TURN_PWM_SIGN, 0.0f, 0.0f);
+    balance_update_2ms(params.middle_angle - 1.0f, 0.0f, 1, 1);
+    assert(balance_state.left_pwm == 980 && balance_state.right_pwm == 1020);
+    balance_set_follow_command(0.0f, -20.0f * BOARD_FOLLOW_TURN_PWM_SIGN, 0.0f, 0.0f);
+    balance_update_2ms(params.middle_angle - 1.0f, 0.0f, 1, 1);
+    assert(balance_state.left_pwm == 1020 && balance_state.right_pwm == 980);
+    balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
+
     balance_update_2ms(params.middle_angle + 5.0f, 0.0f, 1, 1);
     near_value(balance_state.balance_output, -5000.0f);
-    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
+    assert(balance_state.left_pwm == -5000 && balance_state.right_pwm == -5000);
     balance_update_2ms(params.middle_angle - 5.0f, 0.0f, 1, 1);
     near_value(balance_state.balance_output, 5000.0f);
-    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+    assert(balance_state.left_pwm == 5000 && balance_state.right_pwm == 5000);
 
-    balance_update_2ms(2.9f, 0.0f, 1, 1);
-    assert(balance_state.left_pwm == -2800 && balance_state.right_pwm == -3000);
+    balance_set_follow_command(0.0f, 1000.0f, 0.0f, 0.0f);
+    balance_update_2ms(9.9f, 0.0f, 1, 1);
+    assert(balance_state.left_pwm == -9800 && balance_state.right_pwm == -10000);
 
     balance_update_2ms(0.0f, 1000.0f, 1, 1);
     assert(balance_state.common_pwm == balance_state.balance_output);
     assert(balance_state.common_pwm < -10000.0f);
-    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
+    assert(balance_state.left_pwm == -10000 && balance_state.right_pwm == -10000);
 
     balance_update_2ms(0.0f, -1000.0f, 1, 1);
-    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
 
     balance_update_2ms(0.0f, 0.0f, 0, 0);
     assert(!balance_state.output_updated && balance_state.fault == BALANCE_FAULT_IMU);
-    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
     balance_stop();
     assert(!balance_state.running && balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
 

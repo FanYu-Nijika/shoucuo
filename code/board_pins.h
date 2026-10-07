@@ -42,11 +42,9 @@
 #define BOARD_MOTOR2_PWM_PIN               (ATOM2_CH2_P33_6)
 #define BOARD_MOTOR3_PWM_PIN               (ATOM2_CH3_P33_7)
 #define BOARD_MOTOR4_PWM_PIN               (ATOM2_CH4_P33_8)
-// 调试阶段固定限制为 30% 占空比（满量程 10000），不修改 Flash 中的调参值。
-#define BOARD_MOTOR_PWM_LIMIT              (3000)
 #define BOARD_SERVO_AUX_GPIO_PIN           (P33_4)
 #define BOARD_SERVO_PWM_PIN                (ATOM3_CH0_P33_4)
-// 摄像头朝向原车尾后，以摄像头方向为车头：PWM3/4 为左轮，PWM1/2 为右轮。
+// 左右名称沿用既有轮通道，保留标定对应关系；当前镜头朝向由循迹差速符号适配。
 #define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)
 #define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)
 #define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)
@@ -69,11 +67,11 @@
 #define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
 // 新车头朝原车尾，正 PWM 才是新前进方向；IMU 与直立 PD 的物理负反馈保持不变。
 #define BOARD_FOLLOW_FORWARD_PWM_SIGN      (1)
-// 新左/右轮已对调，且正 PWM 现为前进；画面偏右应使新左轮比新右轮更快。
-#define BOARD_FOLLOW_TURN_PWM_SIGN         (1)
+// 接线不变时只反转循迹差速，保持已验证的直立共模输出方向。
+#define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
-// 原理图编码器 H7=P20.3/P20.0，H4=P02.6/P02.7；按新车头 H7 为左轮、H4 为右轮。
+// H7=P20.3/P20.0、H4=P02.6/P02.7；控制左右沿用原映射，不改变各轮 Flash 标定归属。
 #define BOARD_ENCODER_H7_INDEX             (TIM6_ENCODER)
 #define BOARD_ENCODER_H7_CH1               (TIM6_ENCODER_CH1_P20_3)
 #define BOARD_ENCODER_H7_CH2               (TIM6_ENCODER_CH2_P20_0)

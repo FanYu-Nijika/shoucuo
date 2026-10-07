@@ -13,7 +13,7 @@ const runtimeHeader = read('code/balance_runtime.h');
 const car = read('code/car.c');
 const menu = read('code/car_menu.c');
 const board = read('code/board_pins.h');
-const motorPwmLimit = Number(board.match(/#define BOARD_MOTOR_PWM_LIMIT\s+\((\d+)\)/)[1]);
+const motorPwmLimit = Number(control.match(/static const float balance_motor_pwm_max = ([\d.]+)f;/)[1]);
 const configuredRightTrim = Number(board.match(/#define BOARD_BALANCE_RIGHT_PWM_TRIM\s+\((\d+)\)/)[1]);
 const forwardPwmSign = Number(board.match(/#define BOARD_FOLLOW_FORWARD_PWM_SIGN\s+\((-?\d+)\)/)[1]);
 const turnPwmSign = Number(board.match(/#define BOARD_FOLLOW_TURN_PWM_SIGN\s+\((-?\d+)\)/)[1]);
@@ -72,7 +72,7 @@ test('2 ms gyro integration preserves the time constant of stored 5 ms filter we
     assert(control.includes('powf(1.0f - weight_5ms, balance_dt_s / 0.005f)'));
 });
 
-test('direct upright PD preserves raw output while both motor paths cap duty at 30 percent', () => {
+test('upright output stays inverted and both motor paths restore full hardware duty', () => {
     const raw = 1000 * 1 + 25.0556 * 2;
     near(raw, 1050.1112, 1e-6);
     assert(control.includes('balance_state.p_output = applied_params.balance_kp * balance_state.angle_error'));
@@ -83,14 +83,14 @@ test('direct upright PD preserves raw output while both motor paths cap duty at 
     assert(control.includes('common = balance_state.balance_output;'));
     assert(!control.includes('balance_clamp(balance_state.balance_output, applied_params.pwm_limit)'));
     assert(!menu.includes('"PWM LIMIT"'));
-    assert.equal(motorPwmLimit, 3000);
-    assert(control.includes('static const float balance_motor_pwm_max = BOARD_MOTOR_PWM_LIMIT'));
-    assert(control.includes('return BOARD_MOTOR_PWM_LIMIT'));
-    assert(control.includes('return -BOARD_MOTOR_PWM_LIMIT'));
-    assert(read('code/car_menu_port.c').includes('cc_math_clamp_i32(command, -BOARD_MOTOR_PWM_LIMIT, BOARD_MOTOR_PWM_LIMIT)'));
+    assert.equal(motorPwmLimit, 10000);
+    assert(!board.includes('BOARD_MOTOR_PWM_LIMIT'));
+    assert(control.includes('return 10000'));
+    assert(control.includes('return -10000'));
+    assert(read('code/car_menu_port.c').includes('cc_math_clamp_i32(command, -PWM_DUTY_MAX, PWM_DUTY_MAX)'));
     assert.equal(allocate(25000, 300, motorPwmLimit).common, 25000);
-    assert.equal(allocate(25000, 300, motorPwmLimit).left, 3000);
-    assert.equal(allocate(-25000, 300, motorPwmLimit).right, -3000);
+    assert.equal(allocate(25000, 300, motorPwmLimit).left, 10000);
+    assert.equal(allocate(-25000, 300, motorPwmLimit).right, -10000);
 });
 
 test('upright gains have no artificial tuning ceiling', () => {
@@ -139,12 +139,12 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
 });
 
 test('camera PWM differential never steals common balance headroom', () => {
-    let out = allocate(2500, 1000, motorPwmLimit);
-    near(out.left, 3000); near(out.right, 2000); near(out.turn, 500);
-    out = allocate(-2800, -1000, motorPwmLimit);
-    near(out.left, -3000); near(out.right, -2600); near(out.turn, -200);
-    out = allocate(6000, 500, motorPwmLimit);
-    near(out.left, 3000); near(out.right, 3000); near(out.turn, 0);
+    let out = allocate(9500, 1000, motorPwmLimit);
+    near(out.left, 10000); near(out.right, 9000); near(out.turn, 500);
+    out = allocate(-9800, -1000, motorPwmLimit);
+    near(out.left, -10000); near(out.right, -9600); near(out.turn, -200);
+    out = allocate(12000, 500, motorPwmLimit);
+    near(out.left, 10000); near(out.right, 10000); near(out.turn, 0);
 });
 
 test('configured new-right PWM trim is symmetric and motor tests stay outside balance compensation', () => {
@@ -158,7 +158,7 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('new camera-forward direction swaps wheel ownership and retains positive forward counts', () => {
+test('steering reversal retains the current motor wiring and encoder calibration ownership', () => {
     assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)'));
     assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)'));
     assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)'));
@@ -167,17 +167,21 @@ test('new camera-forward direction swaps wheel ownership and retains positive fo
     assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H4_INDEX)'));
     assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)'));
     assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)'));
-    near(120 * 1, 120);  // H7 is the new left wheel when it rolls toward the camera.
-    near(-120 * -1, 120);  // H4 is the new right wheel in the same motion.
+    near(120 * 1, 120);  // Software LEFT still reads H7 with its existing count sign.
+    near(-120 * -1, 120);  // Software RIGHT still reads H4 with its existing count sign.
     assert.equal(forwardPwmSign, 1);
-    assert.equal(turnPwmSign, 1);
+    assert.equal(turnPwmSign, -1);
     assert(control.includes('record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev'));
     assert(control.includes('record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev'));
     assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (2u)'));
     assert(image.includes('average_count = balance_state.encoder_average_count'));
     const rightOfTrackTurn = 10 * 2 * turnPwmSign;
     const output = allocate(1000, rightOfTrackTurn, 5000);
-    assert(output.left > output.right);
+    assert(output.left < output.right);
+    near((output.left + output.right) / 2, 1000);
+    const opposite = allocate(1000, -rightOfTrackTurn, 5000);
+    assert(opposite.left > opposite.right);
+    near((opposite.left + opposite.right) / 2, 1000);
 });
 
 test('encoder preview uses 20 ms count steps, restores on deceleration and freezes current-frame curves', () => {
@@ -318,7 +322,8 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         env.balance_cancel_follow_command = () => { env.cancelled = true; };
         env.car_follow_stop = () => stopFn(env);
         env.balance_runtime_request_start = () => { env.requestStart = true; };
-        env.balance_set_follow_command = (speed, turn, lean, weight) => { env.command = {speed, turn, lean, weight}; };
+        // C float comparisons treat both zero signs equally; normalize the JS snapshot before deep comparison.
+        env.balance_set_follow_command = (speed, turn, lean, weight) => { env.command = {speed, turn: turn === 0 ? 0 : turn, lean, weight}; };
         return env;
     };
     const invokeTrack = (env, now, error = 0) => {
