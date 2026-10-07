@@ -184,20 +184,27 @@ int main(void)
     near_value(balance_state.d_output, 0.0f);
 
     params = balance_params;
+    params.accel_weight = 1.0f;
     params.turn_pwm_limit = 300;
     assert(balance_apply_live_params(&params));
     balance_set_follow_command(0.0f, 1000.0f, 0.0f, 0.0f);
     balance_update_2ms(0.0f, 0.0f, 1, 1);
     assert(balance_state.turn_pwm_command == 300.0f);
 
+    balance_update_2ms(2.9f, 0.0f, 1, 1);
+    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 2800);
+
     balance_update_2ms(0.0f, 1000.0f, 1, 1);
     assert(balance_state.common_pwm == balance_state.balance_output);
     assert(balance_state.common_pwm > 10000.0f);
-    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
+    assert(balance_state.left_pwm == 3000 && balance_state.right_pwm == 3000);
+
+    balance_update_2ms(0.0f, -1000.0f, 1, 1);
+    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
 
     balance_update_2ms(0.0f, 0.0f, 0, 0);
     assert(!balance_state.output_updated && balance_state.fault == BALANCE_FAULT_IMU);
-    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
+    assert(balance_state.left_pwm == -3000 && balance_state.right_pwm == -3000);
     balance_stop();
     assert(!balance_state.running && balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
     return 0;

@@ -13,6 +13,7 @@ const runtimeHeader = read('code/balance_runtime.h');
 const car = read('code/car.c');
 const menu = read('code/car_menu.c');
 const board = read('code/board_pins.h');
+const motorPwmLimit = Number(board.match(/#define BOARD_MOTOR_PWM_LIMIT\s+\((\d+)\)/)[1]);
 const configuredRightTrim = Number(board.match(/#define BOARD_BALANCE_RIGHT_PWM_TRIM\s+\((\d+)\)/)[1]);
 const forwardPwmSign = Number(board.match(/#define BOARD_FOLLOW_FORWARD_PWM_SIGN\s+\((-?\d+)\)/)[1]);
 const turnPwmSign = Number(board.match(/#define BOARD_FOLLOW_TURN_PWM_SIGN\s+\((-?\d+)\)/)[1]);
@@ -52,7 +53,7 @@ function allocate(balanceRaw, turnCommand, pwmLimit) {
     return {left: clamp(common + turn, pwmLimit), right: clamp(common - turn, pwmLimit), common, turn};
 }
 
-function rightTrim(controlValue, trim = configuredRightTrim, limit = 5000) {
+function rightTrim(controlValue, trim = configuredRightTrim, limit = motorPwmLimit) {
     const magnitude = Math.abs(controlValue) - trim;
     if (magnitude <= 0) return 0;
     return Math.trunc(clamp(Math.sign(controlValue) * magnitude, limit));
@@ -71,7 +72,7 @@ test('2 ms gyro integration preserves the time constant of stored 5 ms filter we
     assert(control.includes('powf(1.0f - weight_5ms, balance_dt_s / 0.005f)'));
 });
 
-test('direct upright PD preserves raw output and only bounds hardware duty', () => {
+test('direct upright PD preserves raw output while both motor paths cap duty at 30 percent', () => {
     const raw = 1000 * 1 + 25.0556 * 2;
     near(raw, 1050.1112, 1e-6);
     assert(control.includes('balance_state.p_output = applied_params.balance_kp * balance_state.angle_error'));
@@ -81,9 +82,14 @@ test('direct upright PD preserves raw output and only bounds hardware duty', () 
     assert(control.includes('common = balance_state.balance_output;'));
     assert(!control.includes('balance_clamp(balance_state.balance_output, applied_params.pwm_limit)'));
     assert(!menu.includes('"PWM LIMIT"'));
-    assert.equal(allocate(25000, 300, 10000).common, 25000);
-    assert.equal(allocate(25000, 300, 10000).left, 10000);
-    assert.equal(allocate(-25000, 300, 10000).right, -10000);
+    assert.equal(motorPwmLimit, 3000);
+    assert(control.includes('static const float balance_motor_pwm_max = BOARD_MOTOR_PWM_LIMIT'));
+    assert(control.includes('return BOARD_MOTOR_PWM_LIMIT'));
+    assert(control.includes('return -BOARD_MOTOR_PWM_LIMIT'));
+    assert(read('code/car_menu_port.c').includes('cc_math_clamp_i32(command, -BOARD_MOTOR_PWM_LIMIT, BOARD_MOTOR_PWM_LIMIT)'));
+    assert.equal(allocate(25000, 300, motorPwmLimit).common, 25000);
+    assert.equal(allocate(25000, 300, motorPwmLimit).left, 3000);
+    assert.equal(allocate(-25000, 300, motorPwmLimit).right, -3000);
 });
 
 test('upright gains have no artificial tuning ceiling', () => {
@@ -132,12 +138,12 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
 });
 
 test('camera PWM differential never steals common balance headroom', () => {
-    let out = allocate(4500, 1000, 5000);
-    near(out.left, 5000); near(out.right, 4000); near(out.turn, 500);
-    out = allocate(-4800, -1000, 5000);
-    near(out.left, -5000); near(out.right, -4600); near(out.turn, -200);
-    out = allocate(6000, 500, 5000);
-    near(out.left, 5000); near(out.right, 5000); near(out.turn, 0);
+    let out = allocate(2500, 1000, motorPwmLimit);
+    near(out.left, 3000); near(out.right, 2000); near(out.turn, 500);
+    out = allocate(-2800, -1000, motorPwmLimit);
+    near(out.left, -3000); near(out.right, -2600); near(out.turn, -200);
+    out = allocate(6000, 500, motorPwmLimit);
+    near(out.left, 3000); near(out.right, 3000); near(out.turn, 0);
 });
 
 test('configured new-right PWM trim is symmetric and motor tests stay outside balance compensation', () => {

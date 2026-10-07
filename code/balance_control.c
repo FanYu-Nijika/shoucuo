@@ -9,8 +9,8 @@
 #include "zf_driver_flash.h"
 
 static const float balance_dt_s = BALANCE_CONTROL_PERIOD_MS * 0.001f;
-/* The driver defines 10000 as 100% duty; clamp before narrowing to int16_t. */
-static const float balance_motor_pwm_max = 10000.0f;
+/* Keep the temporary output cap independent of stored Flash parameters. */
+static const float balance_motor_pwm_max = BOARD_MOTOR_PWM_LIMIT;
 static const float speed_dt_s = 0.02f;
 static const float wheel_circumference_m = 0.065f * 3.14159265f;
 static const float speed_filter_weight = 0.25f;
@@ -340,8 +340,8 @@ static void balance_clear_outputs(void)
 
 static int16_t balance_pwm_from_float(float value)
 {
-    if (value >= balance_motor_pwm_max) return 10000;
-    if (value <= -balance_motor_pwm_max) return -10000;
+    if (value >= balance_motor_pwm_max) return BOARD_MOTOR_PWM_LIMIT;
+    if (value <= -balance_motor_pwm_max) return -BOARD_MOTOR_PWM_LIMIT;
     return (int16_t)value;
 }
 

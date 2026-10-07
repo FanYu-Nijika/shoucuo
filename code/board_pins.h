@@ -42,6 +42,8 @@
 #define BOARD_MOTOR2_PWM_PIN               (ATOM2_CH2_P33_6)
 #define BOARD_MOTOR3_PWM_PIN               (ATOM2_CH3_P33_7)
 #define BOARD_MOTOR4_PWM_PIN               (ATOM2_CH4_P33_8)
+// 调试阶段固定限制为 30% 占空比（满量程 10000），不修改 Flash 中的调参值。
+#define BOARD_MOTOR_PWM_LIMIT              (3000)
 #define BOARD_SERVO_AUX_GPIO_PIN           (P33_4)
 #define BOARD_SERVO_PWM_PIN                (ATOM3_CH0_P33_4)
 // 摄像头朝向原车尾后，以摄像头方向为车头：PWM3/4 为左轮，PWM1/2 为右轮。
