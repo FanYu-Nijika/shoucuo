@@ -1,50 +1,50 @@
 /*********************************************************************************************************************
-* TC264 Opensourec Library ����TC264 ��Դ�⣩��һ�����ڹٷ� SDK �ӿڵĵ�������Դ��
-* Copyright (c) 2022 SEEKFREE ��ɿƼ�
+* TC264 Opensourec Library 即（TC264 开源库）是一个基于官方 SDK 接口的第三方开源库
+* Copyright (c) 2022 SEEKFREE 逐飞科技
 *
-* ���ļ��� TC264 ��Դ���һ����
+* 本文件是 TC264 开源库的一部分
 *
-* TC264 ��Դ�� ���������
-* �����Ը���������������ᷢ���� GPL��GNU General Public License���� GNUͨ�ù�������֤��������
-* �� GPL �ĵ�3�棨�� GPL3.0������ѡ��ģ��κκ����İ汾�����·�����/���޸���
+* TC264 开源库 是免费软件
+* 您可以根据自由软件基金会发布的 GPL（GNU General Public License，即 GNU通用公共许可证）的条款
+* 即 GPL 的第3版（即 GPL3.0）或（您选择的）任何后来的版本，重新发布和/或修改它
 *
-* ����Դ��ķ�����ϣ�����ܷ������ã�����δ�������κεı�֤
-* ����û�������������Ի��ʺ��ض���;�ı�֤
-* ����ϸ����μ� GPL
+* 本开源库的发布是希望它能发挥作用，但并未对其作任何的保证
+* 甚至没有隐含的适销性或适合特定用途的保证
+* 更多细节请参见 GPL
 *
-* ��Ӧ�����յ�����Դ���ͬʱ�յ�һ�� GPL �ĸ���
-* ���û�У������<https://www.gnu.org/licenses/>
+* 您应该在收到本开源库的同时收到一份 GPL 的副本
+* 如果没有，请参阅<https://www.gnu.org/licenses/>
 *
-* ����ע����
-* ����Դ��ʹ�� GPL3.0 ��Դ����֤Э�� ������������Ϊ���İ汾
-* ��������Ӣ�İ��� libraries/doc �ļ����µ� GPL3_permission_statement.txt �ļ���
-* ����֤������ libraries �ļ����� �����ļ����µ� LICENSE �ļ�
-* ��ӭ��λʹ�ò����������� ���޸�����ʱ���뱣����ɿƼ��İ�Ȩ����������������
+* 额外注明：
+* 本开源库使用 GPL3.0 开源许可证协议 以上许可申明为译文版本
+* 许可申明英文版在 libraries/doc 文件夹下的 GPL3_permission_statement.txt 文件中
+* 许可证副本在 libraries 文件夹下 即该文件夹下的 LICENSE 文件
+* 欢迎各位使用并传播本程序 但修改内容时必须保留逐飞科技的版权声明（即本声明）
 *
-* �ļ�����          zf_device_scc8660
-* ��˾����          �ɶ���ɿƼ����޹�˾
-* �汾��Ϣ          �鿴 libraries/doc �ļ����� version �ļ� �汾˵��
-* ��������          ADS v1.10.2
-* ����ƽ̨          TC264D
-* ��������          https://seekfree.taobao.com/
+* 文件名称          zf_device_scc8660
+* 公司名称          成都逐飞科技有限公司
+* 版本信息          查看 libraries/doc 文件夹内 version 文件 版本说明
+* 开发环境          ADS v1.10.2
+* 适用平台          TC264D
+* 店铺链接          https://seekfree.taobao.com/
 *
-* �޸ļ�¼
-* ����              ����                ��ע
+* 修改记录
+* 日期              作者                备注
 * 2022-09-15       pudding            first version
-* 2024-02-02       pudding            ������MCU��ͫ����
+* 2024-02-02       pudding            新增无MCU凌瞳驱动
 ********************************************************************************************************************/
 /*********************************************************************************************************************
-* ���߶��壺
+* 接线定义：
 *                  ------------------------------------
-*                  ģ��ܽ�             ��Ƭ���ܽ�
-*                  TXD                �鿴 zf_device_scc8660.h �� SCC8660_COF_UART_TX �궨��
-*                  RXD                �鿴 zf_device_scc8660.h �� SCC8660_COF_UART_RX �궨��
-*                  PCLK               �鿴 zf_device_scc8660.h �� SCC8660_PCLK_PIN �궨��
-*                  VSY                �鿴 zf_device_scc8660.h �� SCC8660_VSYNC_PIN �궨��
-*                  D0-D7              �鿴 zf_device_scc8660.h �� SCC8660_DATA_PIN �궨�� �Ӹö��忪ʼ�������˸�����
-*                  VCC                3.3V��Դ
-*                  GND                ��Դ��
-*                  ������������
+*                  模块管脚             单片机管脚
+*                  TXD                查看 zf_device_scc8660.h 中 SCC8660_COF_UART_TX 宏定义
+*                  RXD                查看 zf_device_scc8660.h 中 SCC8660_COF_UART_RX 宏定义
+*                  PCLK               查看 zf_device_scc8660.h 中 SCC8660_PCLK_PIN 宏定义
+*                  VSY                查看 zf_device_scc8660.h 中 SCC8660_VSYNC_PIN 宏定义
+*                  D0-D7              查看 zf_device_scc8660.h 中 SCC8660_DATA_PIN 宏定义 从该定义开始的连续八个引脚
+*                  VCC                3.3V电源
+*                  GND                电源地
+*                  其余引脚悬空
 *                  ------------------------------------
 ********************************************************************************************************************/
 
@@ -63,55 +63,55 @@
 
 #include "zf_device_scc8660.h"
 
-vuint8 scc8660_finish_flag = 0;                                                 // һ��ͼ��ɼ���ɱ�־λ
+vuint8 scc8660_finish_flag = 0;                                                 // 一场图像采集完成标志位
 IFX_ALIGN(4) uint16 scc8660_image[SCC8660_H][SCC8660_W];
 
 uint8   scc8660_link_list_num;
 
-uint8   scc8660_lost_flag = 1;                                                  // ͼ��ʧ��־λ
-uint8   scc8660_dma_int_num;                                                    // ��ǰDMA�жϴ���
-uint8   scc8660_dma_init_flag;                                                  // �Ƿ���Ҫ���³�ʼ��
+uint8   scc8660_lost_flag = 1;                                                  // 图像丢失标志位
+uint8   scc8660_dma_int_num;                                                    // 当前DMA中断次数
+uint8   scc8660_dma_init_flag;                                                  // 是否需要重新初始化
 
 static scc8660_type_enum scc8660_type;
 
-// ��Ҫ���õ�����ͷ������ �����������޸Ĳ���
+// 需要配置到摄像头的数据 不允许在这修改参数
 static int16 scc8660_set_confing_buffer[SCC8660_CONFIG_FINISH][2]=
 {
-    {SCC8660_INIT,              0},                                             // ����ͷ��ʼ��ʼ��
+    {SCC8660_INIT,              0},                                             // 摄像头开始初始化
 
-    {SCC8660_AUTO_EXP,          SCC8660_AUTO_EXP_DEF},                          // �Զ��ع�
-    {SCC8660_BRIGHT,            SCC8660_BRIGHT_DEF},                            // ��������
-    {SCC8660_FPS,               SCC8660_FPS_DEF},                               // ͼ��֡��
-    {SCC8660_SET_COL,           SCC8660_W * 4},                                 // ͼ������
-    {SCC8660_SET_ROW,           SCC8660_H},                                     // ͼ������
-    {SCC8660_PCLK_DIV,          SCC8660_PCLK_DIV_DEF},                          // PCLK��Ƶϵ��
-    {SCC8660_PCLK_MODE,         SCC8660_PCLK_MODE_DEF},                         // PCLKģʽ
-    {SCC8660_COLOR_MODE,        SCC8660_COLOR_MODE_DEF},                        // ͼ��ɫ��ģʽ
-    {SCC8660_DATA_FORMAT,       SCC8660_DATA_FORMAT_DEF},                       // ������ݸ�ʽ
-    {SCC8660_MANUAL_WB,         SCC8660_MANUAL_WB_DEF}                          // �ֶ���ƽ��
+    {SCC8660_AUTO_EXP,          SCC8660_AUTO_EXP_DEF},                          // 自动曝光
+    {SCC8660_BRIGHT,            SCC8660_BRIGHT_DEF},                            // 亮度设置
+    {SCC8660_FPS,               SCC8660_FPS_DEF},                               // 图像帧率
+    {SCC8660_SET_COL,           SCC8660_W * 4},                                 // 图像列数
+    {SCC8660_SET_ROW,           SCC8660_H},                                     // 图像行数
+    {SCC8660_PCLK_DIV,          SCC8660_PCLK_DIV_DEF},                          // PCLK分频系数
+    {SCC8660_PCLK_MODE,         SCC8660_PCLK_MODE_DEF},                         // PCLK模式
+    {SCC8660_COLOR_MODE,        SCC8660_COLOR_MODE_DEF},                        // 图像色彩模式
+    {SCC8660_DATA_FORMAT,       SCC8660_DATA_FORMAT_DEF},                       // 输出数据格式
+    {SCC8660_MANUAL_WB,         SCC8660_MANUAL_WB_DEF}                          // 手动白平衡
 };
 
-// ������ͷ�ڲ���ȡ������������ �����������޸Ĳ���
+// 从摄像头内部获取到的配置数据 不允许在这修改参数
 static int16 scc8660_get_confing_buffer[SCC8660_CONFIG_FINISH - 1][2]=
 {
     {SCC8660_AUTO_EXP,          0},
-    {SCC8660_BRIGHT,            0},                                             // ��������
-    {SCC8660_FPS,               0},                                             // ͼ��֡��
-    {SCC8660_SET_COL,           0},                                             // ͼ������
-    {SCC8660_SET_ROW,           0},                                             // ͼ������
-    {SCC8660_PCLK_DIV,          0},                                             // PCLK��Ƶϵ��
-    {SCC8660_PCLK_MODE,         0},                                             // PCLKģʽ
-    {SCC8660_COLOR_MODE,        0},                                             // ͼ��ɫ��ģʽ
-    {SCC8660_DATA_FORMAT,       0},                                             // ������ݸ�ʽ
-    {SCC8660_MANUAL_WB,         0},                                             // ��ƽ������
+    {SCC8660_BRIGHT,            0},                                             // 亮度设置
+    {SCC8660_FPS,               0},                                             // 图像帧率
+    {SCC8660_SET_COL,           0},                                             // 图像列数
+    {SCC8660_SET_ROW,           0},                                             // 图像行数
+    {SCC8660_PCLK_DIV,          0},                                             // PCLK分频系数
+    {SCC8660_PCLK_MODE,         0},                                             // PCLK模式
+    {SCC8660_COLOR_MODE,        0},                                             // 图像色彩模式
+    {SCC8660_DATA_FORMAT,       0},                                             // 输出数据格式
+    {SCC8660_MANUAL_WB,         0},                                             // 白平衡设置
 };
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��������ͷ�ڲ�������Ϣ �ڲ�����
-// ����˵��     buff            ����������Ϣ�ĵ�ַ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     if(scc8660_set_config(scc8660_set_confing_buffer)){}
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������
+// 函数简介     配置摄像头内部配置信息 内部调用
+// 参数说明     buff            发送配置信息的地址
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     if(scc8660_set_config(scc8660_set_confing_buffer)){}
+// 备注信息     调用该函数前请先初始化串口
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 scc8660_set_config (int16 buff[SCC8660_CONFIG_FINISH][2])
 {
@@ -122,8 +122,8 @@ static uint8 scc8660_set_config (int16 buff[SCC8660_CONFIG_FINISH][2])
     uint32 loop_count = 0;
     uint32 uart_buffer_index = 0;
 
-    // ���ò���  ������ο���������ֲ�
-    // ��ʼ��������ͷ�����³�ʼ��
+    // 设置参数  具体请参看问题锦集手册
+    // 开始配置摄像头并重新初始化
     for(loop_count = SCC8660_MANUAL_WB; loop_count < SCC8660_SET_REG_DATA; loop_count --)
     {
         uart_buffer[0] = 0xA5;
@@ -151,17 +151,17 @@ static uint8 scc8660_set_config (int16 buff[SCC8660_CONFIG_FINISH][2])
         system_delay_ms(1);
     }while(SCC8660_INIT_TIMEOUT > timeout_count ++);
 
-    // ���ϲ��ֶ�����ͷ���õ�����ȫ�����ᱣ��������ͷ��51��Ƭ����eeprom��
-    // ����set_exposure_time�����������õ��ع����ݲ��洢��eeprom��
+    // 以上部分对摄像头配置的数据全部都会保存在摄像头上51单片机的eeprom中
+    // 利用set_exposure_time函数单独配置的曝光数据不存储在eeprom中
     return return_state;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��ȡ����ͷ�ڲ�������Ϣ �ڲ�����
-// ����˵��     buff            ����������Ϣ�ĵ�ַ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     if(scc8660_get_config(scc8660_get_confing_buffer)){}
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������
+// 函数简介     获取摄像头内部配置信息 内部调用
+// 参数说明     buff            接收配置信息的地址
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     if(scc8660_get_config(scc8660_get_confing_buffer)){}
+// 备注信息     调用该函数前请先初始化串口
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 scc8660_get_config (int16 buff[SCC8660_CONFIG_FINISH-1][2])
 {
@@ -193,7 +193,7 @@ static uint8 scc8660_get_config (int16 buff[SCC8660_CONFIG_FINISH-1][2])
             }
             system_delay_ms(1);
         }while(SCC8660_INIT_TIMEOUT > timeout_count ++);
-        if(timeout_count > SCC8660_INIT_TIMEOUT)                                // ��ʱ
+        if(timeout_count > SCC8660_INIT_TIMEOUT)                                // 超时
         {
             return_state = 1;
             break;
@@ -203,10 +203,10 @@ static uint8 scc8660_get_config (int16 buff[SCC8660_CONFIG_FINISH-1][2])
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-//  �������      SCC8660����ͷ����ͨ�Żص�
-//  ����˵��      void
-//  ���ز���      void
-//  ʹ��ʾ��      scc8660_uart_callback();
+//  函数简介      SCC8660摄像头串口通信回调
+//  参数说明      void
+//  返回参数      void
+//  使用示例      scc8660_uart_callback();
 //-------------------------------------------------------------------------------------------------------------------
 static void scc8660_uart_callback (void)
 {
@@ -220,11 +220,11 @@ static void scc8660_uart_callback (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��ȡ����ͷ ID
-// ����˵��     void
-// ���ز���     uint16          0-��ȡ���� N-�汾��
-// ʹ��ʾ��     scc8660_get_id();
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������
+// 函数简介     获取摄像头 ID
+// 参数说明     void
+// 返回参数     uint16          0-获取错误 N-版本号
+// 使用示例     scc8660_get_id();
+// 备注信息     调用该函数前请先初始化串口
 //-------------------------------------------------------------------------------------------------------------------
 uint16 scc8660_get_id (void)
 {
@@ -256,11 +256,11 @@ uint16 scc8660_get_id (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ������������ͷ�ع�ʱ��
-// ����˵��     light           �����ع�ʱ��Խ��ͼ��Խ��������ͷ�յ������ݷֱ��ʼ�FPS��������ع�ʱ��������õ����ݹ�����ô����ͷ��������������ֵ
-// ���ز���     uint16          ����
-// ʹ��ʾ��     scc8660_get_parameter();
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������
+// 函数简介     单独设置摄像头曝光时间
+// 参数说明     light           设置曝光时间越大图像越亮，摄像头收到后会根据分辨率及FPS计算最大曝光时间如果设置的数据过大，那么摄像头将会设置这个最大值
+// 返回参数     uint16          数据
+// 使用示例     scc8660_get_parameter();
+// 备注信息     调用该函数前请先初始化串口
 //-------------------------------------------------------------------------------------------------------------------
 uint16 scc8660_get_parameter (uint16 config)
 {
@@ -290,11 +290,11 @@ uint16 scc8660_get_parameter (uint16 config)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��ȡ��ɫ����ͷ�̼��汾
-// ����˵��     void
-// ���ز���     uint16          �汾��
-// ʹ��ʾ��     scc8660_get_version();
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������ͷ���ô���
+// 函数简介     获取彩色摄像头固件版本
+// 参数说明     void
+// 返回参数     uint16          版本号
+// 使用示例     scc8660_get_version();
+// 备注信息     调用该函数前请先初始化摄像头配置串口
 //-------------------------------------------------------------------------------------------------------------------
 uint16 scc8660_get_version (void)
 {
@@ -327,11 +327,11 @@ uint16 scc8660_get_version (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��������ͼ������
-// ����˵��     data            ��Ҫ���õ�����ֵ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     scc8660_set_brightness(data);
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������ͷ���ô���   ͨ���ú������õĲ��������ᱻ51��Ƭ������
+// 函数简介     单独设置图像亮度
+// 参数说明     data            需要设置的亮度值
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     scc8660_set_brightness(data);
+// 备注信息     调用该函数前请先初始化摄像头配置串口   通过该函数设置的参数，不会被51单片机保存
 //-------------------------------------------------------------------------------------------------------------------
 uint8 scc8660_set_brightness (uint16 data)
 {
@@ -375,11 +375,11 @@ uint8 scc8660_set_brightness (uint16 data)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     �������ð�ƽ��
-// ����˵��     data            ��Ҫ���õ�����ֵ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     scc8660_set_white_balance(data);
-// ��ע��Ϣ     ͨ���ú������õĲ��������ᱻ51��Ƭ������ ���øú���ǰ���ȳ�ʼ������ͷ���ô���
+// 函数简介     单独设置白平衡
+// 参数说明     data            需要设置的亮度值
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     scc8660_set_white_balance(data);
+// 备注信息     通过该函数设置的参数，不会被51单片机保存 调用该函数前请先初始化摄像头配置串口
 //-------------------------------------------------------------------------------------------------------------------
 uint8 scc8660_set_white_balance (uint16 data)
 {
@@ -423,12 +423,12 @@ uint8 scc8660_set_white_balance (uint16 data)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ������ͷ�ڲ��Ĵ�������д����
-// ����˵��     addr            ����ͷ�ڲ��Ĵ�����ַ
-// ����˵��     data            ��Ҫд�������
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     scc8660_set_reg(addr, data);
-// ��ע��Ϣ     ���øú���ǰ���ȳ�ʼ������
+// 函数简介     对摄像头内部寄存器进行写操作
+// 参数说明     addr            摄像头内部寄存器地址
+// 参数说明     data            需要写入的数据
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     scc8660_set_reg(addr, data);
+// 备注信息     调用该函数前请先初始化串口
 //-------------------------------------------------------------------------------------------------------------------
 uint8 scc8660_set_reg (uint8 addr, uint16 data)
 {
@@ -480,10 +480,10 @@ uint8 scc8660_set_reg (uint8 addr, uint16 data)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-//  �������      SCC8660����ͷ���ж�
-//  ����˵��      void
-//  ���ز���      void
-//  ʹ��ʾ��      scc8660_vsync_handler();
+//  函数简介      SCC8660摄像头场中断
+//  参数说明      void
+//  返回参数      void
+//  使用示例      scc8660_vsync_handler();
 //-------------------------------------------------------------------------------------------------------------------
 static void scc8660_vsync_handler(void)
 {
@@ -505,7 +505,7 @@ static void scc8660_vsync_handler(void)
     {
         if(1 == scc8660_link_list_num)
         {
-            dma_set_destination(SCC8660_DMA_CH, (uint8 *)scc8660_image[0]); // û�в������Ӵ���ģʽ ��������Ŀ�ĵ�ַ
+            dma_set_destination(SCC8660_DMA_CH, (uint8 *)scc8660_image[0]); // 没有采用链接传输模式 重新设置目的地址
         }
         dma_enable(SCC8660_DMA_CH);
     }
@@ -513,16 +513,16 @@ static void scc8660_vsync_handler(void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-//  �������      SCC8660����ͷDMA����ж�
-//  ����˵��      void
-//  ���ز���      void
-//  ʹ��ʾ��      scc8660_dma_handler();
+//  函数简介      SCC8660摄像头DMA完成中断
+//  参数说明      void
+//  返回参数      void
+//  使用示例      scc8660_dma_handler();
 //-------------------------------------------------------------------------------------------------------------------
 static void scc8660_dma_handler(void)
 {
     clear_dma_flag(SCC8660_DMA_CH);
 
-    if(IfxDma_getChannelTransactionRequestLost(&MODULE_DMA, SCC8660_DMA_CH)) // ͼ���λ�ж�
+    if(IfxDma_getChannelTransactionRequestLost(&MODULE_DMA, SCC8660_DMA_CH)) // 图像错位判断
     {
         scc8660_finish_flag = 0;
         dma_disable(SCC8660_DMA_CH);
@@ -534,8 +534,8 @@ static void scc8660_dma_handler(void)
         scc8660_dma_int_num++;
         if(scc8660_dma_int_num >= scc8660_link_list_num)
         {
-            // �ɼ����
-            // һ��ͼ��Ӳɼ���ʼ���ɼ�������ʱ3.8MS����(50FPS��188*120�ֱ���)
+            // 采集完成
+            // 一副图像从采集开始到采集结束耗时3.8MS左右(50FPS、188*120分辨率)
             scc8660_dma_int_num = 0;
             scc8660_lost_flag   = 0;
             scc8660_finish_flag = 1;
@@ -545,55 +545,55 @@ static void scc8660_dma_handler(void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     SCC8660 ����ͷ��ʼ��
-// ����˵��     void
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     scc8660_init();
-// ��ע��Ϣ
+// 函数简介     SCC8660 摄像头初始化
+// 参数说明     void
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     scc8660_init();
+// 备注信息
 //-------------------------------------------------------------------------------------------------------------------
 uint8 scc8660_init (void)
 {
     uint8 return_state = 0;
     soft_iic_info_struct scc8660_iic_struct;
 
-    // ��ʼ��֮ǰ���߳�����������
+    // 初始化之前拉高场与像素引脚
     gpio_init(P02_0, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(P02_1, GPO, GPIO_HIGH, GPO_PUSH_PULL);
 
     do
     {
         system_delay_ms(200);
-        set_camera_type(CAMERA_COLOR, scc8660_vsync_handler, scc8660_dma_handler, NULL);                                              // ������������ͷ����
-        // ���ȳ���SCCBͨѶ
+        set_camera_type(CAMERA_COLOR, scc8660_vsync_handler, scc8660_dma_handler, NULL);                                              // 设置连接摄像头类型
+        // 首先尝试SCCB通讯
         scc8660_type = SCC8660_SCCB;
         soft_iic_init(&scc8660_iic_struct, 0, SCC8660_COF_IIC_DELAY, SCC8660_COF_IIC_SCL, SCC8660_COF_IIC_SDA);
         if(scc8660_set_config_sccb(&scc8660_iic_struct, scc8660_set_confing_buffer))
         {
-            // SCCBͨѶʧ�ܣ����Դ���ͨѶ
+            // SCCB通讯失败，尝试串口通讯
             scc8660_type = SCC8660_UART;
             camera_fifo_init();
-            set_camera_type(CAMERA_COLOR, scc8660_vsync_handler, scc8660_dma_handler, &scc8660_uart_callback);  // ������������ͷ����
-            uart_init (SCC8660_COF_UART, SCC8660_COF_BAUR, SCC8660_COF_UART_RX, SCC8660_COF_UART_TX);   //��ʼ������ ��������ͷ
+            set_camera_type(CAMERA_COLOR, scc8660_vsync_handler, scc8660_dma_handler, &scc8660_uart_callback);  // 设置连接摄像头类型
+            uart_init (SCC8660_COF_UART, SCC8660_COF_BAUR, SCC8660_COF_UART_RX, SCC8660_COF_UART_TX);   //初始换串口 配置摄像头
             uart_rx_interrupt(SCC8660_COF_UART, 1);
             fifo_clear(&camera_receiver_fifo);
 
             if(scc8660_set_config(scc8660_set_confing_buffer))
             {
-                // �������������˶�����Ϣ ������ʾ����λ��������
-                // ��ô����ͨ�ų�������ʱ�˳���
-                // ���һ�½�����û������ ���û������ܾ��ǻ���
+                // 如果程序在输出了断言信息 并且提示出错位置在这里
+                // 那么就是通信出错并超时退出了
+                // 检查一下接线有没有问题 如果没问题可能就是坏了
                 zf_log(0, "SCC8660 set config error.");
                 set_camera_type(NO_CAMERE, NULL, NULL, NULL);
                 return_state = 1;
                 break;
             }
 
-            // ��ȡ���ñ��ڲ鿴�����Ƿ���ȷ
+            // 获取配置便于查看配置是否正确
             if(scc8660_get_config(scc8660_get_confing_buffer))
             {
-                // �������������˶�����Ϣ ������ʾ����λ��������
-                // ��ô���Ǵ���ͨ�ų�������ʱ�˳���
-                // ���һ�½�����û������ ���û������ܾ��ǻ���
+                // 如果程序在输出了断言信息 并且提示出错位置在这里
+                // 那么就是串口通信出错并超时退出了
+                // 检查一下接线有没有问题 如果没问题可能就是坏了
                 zf_log(0, "SCC8660 get config error.");
                 set_camera_type(NO_CAMERE, NULL, NULL, NULL);
                 return_state = 1;

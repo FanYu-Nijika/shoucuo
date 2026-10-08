@@ -1,7 +1,7 @@
 /*
  * qd_device_icm42688.c
  *
- *  Created on: 2024Äê8ÔÂ3ÈÕ
+ *  Created on: 2024å¹´8æœˆ3æ—¥
  *      Author: 17263
  */
 
@@ -15,12 +15,12 @@
 
 #include "qd_device_icm42688.h"
 
-// ICM42688¼ÓËÙ¶È¼ÆÊı¾İ
+// ICM42688åŠ é€Ÿåº¦è®¡æ•°æ®
 float icm42688_acc_x  = 0, icm42688_acc_y  = 0, icm42688_acc_z  = 0;
-// ICM42688½Ç¼ÓËÙ¶ÈÊı¾İ
+// ICM42688è§’åŠ é€Ÿåº¦æ•°æ®
 float icm42688_gyro_x = 0, icm42688_gyro_y = 0, icm42688_gyro_z = 0;
 
-// SPIĞ­Òé¶ÁĞ´²Ù×÷ºê¶¨Òå
+// SPIåè®®è¯»å†™æ“ä½œå®å®šä¹‰
 #ifdef  ICM42688_HARD_SPI
 #define ICM42688_Write_Reg(reg, data)       spi_write_8bit_register(ICM42688_SPI, reg, data);
 #define ICM42688_Read_Regs(reg, data,num)   spi_read_8bit_registers(ICM42688_SPI, reg | 0x80, data, num);
@@ -30,24 +30,24 @@ static SOFT_SPI_struct ICM42688_SPI;
 #define ICM42688_Read_Regs(reg, data,num)   read_8bitregs_soft_spi(&ICM42688_SPI, reg | 0x80, data, num);
 #endif
 
-// ¾²Ì¬º¯ÊıÉùÃ÷,ÒÔÏÂº¯Êı¾ùÎª¸Ã.cÎÄ¼şÄÚ²¿µ÷ÓÃ
+// é™æ€å‡½æ•°å£°æ˜,ä»¥ä¸‹å‡½æ•°å‡ä¸ºè¯¥.cæ–‡ä»¶å†…éƒ¨è°ƒç”¨
 static void Write_Data_ICM42688(unsigned char reg, unsigned char data);
 static void Read_Datas_ICM42688(unsigned char reg, unsigned char *data, unsigned int num);
-// Êı¾İ×ª»»ÎªÊµ¼ÊÎïÀíÊı¾İµÄ×ª»»ÏµÊı
+// æ•°æ®è½¬æ¢ä¸ºå®é™…ç‰©ç†æ•°æ®çš„è½¬æ¢ç³»æ•°
 static float icm42688_acc_inv = 1, icm42688_gyro_inv = 1;
 
 /**
 *
-* @brief    ICM42688ÍÓÂİÒÇ³õÊ¼»¯
+* @brief    ICM42688é™€èºä»ªåˆå§‹åŒ–
 * @param
 * @return   void
-* @notes    ÓÃ»§µ÷ÓÃ
+* @notes    ç”¨æˆ·è°ƒç”¨
 * Example:  Init_ICM42688();
 *
 **/
 void Init_ICM42688(void)
 {
-    // SPI³õÊ¼»¯
+    // SPIåˆå§‹åŒ–
 #ifdef  ICM42688_HARD_SPI
     spi_init(ICM42688_SPI, SPI_MODE0, ICM42688_SPI_SPEED, ICM42688_SPC_PIN, ICM42688_SDI_PIN, ICM42688_SDO_PIN, SPI_CS_NULL);
 #else
@@ -55,13 +55,13 @@ void Init_ICM42688(void)
 #endif
     gpio_init( ICM42688_CS_PIN  , GPO, GPIO_HIGH, GPO_PUSH_PULL);
 
-    // ³õÊ¼»¯³¬Ê±
+    // åˆå§‹åŒ–è¶…æ—¶
     char time = 50;
-    // ¶ÁÈ¡ÍÓÂİÒÇĞÍºÅÍÓÂİÒÇ×Ô¼ì
+    // è¯»å–é™€èºä»ªå‹å·é™€èºä»ªè‡ªæ£€
     unsigned char model = 0xff;
     while(1)
     {
-        // ¶ÁĞ¾Æ¬ID
+        // è¯»èŠ¯ç‰‡ID
         Read_Datas_ICM42688(ICM42688_WHO_AM_I, &model, 1);
         if(model == 0x47)
         {
@@ -76,31 +76,31 @@ void Init_ICM42688(void)
             {
                 zf_log(0, "icm42688 init error.");
                 ICM42688_DELAY_MS(1000);
-                // ¿¨ÔÚÕâÀïÔ­ÒòÓĞÒÔÏÂ¼¸µã
-                // ICM42688»µÁË,Èç¹ûÊÇĞÂµÄ¸ÅÂÊ¼«µÍ
-                // ½ÓÏß´íÎó»òÕßÃ»ÓĞ½ÓºÃ
-                // ½ÓÏßÌ«³¤,Í¨ĞÅÊ§°Ü
+                // å¡åœ¨è¿™é‡ŒåŸå› æœ‰ä»¥ä¸‹å‡ ç‚¹
+                // ICM42688åäº†,å¦‚æœæ˜¯æ–°çš„æ¦‚ç‡æä½
+                // æ¥çº¿é”™è¯¯æˆ–è€…æ²¡æœ‰æ¥å¥½
+                // æ¥çº¿å¤ªé•¿,é€šä¿¡å¤±è´¥
             }
         }
     }
-//    Write_Data_ICM42688(ICM42688_REG_BANK_SEL, 0x00); // Ñ¡Ôñ Bank0£¬ÇĞ»»¼Ä´æÆ÷
-    Write_Data_ICM42688(ICM42688_PWR_MGMT0, 0x00);      // ¸´Î»Éè±¸
-    ICM42688_DELAY_MS(10);                              // ²Ù×÷ÍêPWR¡ªMGMT0¼Ä´æÆ÷ºó200usÄÚ²»ÄÜÓĞÈÎºÎ¶ÁĞ´¼Ä´æÆ÷µÄ²Ù×÷
+//    Write_Data_ICM42688(ICM42688_REG_BANK_SEL, 0x00); // é€‰æ‹© Bank0ï¼Œåˆ‡æ¢å¯„å­˜å™¨
+    Write_Data_ICM42688(ICM42688_PWR_MGMT0, 0x00);      // å¤ä½è®¾å¤‡
+    ICM42688_DELAY_MS(10);                              // æ“ä½œå®ŒPWRâ€”MGMT0å¯„å­˜å™¨å200uså†…ä¸èƒ½æœ‰ä»»ä½•è¯»å†™å¯„å­˜å™¨çš„æ“ä½œ
 
-    // ÉèÖÃICM42688¼ÓËÙ¶È¼ÆºÍÍÓÂİÒÇµÄÁ¿³ÌºÍÊä³öËÙÂÊ
+    // è®¾ç½®ICM42688åŠ é€Ÿåº¦è®¡å’Œé™€èºä»ªçš„é‡ç¨‹å’Œè¾“å‡ºé€Ÿç‡
     Set_LowpassFilter_Range_ICM42688(ICM42688_AFS_4G, ICM42688_AODR_1000HZ,  ICM42688_GFS_1000DPS, ICM42688_GODR_1000HZ);
 
-    Write_Data_ICM42688(ICM42688_PWR_MGMT0, 0x0f);      // ÉèÖÃGYRO_MODE,ACCEL_MODEÎªµÍÔëÉùÄ£Ê½
-    ICM42688_filterinng();//ÂË²¨ÏµÊıÉèÖÃ
+    Write_Data_ICM42688(ICM42688_PWR_MGMT0, 0x0f);      // è®¾ç½®GYRO_MODE,ACCEL_MODEä¸ºä½å™ªå£°æ¨¡å¼
+    ICM42688_filterinng();//æ»¤æ³¢ç³»æ•°è®¾ç½®
     ICM42688_DELAY_MS(10);
 }
 
 /**
 *
-* @brief    »ñµÃICM42688ÍÓÂİÒÇ¼ÓËÙ¶È
+* @brief    è·å¾—ICM42688é™€èºä»ªåŠ é€Ÿåº¦
 * @param
 * @return   void
-* @notes    µ¥Î»:g(m/s^2),ÓÃ»§µ÷ÓÃ
+* @notes    å•ä½:g(m/s^2),ç”¨æˆ·è°ƒç”¨
 * Example:  Get_Acc_ICM42688();
 *
 **/
@@ -115,10 +115,10 @@ void Get_Acc_ICM42688(void)
 
 /**
 *
-* @brief    »ñµÃICM42688ÍÓÂİÒÇ½Ç¼ÓËÙ¶È
+* @brief    è·å¾—ICM42688é™€èºä»ªè§’åŠ é€Ÿåº¦
 * @param
 * @return   void
-* @notes    µ¥Î»Îª:¡ã/s,ÓÃ»§µ÷ÓÃ
+* @notes    å•ä½ä¸º:Â°/s,ç”¨æˆ·è°ƒç”¨
 * Example:  Get_Gyro_ICM42688();
 *
 **/
@@ -133,78 +133,78 @@ void Get_Gyro_ICM42688(void)
 
 /**
 *
-* @brief    ÉèÖÃICM42688ÍÓÂİÒÇµÍÍ¨ÂË²¨Æ÷´ø¿íºÍÁ¿³Ì
-* @param    afs                 // ¼ÓËÙ¶È¼ÆÁ¿³Ì,¿ÉÔÚdmx_icm42688.hÎÄ¼şÀïÃ¶¾Ù¶¨ÒåÖĞ²é¿´
-* @param    aodr                // ¼ÓËÙ¶È¼ÆÊä³öËÙÂÊ,¿ÉÔÚdmx_icm42688.hÎÄ¼şÀïÃ¶¾Ù¶¨ÒåÖĞ²é¿´
-* @param    gfs                 // ÍÓÂİÒÇÁ¿³Ì,¿ÉÔÚdmx_icm42688.hÎÄ¼şÀïÃ¶¾Ù¶¨ÒåÖĞ²é¿´
-* @param    godr                // ÍÓÂİÒÇÊä³öËÙÂÊ,¿ÉÔÚdmx_icm42688.hÎÄ¼şÀïÃ¶¾Ù¶¨ÒåÖĞ²é¿´
+* @brief    è®¾ç½®ICM42688é™€èºä»ªä½é€šæ»¤æ³¢å™¨å¸¦å®½å’Œé‡ç¨‹
+* @param    afs                 // åŠ é€Ÿåº¦è®¡é‡ç¨‹,å¯åœ¨dmx_icm42688.hæ–‡ä»¶é‡Œæšä¸¾å®šä¹‰ä¸­æŸ¥çœ‹
+* @param    aodr                // åŠ é€Ÿåº¦è®¡è¾“å‡ºé€Ÿç‡,å¯åœ¨dmx_icm42688.hæ–‡ä»¶é‡Œæšä¸¾å®šä¹‰ä¸­æŸ¥çœ‹
+* @param    gfs                 // é™€èºä»ªé‡ç¨‹,å¯åœ¨dmx_icm42688.hæ–‡ä»¶é‡Œæšä¸¾å®šä¹‰ä¸­æŸ¥çœ‹
+* @param    godr                // é™€èºä»ªè¾“å‡ºé€Ÿç‡,å¯åœ¨dmx_icm42688.hæ–‡ä»¶é‡Œæšä¸¾å®šä¹‰ä¸­æŸ¥çœ‹
 * @return   void
-* @notes    ICM42688.cÎÄ¼şÄÚ²¿µ÷ÓÃ,ÓÃ»§ÎŞĞèµ÷ÓÃ³¢ÊÔ
+* @notes    ICM42688.cæ–‡ä»¶å†…éƒ¨è°ƒç”¨,ç”¨æˆ·æ— éœ€è°ƒç”¨å°è¯•
 * Example:  Set_LowpassFilter_Range_ICM42688(ICM42688_AFS_16G,ICM42688_AODR_32000HZ,ICM42688_GFS_2000DPS,ICM42688_GODR_32000HZ);
 *
 **/
 void Set_LowpassFilter_Range_ICM42688(enum icm42688_afs afs, enum icm42688_aodr aodr, enum icm42688_gfs gfs, enum icm42688_godr godr)
 {
-    Write_Data_ICM42688(ICM42688_ACCEL_CONFIG0, (afs << 5) | (aodr + 1));   // ³õÊ¼»¯ACCELÁ¿³ÌºÍÊä³öËÙÂÊ(p77)
-    Write_Data_ICM42688(ICM42688_GYRO_CONFIG0, (gfs << 5) | (godr + 1));    // ³õÊ¼»¯GYROÁ¿³ÌºÍÊä³öËÙÂÊ(p76)
+    Write_Data_ICM42688(ICM42688_ACCEL_CONFIG0, (afs << 5) | (aodr + 1));   // åˆå§‹åŒ–ACCELé‡ç¨‹å’Œè¾“å‡ºé€Ÿç‡(p77)
+    Write_Data_ICM42688(ICM42688_GYRO_CONFIG0, (gfs << 5) | (godr + 1));    // åˆå§‹åŒ–GYROé‡ç¨‹å’Œè¾“å‡ºé€Ÿç‡(p76)
 
     switch(afs)
     {
     case ICM42688_AFS_2G:
-        icm42688_acc_inv = 16384;             // ¼ÓËÙ¶È¼ÆÁ¿³ÌÎª:¡À2g
+        icm42688_acc_inv = 16384;             // åŠ é€Ÿåº¦è®¡é‡ç¨‹ä¸º:Â±2g
         break;
     case ICM42688_AFS_4G:
-        icm42688_acc_inv = 8192;             // ¼ÓËÙ¶È¼ÆÁ¿³ÌÎª:¡À4g
+        icm42688_acc_inv = 8192;             // åŠ é€Ÿåº¦è®¡é‡ç¨‹ä¸º:Â±4g
         break;
     case ICM42688_AFS_8G:
-        icm42688_acc_inv = 4096;             // ¼ÓËÙ¶È¼ÆÁ¿³ÌÎª:¡À8g
+        icm42688_acc_inv = 4096;             // åŠ é€Ÿåº¦è®¡é‡ç¨‹ä¸º:Â±8g
         break;
     case ICM42688_AFS_16G:
-        icm42688_acc_inv = 2048;            // ¼ÓËÙ¶È¼ÆÁ¿³ÌÎª:¡À16g
+        icm42688_acc_inv = 2048;            // åŠ é€Ÿåº¦è®¡é‡ç¨‹ä¸º:Â±16g
         break;
     default:
-        icm42688_acc_inv = 1;                           // ²»×ª»¯ÎªÊµ¼ÊÊı¾İ
+        icm42688_acc_inv = 1;                           // ä¸è½¬åŒ–ä¸ºå®é™…æ•°æ®
         break;
     }
     switch(gfs)
     {
     case ICM42688_GFS_15_625DPS:
-        icm42688_gyro_inv = 15.625f / 32768.0f;         // ÍÓÂİÒÇÁ¿³ÌÎª:¡À15.625dps
+        icm42688_gyro_inv = 15.625f / 32768.0f;         // é™€èºä»ªé‡ç¨‹ä¸º:Â±15.625dps
         break;
     case ICM42688_GFS_31_25DPS:
-        icm42688_gyro_inv = 31.25f / 32768.0f;          // ÍÓÂİÒÇÁ¿³ÌÎª:¡À31.25dps
+        icm42688_gyro_inv = 31.25f / 32768.0f;          // é™€èºä»ªé‡ç¨‹ä¸º:Â±31.25dps
         break;
     case ICM42688_GFS_62_5DPS:
-        icm42688_gyro_inv = 62.5f / 32768.0f;           // ÍÓÂİÒÇÁ¿³ÌÎª:¡À62.5dps
+        icm42688_gyro_inv = 62.5f / 32768.0f;           // é™€èºä»ªé‡ç¨‹ä¸º:Â±62.5dps
         break;
     case ICM42688_GFS_125DPS:
-        icm42688_gyro_inv = 125.0f / 32768.0f;          // ÍÓÂİÒÇÁ¿³ÌÎª:¡À125dps
+        icm42688_gyro_inv = 125.0f / 32768.0f;          // é™€èºä»ªé‡ç¨‹ä¸º:Â±125dps
         break;
     case ICM42688_GFS_250DPS:
-        icm42688_gyro_inv = 250.0f / 32768.0f;          // ÍÓÂİÒÇÁ¿³ÌÎª:¡À250dps
+        icm42688_gyro_inv = 250.0f / 32768.0f;          // é™€èºä»ªé‡ç¨‹ä¸º:Â±250dps
         break;
     case ICM42688_GFS_500DPS:
-        icm42688_gyro_inv = 500.0f / 32768.0f;          // ÍÓÂİÒÇÁ¿³ÌÎª:¡À500dps
+        icm42688_gyro_inv = 500.0f / 32768.0f;          // é™€èºä»ªé‡ç¨‹ä¸º:Â±500dps
         break;
     case ICM42688_GFS_1000DPS:
-        icm42688_gyro_inv = 1000.0f / 32768.0f;         // ÍÓÂİÒÇÁ¿³ÌÎª:¡À1000dps
+        icm42688_gyro_inv = 1000.0f / 32768.0f;         // é™€èºä»ªé‡ç¨‹ä¸º:Â±1000dps
         break;
     case ICM42688_GFS_2000DPS:
-        icm42688_gyro_inv = 2000.0f / 32768.0f;         // ÍÓÂİÒÇÁ¿³ÌÎª:¡À2000dps
+        icm42688_gyro_inv = 2000.0f / 32768.0f;         // é™€èºä»ªé‡ç¨‹ä¸º:Â±2000dps
         break;
     default:
-        icm42688_gyro_inv = 1;                          // ²»×ª»¯ÎªÊµ¼ÊÊı¾İ
+        icm42688_gyro_inv = 1;                          // ä¸è½¬åŒ–ä¸ºå®é™…æ•°æ®
         break;
     }
 }
 
 /**
 *
-* @brief    ICM42688ÍÓÂİÒÇĞ´Êı¾İ
-* @param    reg                 ¼Ä´æÆ÷
-* @param    data                ĞèÒªĞ´½ø¸Ã¼Ä´æÆ÷µÄÊı¾İ
+* @brief    ICM42688é™€èºä»ªå†™æ•°æ®
+* @param    reg                 å¯„å­˜å™¨
+* @param    data                éœ€è¦å†™è¿›è¯¥å¯„å­˜å™¨çš„æ•°æ®
 * @return   void
-* @notes    ICM42688.cÎÄ¼şÄÚ²¿µ÷ÓÃ,ÓÃ»§ÎŞĞèµ÷ÓÃ³¢ÊÔ
+* @notes    ICM42688.cæ–‡ä»¶å†…éƒ¨è°ƒç”¨,ç”¨æˆ·æ— éœ€è°ƒç”¨å°è¯•
 * Example:  Write_Data_ICM42688(0x00,0x00);
 *
 **/
@@ -217,12 +217,12 @@ static void Write_Data_ICM42688(unsigned char reg, unsigned char data)
 
 /**
 *
-* @brief    ICM42688ÍÓÂİÒÇ¶ÁÊı¾İ
-* @param    reg                 ¼Ä´æÆ÷
-* @param    data                °Ñ¶Á³öµÄÊı¾İ´æÈëdata
-* @param    num                 Êı¾İ¸öÊı
+* @brief    ICM42688é™€èºä»ªè¯»æ•°æ®
+* @param    reg                 å¯„å­˜å™¨
+* @param    data                æŠŠè¯»å‡ºçš„æ•°æ®å­˜å…¥data
+* @param    num                 æ•°æ®ä¸ªæ•°
 * @return   void
-* @notes    ICM42688.cÎÄ¼şÄÚ²¿µ÷ÓÃ,ÓÃ»§ÎŞĞèµ÷ÓÃ³¢ÊÔ
+* @notes    ICM42688.cæ–‡ä»¶å†…éƒ¨è°ƒç”¨,ç”¨æˆ·æ— éœ€è°ƒç”¨å°è¯•
 * Example:  Read_Datas_ICM42688(0x00,data,1);
 *
 **/

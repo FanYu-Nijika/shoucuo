@@ -4,12 +4,12 @@
     "C_Cpp.errorSquiggles": "enabled",
     "cmake.configureOnOpen": false,
     "files.encoding": "utf8",
-    "files.autoGuessEncoding": false,
+    "files.autoGuessEncoding": true,
     "[c]": {
-        "files.encoding": "gb2312"
+        "files.encoding": "utf8"
     },
     "[cpp]": {
-        "files.encoding": "gb2312"
+        "files.encoding": "utf8"
     },
     "files.associations": {
         "*.h": "c"

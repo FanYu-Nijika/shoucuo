@@ -308,6 +308,7 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
             car_follow_status: enumValues[status], car_running: running ? 1 : 0,
             car_follow_enabled: ['IDLE', 'WAIT_DELAY', 'WAIT_RUN'].includes(status) ? 0 : 1,
             follow_stage_started_ms: started >>> 0, car_lost_count: 0, car_curve_mode: 0, car_turn_request: 0,
+            car_vision_reset_request: 0,
             derivative_ready: 0, last_control_capture_ms: 0, last_error: 0, curve_blend: 0,
             steering_kp: 10, steering_kd: 0, curve_steering_kp: 10, curve_steering_kd: 0,
             curve_enter_threshold: 1, curve_exit_threshold: 0, visual_timeout_ms: 120,
@@ -315,6 +316,7 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
             BALANCE_FAULT_NONE: 0, BOARD_FOLLOW_TURN_PWM_SIGN: turnPwmSign, BOARD_FOLLOW_FORWARD_PWM_SIGN: forwardPwmSign,
             CAR_FOLLOW_STAGE_MS: stageMs, CAR_FOLLOW_RAMP_MS: rampMs, requestStart: false, cancelled: false, command: null,
             u32Sub: (a, b) => ((a - b) >>> 0), car_value_finite: Number.isFinite,
+            __dsync: () => { env.dsyncCalled = true; },
             cc_math_clamp_f32: (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value))
         };
         for (const [name, value] of Object.entries(enumValues)) env[`CAR_FOLLOW_${name}`] = value;
@@ -414,11 +416,27 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         assert.equal(faulted.cancelled, true);
     }
     const stopped = makeEnv('LEAN_HOLD', true, runNow);
+    stopped.car_lost_count = 9;
+    stopped.last_control_capture_ms = 1234;
+    stopped.derivative_ready = 1;
+    stopped.last_error = 8;
+    stopped.curve_blend = 0.75;
+    stopped.car_curve_mode = 1;
+    stopped.car_turn_request = 321;
     stopFn(stopped);
     assert.equal(enumName(stopped.car_follow_status), 'IDLE');
     assert.equal(stopped.car_follow_enabled, 0);
     assert.equal(stopped.follow_stage_started_ms, 0);
     assert.equal(stopped.cancelled, true);
+    assert.equal(stopped.car_lost_count, 0);
+    assert.equal(stopped.last_control_capture_ms, 0);
+    assert.equal(stopped.derivative_ready, 0);
+    assert.equal(stopped.last_error, 0);
+    assert.equal(stopped.curve_blend, 0);
+    assert.equal(stopped.car_curve_mode, 0);
+    assert.equal(stopped.car_turn_request, 0);
+    assert.equal(stopped.car_vision_reset_request, 1);
+    assert.equal(stopped.dsyncCalled, true);
     assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_RAMP_MS)'));
     assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_STAGE_MS)'));
     assert(trackBody.includes('lean_weight = 1.0f'));

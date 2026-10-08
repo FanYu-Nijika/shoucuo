@@ -1,50 +1,50 @@
 /*********************************************************************************************************************
-* TC264 Opensourec Library ����TC264 ��Դ�⣩��һ�����ڹٷ� SDK �ӿڵĵ�������Դ��
-* Copyright (c) 2022 SEEKFREE ��ɿƼ�
+* TC264 Opensourec Library 即（TC264 开源库）是一个基于官方 SDK 接口的第三方开源库
+* Copyright (c) 2022 SEEKFREE 逐飞科技
 *
-* ���ļ��� TC264 ��Դ���һ����
+* 本文件是 TC264 开源库的一部分
 *
-* TC264 ��Դ�� ���������
-* �����Ը���������������ᷢ���� GPL��GNU General Public License���� GNUͨ�ù�������֤��������
-* �� GPL �ĵ�3�棨�� GPL3.0������ѡ��ģ��κκ����İ汾�����·�����/���޸���
+* TC264 开源库 是免费软件
+* 您可以根据自由软件基金会发布的 GPL（GNU General Public License，即 GNU通用公共许可证）的条款
+* 即 GPL 的第3版（即 GPL3.0）或（您选择的）任何后来的版本，重新发布和/或修改它
 *
-* ����Դ��ķ�����ϣ�����ܷ������ã�����δ�������κεı�֤
-* ����û�������������Ի��ʺ��ض���;�ı�֤
-* ����ϸ����μ� GPL
+* 本开源库的发布是希望它能发挥作用，但并未对其作任何的保证
+* 甚至没有隐含的适销性或适合特定用途的保证
+* 更多细节请参见 GPL
 *
-* ��Ӧ�����յ�����Դ���ͬʱ�յ�һ�� GPL �ĸ���
-* ���û�У������<https://www.gnu.org/licenses/>
+* 您应该在收到本开源库的同时收到一份 GPL 的副本
+* 如果没有，请参阅<https://www.gnu.org/licenses/>
 *
-* ����ע����
-* ����Դ��ʹ�� GPL3.0 ��Դ����֤Э�� ������������Ϊ���İ汾
-* ��������Ӣ�İ��� libraries/doc �ļ����µ� GPL3_permission_statement.txt �ļ���
-* ����֤������ libraries �ļ����� �����ļ����µ� LICENSE �ļ�
-* ��ӭ��λʹ�ò����������� ���޸�����ʱ���뱣����ɿƼ��İ�Ȩ����������������
+* 额外注明：
+* 本开源库使用 GPL3.0 开源许可证协议 以上许可申明为译文版本
+* 许可申明英文版在 libraries/doc 文件夹下的 GPL3_permission_statement.txt 文件中
+* 许可证副本在 libraries 文件夹下 即该文件夹下的 LICENSE 文件
+* 欢迎各位使用并传播本程序 但修改内容时必须保留逐飞科技的版权声明（即本声明）
 *
-* �ļ�����          zf_device_mt9v03x
-* ��˾����          �ɶ���ɿƼ����޹�˾
-* �汾��Ϣ          �鿴 libraries/doc �ļ����� version �ļ� �汾˵��
-* ��������          ADS v1.10.2
-* ����ƽ̨          TC264D
-* ��������          https://seekfree.taobao.com/
+* 文件名称          zf_device_mt9v03x
+* 公司名称          成都逐飞科技有限公司
+* 版本信息          查看 libraries/doc 文件夹内 version 文件 版本说明
+* 开发环境          ADS v1.10.2
+* 适用平台          TC264D
+* 店铺链接          https://seekfree.taobao.com/
 *
-* �޸ļ�¼
-* ����              ����                ��ע
+* 修改记录
+* 日期              作者                备注
 * 2022-09-15       pudding            first version
-* 2023-04-28       pudding            ��������ע��˵��
+* 2023-04-28       pudding            增加中文注释说明
 ********************************************************************************************************************/
 /*********************************************************************************************************************
-* ���߶��壺
+* 接线定义：
 *                  ------------------------------------
-*                  ģ��ܽ�             ��Ƭ���ܽ�
-*                  TXD                �鿴 zf_device_mt9v03x.h �� MT9V03X_COF_UART_TX �궨��
-*                  RXD                �鿴 zf_device_mt9v03x.h �� MT9V03X_COF_UART_RX �궨��
-*                  PCLK               �鿴 zf_device_mt9v03x.h �� MT9V03X_PCLK_PIN �궨��
-*                  VSY                �鿴 zf_device_mt9v03x.h �� MT9V03X_VSYNC_PIN �궨��
-*                  D0-D7              �鿴 zf_device_mt9v03x.h �� MT9V03X_DATA_PIN �궨�� �Ӹö��忪ʼ�������˸�����
-*                  VCC                3.3V��Դ
-*                  GND                ��Դ��
-*                  ������������
+*                  模块管脚             单片机管脚
+*                  TXD                查看 zf_device_mt9v03x.h 中 MT9V03X_COF_UART_TX 宏定义
+*                  RXD                查看 zf_device_mt9v03x.h 中 MT9V03X_COF_UART_RX 宏定义
+*                  PCLK               查看 zf_device_mt9v03x.h 中 MT9V03X_PCLK_PIN 宏定义
+*                  VSY                查看 zf_device_mt9v03x.h 中 MT9V03X_VSYNC_PIN 宏定义
+*                  D0-D7              查看 zf_device_mt9v03x.h 中 MT9V03X_DATA_PIN 宏定义 从该定义开始的连续八个引脚
+*                  VCC                3.3V电源
+*                  GND                电源地
+*                  其余引脚悬空
 *                  ------------------------------------
 ********************************************************************************************************************/
 
@@ -62,57 +62,57 @@
 #include "zf_device_config.h"
 #include "zf_device_mt9v03x.h"
 
-vuint8  mt9v03x_finish_flag = 0;                            // һ��ͼ��ɼ���ɱ�־λ
-IFX_ALIGN(4) uint8  mt9v03x_image[MT9V03X_H][MT9V03X_W];    // ����4�ֽڶ���
+vuint8  mt9v03x_finish_flag = 0;                            // 一场图像采集完成标志位
+IFX_ALIGN(4) uint8  mt9v03x_image[MT9V03X_H][MT9V03X_W];    // 必须4字节对齐
 
-static  m9v03x_type_enum mt9v03x_type;                      // ��������ͷ����
-static  uint16    mt9v03x_version = 0x00;                   // ��������ͷ�汾��
+static  m9v03x_type_enum mt9v03x_type;                      // 定义摄像头类型
+static  uint16    mt9v03x_version = 0x00;                   // 定义摄像头版本号
 
 
-int16   timeout = MT9V03X_INIT_TIMEOUT;                     // ���峬ʱ���ʱ��
+int16   timeout = MT9V03X_INIT_TIMEOUT;                     // 定义超时溢出时长
 
-vuint8  mt9v03x_lost_flag = 1;                              // ͼ��ʧ��־λ
-vuint8  mt9v03x_dma_int_num;                                // ��ǰDMA�жϴ���
-vuint8  mt9v03x_dma_init_flag;                              // �Ƿ���Ҫ���³�ʼ��
+vuint8  mt9v03x_lost_flag = 1;                              // 图像丢失标志位
+vuint8  mt9v03x_dma_int_num;                                // 当前DMA中断次数
+vuint8  mt9v03x_dma_init_flag;                              // 是否需要重新初始化
 vuint8  mt9v03x_link_list_num;
 static volatile uint8 mt9v03x_recover_pending;
 static volatile uint8 mt9v03x_recovering;
 
-// ��Ҫ���õ�����ͷ������ �����������޸Ĳ���
+// 需要配置到摄像头的数据 不允许在这修改参数
 static int16 mt9v03x_set_confing_buffer[MT9V03X_CONFIG_FINISH][2]=
 {
-    {MT9V03X_INIT,              0},                                             // ����ͷ��ʼ��ʼ��
-    {MT9V03X_AUTO_EXP,          MT9V03X_AUTO_EXP_DEF},                          // �Զ��ع�����   ��Χ1-63 0Ϊ�ر� ����Զ��ع⿪��  EXP_TIME�������õ����ݽ����Ϊ����ع�ʱ�䣬Ҳ�����Զ��ع�ʱ�������
-    {MT9V03X_EXP_TIME,          MT9V03X_EXP_TIME_DEF},                          // �ع�ʱ��      ����ͷ�յ�����Զ����������ع�ʱ�䣬������ù���������Ϊ�������������ع�ֵ
-    {MT9V03X_FPS,               MT9V03X_FPS_DEF},                               // ͼ��֡��      ����ͷ�յ�����Զ���������FPS���������������Ϊ������������FPS
-    {MT9V03X_SET_COL,           MT9V03X_W},                                     // ͼ��������    ��Χ1-752
-    {MT9V03X_SET_ROW,           MT9V03X_H},                                     // ͼ��������    ��Χ1-480
-    {MT9V03X_LR_OFFSET,         MT9V03X_LR_OFFSET_DEF},                         // ͼ������ƫ����  ��ֵ ��ƫ��   ��ֵ ��ƫ��  ��Ϊ188 376 752ʱ�޷�����ƫ��    ����ͷ��ƫ�����ݺ���Զ��������ƫ�ƣ�������������ü�����������ƫ��
-    {MT9V03X_UD_OFFSET,         MT9V03X_UD_OFFSET_DEF},                         // ͼ������ƫ����  ��ֵ ��ƫ��   ��ֵ ��ƫ��  ��Ϊ120 240 480ʱ�޷�����ƫ��    ����ͷ��ƫ�����ݺ���Զ��������ƫ�ƣ�������������ü�����������ƫ��
-    {MT9V03X_GAIN,              MT9V03X_GAIN_DEF},                              // ͼ������      ��Χ16-64     ����������ع�ʱ��̶�������¸ı�ͼ�������̶�
-    {MT9V03X_PCLK_MODE,         MT9V03X_PCLK_MODE_DEF},                         // ����ʱ��ģʽ   �������MT9V034 V2.0�Լ����ϰ汾֧�ָ�����
+    {MT9V03X_INIT,              0},                                             // 摄像头开始初始化
+    {MT9V03X_AUTO_EXP,          MT9V03X_AUTO_EXP_DEF},                          // 自动曝光设置   范围1-63 0为关闭 如果自动曝光开启  EXP_TIME命令设置的数据将会变为最大曝光时间，也就是自动曝光时间的上限
+    {MT9V03X_EXP_TIME,          MT9V03X_EXP_TIME_DEF},                          // 曝光时间      摄像头收到后会自动计算出最大曝光时间，如果设置过大则设置为计算出来的最大曝光值
+    {MT9V03X_FPS,               MT9V03X_FPS_DEF},                               // 图像帧率      摄像头收到后会自动计算出最大FPS，如果过大则设置为计算出来的最大FPS
+    {MT9V03X_SET_COL,           MT9V03X_W},                                     // 图像列数量    范围1-752
+    {MT9V03X_SET_ROW,           MT9V03X_H},                                     // 图像行数量    范围1-480
+    {MT9V03X_LR_OFFSET,         MT9V03X_LR_OFFSET_DEF},                         // 图像左右偏移量  正值 右偏移   负值 左偏移  列为188 376 752时无法设置偏移    摄像头收偏移数据后会自动计算最大偏移，如果超出则设置计算出来的最大偏移
+    {MT9V03X_UD_OFFSET,         MT9V03X_UD_OFFSET_DEF},                         // 图像上下偏移量  正值 上偏移   负值 下偏移  行为120 240 480时无法设置偏移    摄像头收偏移数据后会自动计算最大偏移，如果超出则设置计算出来的最大偏移
+    {MT9V03X_GAIN,              MT9V03X_GAIN_DEF},                              // 图像增益      范围16-64     增益可以在曝光时间固定的情况下改变图像亮暗程度
+    {MT9V03X_PCLK_MODE,         MT9V03X_PCLK_MODE_DEF},                         // 像素时钟模式   仅总钻风MT9V034 V2.0以及以上版本支持该命令
 };
 
-// ������ͷ�ڲ���ȡ������������ �����������޸Ĳ���
+// 从摄像头内部获取到的配置数据 不允许在这修改参数
 static int16 mt9v03x_get_confing_buffer[MT9V03X_CONFIG_FINISH - 1][2]=
 {
-    {MT9V03X_AUTO_EXP,          0},                                             // �Զ��ع�����
-    {MT9V03X_EXP_TIME,          0},                                             // �ع�ʱ��
-    {MT9V03X_FPS,               0},                                             // ͼ��֡��
-    {MT9V03X_SET_COL,           0},                                             // ͼ��������
-    {MT9V03X_SET_ROW,           0},                                             // ͼ��������
-    {MT9V03X_LR_OFFSET,         0},                                             // ͼ������ƫ����
-    {MT9V03X_UD_OFFSET,         0},                                             // ͼ������ƫ����
-    {MT9V03X_GAIN,              0},                                             // ͼ������
-    {MT9V03X_PCLK_MODE,         0},                                             // ����ʱ��ģʽ���� PCLKģʽ < ������� MT9V034 V1.5 �Լ����ϰ汾֧�ָ����� >
+    {MT9V03X_AUTO_EXP,          0},                                             // 自动曝光设置
+    {MT9V03X_EXP_TIME,          0},                                             // 曝光时间
+    {MT9V03X_FPS,               0},                                             // 图像帧率
+    {MT9V03X_SET_COL,           0},                                             // 图像列数量
+    {MT9V03X_SET_ROW,           0},                                             // 图像行数量
+    {MT9V03X_LR_OFFSET,         0},                                             // 图像左右偏移量
+    {MT9V03X_UD_OFFSET,         0},                                             // 图像上下偏移量
+    {MT9V03X_GAIN,              0},                                             // 图像增益
+    {MT9V03X_PCLK_MODE,         0},                                             // 像素时钟模式命令 PCLK模式 < 仅总钻风 MT9V034 V1.5 以及以上版本支持该命令 >
 };
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��������ͷ�ڲ�������Ϣ
-// ����˵��     buff            ����������Ϣ�ĵ�ַ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     mt9v03x_set_config(mt9v03x_set_confing_buffer);
-// ��ע��Ϣ     �ڲ�����
+// 函数简介     配置摄像头内部配置信息
+// 参数说明     buff            发送配置信息的地址
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     mt9v03x_set_config(mt9v03x_set_confing_buffer);
+// 备注信息     内部调用
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 mt9v03x_set_config (int16 buff[MT9V03X_CONFIG_FINISH][2])
 {
@@ -128,8 +128,8 @@ static uint8 mt9v03x_set_config (int16 buff[MT9V03X_CONFIG_FINISH][2])
         case 0x0230:    loop_count = MT9V03X_PCLK_MODE;  break;
         default:        loop_count = MT9V03X_GAIN;       break;
     }
-    // ���ò���  ������ο���������ֲ�
-    // ��ʼ��������ͷ�����³�ʼ��
+    // 设置参数  具体请参看问题锦集手册
+    // 开始配置摄像头并重新初始化
     for(; MT9V03X_SET_DATA > loop_count; loop_count --)
     {
         uart_buffer[0] = 0xA5;
@@ -156,17 +156,17 @@ static uint8 mt9v03x_set_config (int16 buff[MT9V03X_CONFIG_FINISH][2])
         }
         system_delay_ms(1);
     }while(MT9V03X_INIT_TIMEOUT > timeout_count ++);
-    // ���ϲ��ֶ�����ͷ���õ�����ȫ�����ᱣ��������ͷ��51��Ƭ����eeprom��
-    // ����set_exposure_time�����������õ��ع����ݲ��洢��eeprom��
+    // 以上部分对摄像头配置的数据全部都会保存在摄像头上51单片机的eeprom中
+    // 利用set_exposure_time函数单独配置的曝光数据不存储在eeprom中
     return return_state;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��ȡ����ͷ�ڲ�������Ϣ
-// ����˵��     buff            ����������Ϣ�ĵ�ַ
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     mt9v03x_get_config(mt9v03x_get_confing_buffer);
-// ��ע��Ϣ     �ڲ�����
+// 函数简介     获取摄像头内部配置信息
+// 参数说明     buff            接收配置信息的地址
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     mt9v03x_get_config(mt9v03x_get_confing_buffer);
+// 备注信息     内部调用
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 mt9v03x_get_config (int16 buff[MT9V03X_CONFIG_FINISH - 1][2])
 {
@@ -208,7 +208,7 @@ static uint8 mt9v03x_get_config (int16 buff[MT9V03X_CONFIG_FINISH - 1][2])
             }
             system_delay_ms(1);
         }while(MT9V03X_INIT_TIMEOUT > timeout_count ++);
-        if(MT9V03X_INIT_TIMEOUT < timeout_count)                                // ��ʱ
+        if(MT9V03X_INIT_TIMEOUT < timeout_count)                                // 超时
         {
             return_state = 1;
             break;
@@ -219,10 +219,10 @@ static uint8 mt9v03x_get_config (int16 buff[MT9V03X_CONFIG_FINISH - 1][2])
 
 
 //-------------------------------------------------------------------------------------------------------------------
-//  �������      MT9V03X����ͷ����ͨ�Żص�
-//  ����˵��      void
-//  ���ز���      void
-//  ʹ��ʾ��      mt9v03x_uart_callback();
+//  函数简介      MT9V03X摄像头串口通信回调
+//  参数说明      void
+//  返回参数      void
+//  使用示例      mt9v03x_uart_callback();
 //-------------------------------------------------------------------------------------------------------------------
 static void mt9v03x_uart_handler (void)
 {
@@ -236,10 +236,10 @@ static void mt9v03x_uart_handler (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-//  �������      MT9V03X����ͷ���ж�
-//  ����˵��      void
-//  ���ز���      void
-//  ʹ��ʾ��      mt9v03x_vsync_handler();
+//  函数简介      MT9V03X摄像头场中断
+//  参数说明      void
+//  返回参数      void
+//  使用示例      mt9v03x_vsync_handler();
 //-------------------------------------------------------------------------------------------------------------------
 static void mt9v03x_vsync_handler(void)
 {
@@ -356,13 +356,13 @@ uint16 mt9v03x_get_version (void)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ������������ͷ�ع�ʱ��
-// ����˵��     light           �趨�ع�ʱ��
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     mt9v03x_set_exposure_time(100);                 // ���øú���ǰ���ȳ�ʼ������
-// ��ע��Ϣ     �����ع�ʱ��Խ��ͼ��Խ��
-//              ����ͷ�յ������ݷֱ��ʼ�FPS��������ع�ʱ��������õ����ݹ���
-//              ��ô����ͷ��������������ֵ
+// 函数简介     单独设置摄像头曝光时间
+// 参数说明     light           设定曝光时间
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     mt9v03x_set_exposure_time(100);                 // 调用该函数前请先初始化串口
+// 备注信息     设置曝光时间越大图像越亮
+//              摄像头收到后会根据分辨率及FPS计算最大曝光时间如果设置的数据过大
+//              那么摄像头将会设置这个最大值
 //-------------------------------------------------------------------------------------------------------------------
 uint8 mt9v03x_set_exposure_time (uint16 light)
 {
@@ -407,12 +407,12 @@ uint8 mt9v03x_set_exposure_time (uint16 light)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ������ͷ�ڲ��Ĵ�������д����
-// ����˵��     addr            ����ͷ�ڲ��Ĵ�����ַ
-// ����˵��     data            ��Ҫд�������
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     mt9v03x_set_reg(addr, data);                    // ���øú���ǰ���ȳ�ʼ������
-// ��ע��Ϣ
+// 函数简介     对摄像头内部寄存器进行写操作
+// 参数说明     addr            摄像头内部寄存器地址
+// 参数说明     data            需要写入的数据
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     mt9v03x_set_reg(addr, data);                    // 调用该函数前请先初始化串口
+// 备注信息
 //-------------------------------------------------------------------------------------------------------------------
 uint8 mt9v03x_set_reg (uint8 addr, uint16 data)
 {
@@ -465,11 +465,11 @@ uint8 mt9v03x_set_reg (uint8 addr, uint16 data)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// �������     MT9V03X ����ͷ��ʼ��
-// ����˵��     void
-// ���ز���     uint8           1-ʧ�� 0-�ɹ�
-// ʹ��ʾ��     zf_log(mt9v03x_init(), "mt9v03x init error");
-// ��ע��Ϣ
+// 函数简介     MT9V03X 摄像头初始化
+// 参数说明     void
+// 返回参数     uint8           1-失败 0-成功
+// 使用示例     zf_log(mt9v03x_init(), "mt9v03x init error");
+// 备注信息
 //-------------------------------------------------------------------------------------------------------------------
 uint8 mt9v03x_init (void)
 {
@@ -478,41 +478,41 @@ uint8 mt9v03x_init (void)
     do
     {
         system_delay_ms(200);
-        // ���ȳ���SCCBͨѶ
+        // 首先尝试SCCB通讯
         mt9v03x_type = MT9V03X_SCCB;
         set_camera_type(CAMERA_GRAYSCALE, mt9v03x_vsync_handler, mt9v03x_dma_handler, NULL);
         soft_iic_init(&mt9v03x_iic_struct, 0, MT9V03X_COF_IIC_DELAY, MT9V03X_COF_IIC_SCL, MT9V03X_COF_IIC_SDA);
         if(mt9v03x_set_config_sccb(&mt9v03x_iic_struct, mt9v03x_set_confing_buffer))
         {
-            // SCCBͨѶʧ�ܣ����Դ���ͨѶ
+            // SCCB通讯失败，尝试串口通讯
             mt9v03x_type = MT9V03X_UART;
             set_camera_type(CAMERA_GRAYSCALE, mt9v03x_vsync_handler, mt9v03x_dma_handler, mt9v03x_uart_handler);
             camera_fifo_init();
 
-            // ��ʼ������ ��������ͷ
+            // 初始换串口 配置摄像头
             uart_init(MT9V03X_COF_UART, MT9V03X_COF_BAUR, MT9V03X_COF_UART_RX, MT9V03X_COF_UART_TX);
             uart_rx_interrupt(MT9V03X_COF_UART, 1);
             fifo_clear(&camera_receiver_fifo);
-            // �ȴ�����ͷ�ϵ��ʼ���ɹ� ��ʽ�����֣���ʱ����ͨ����ȡ���õķ�ʽ ��ѡһ
-            // system_delay_ms(1000);                                               // ��ʱ��ʽ
+            // 等待摄像头上电初始化成功 方式有两种：延时或者通过获取配置的方式 二选一
+            // system_delay_ms(1000);                                               // 延时方式
 
             // if(mt9v03x_get_config(mt9v03x_get_confing_buffer))
             // {
-            //     // �������������˶�����Ϣ ������ʾ����λ��������
-            //     // ��ô���Ǵ���ͨ�ų�������ʱ�˳���
-            //     // ���һ�½�����û������ ���û������ܾ��ǻ���
+            //     // 如果程序在输出了断言信息 并且提示出错位置在这里
+            //     // 那么就是串口通信出错并超时退出了
+            //     // 检查一下接线有没有问题 如果没问题可能就是坏了
             //     zf_log(0, "MT9V03X get config error.");
             //     set_camera_type(NO_CAMERE, NULL, NULL, NULL);
             //     return_state = 1;
             //     break;
             // }
-            mt9v03x_version = mt9v03x_get_version();                                // ��ȡ���õķ�ʽ
+            mt9v03x_version = mt9v03x_get_version();                                // 获取配置的方式
 
             if(mt9v03x_set_config(mt9v03x_set_confing_buffer))
             {
-                // �������������˶�����Ϣ ������ʾ����λ��������
-                // ��ô���Ǵ���ͨ�ų�������ʱ�˳���
-                // ���һ�½�����û������ ���û������ܾ��ǻ���
+                // 如果程序在输出了断言信息 并且提示出错位置在这里
+                // 那么就是串口通信出错并超时退出了
+                // 检查一下接线有没有问题 如果没问题可能就是坏了
                 zf_log(0, "MT9V03X set config error.");
                 uart_rx_interrupt(MT9V03X_COF_UART, 0);
                 set_camera_type(NO_CAMERE, NULL, NULL, NULL);
@@ -520,12 +520,12 @@ uint8 mt9v03x_init (void)
                 break;
             }
 
-            // ��ȡ���ñ��ڲ鿴�����Ƿ���ȷ
+            // 获取配置便于查看配置是否正确
             if(mt9v03x_get_config(mt9v03x_get_confing_buffer))
             {
-                // �������������˶�����Ϣ ������ʾ����λ��������
-                // ��ô���Ǵ���ͨ�ų�������ʱ�˳���
-                // ���һ�½�����û������ ���û������ܾ��ǻ���
+                // 如果程序在输出了断言信息 并且提示出错位置在这里
+                // 那么就是串口通信出错并超时退出了
+                // 检查一下接线有没有问题 如果没问题可能就是坏了
                 zf_log(0, "MT9V03X get config error.");
                 uart_rx_interrupt(MT9V03X_COF_UART, 0);
                 set_camera_type(NO_CAMERE, NULL, NULL, NULL);

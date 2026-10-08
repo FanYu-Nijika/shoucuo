@@ -10,15 +10,15 @@
 
 // struct LEFT_EDGE
 // {
-//     int16 row;  //ĞĞ×ø±ê
-//     int16 col;  //ÁĞ×ø±ê
-//     uint8 flag; //´æÔÚ±ß½çµÄ±êÖ¾
+//     int16 row;  //è¡Œåæ ‡
+//     int16 col;  //åˆ—åæ ‡
+//     uint8 flag; //å­˜åœ¨è¾¹ç•Œçš„æ ‡å¿—
 // };
 // struct RIGHT_EDGE
 // {
-//     int16 row;  //ĞĞ×ø±ê
-//     int16 col;  //ÁĞ×ø±ê
-//     uint8 flag; //´æÔÚ±ß½çµÄ±êÖ¾
+//     int16 row;  //è¡Œåæ ‡
+//     int16 col;  //åˆ—åæ ‡
+//     uint8 flag; //å­˜åœ¨è¾¹ç•Œçš„æ ‡å¿—
 // };
 
 extern uint8* binary_image;
@@ -58,7 +58,7 @@ int Find_Right_Up_Point(int start,int end);
 
 // void Judge_xierushizi_type(void);
 // void uint8 Judge_xierushizi_type(void);
-// void Repair_xierushizi(uint8 type)£»
+// void Repair_xierushizi(uint8 type)ï¼›
 #define CROSS_SKEW_NONE  0
 #define CROSS_SKEW_LEFT  1
 #define CROSS_SKEW_RIGHT 2

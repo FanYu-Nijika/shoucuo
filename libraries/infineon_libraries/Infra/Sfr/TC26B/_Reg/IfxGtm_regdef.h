@@ -3957,7 +3957,7 @@ typedef struct _Ifx_GTM_TOM_CH_CN0_Bits
     Ifx_Strict_32Bit reserved_16:16;        /**< \brief \internal Reserved */
 } Ifx_GTM_TOM_CH_CN0_Bits;
 
-/** \brief  TOM Channel Control Register鈥� */
+/** \brief  TOM Channel Control Register */
 typedef struct _Ifx_GTM_TOM_CH_CTRL_Bits
 {
     Ifx_Strict_32Bit reserved_0:11;         /**< \brief \internal Reserved */
@@ -6853,7 +6853,7 @@ typedef union
     Ifx_GTM_TOM_CH_CN0_Bits B;              /**< \brief Bitfield access */
 } Ifx_GTM_TOM_CH_CN0;
 
-/** \brief  TOM Channel Control Register鈥� */
+/** \brief  TOM Channel Control Register */
 typedef union
 {
     unsigned int U;                         /**< \brief Unsigned access */
@@ -7282,7 +7282,7 @@ typedef volatile struct _Ifx_GTM_TIM_CH
 /** \brief  TOM channel objects */
 typedef volatile struct _Ifx_GTM_TOM_CH
 {
-    Ifx_GTM_TOM_CH_CTRL CTRL;               /**< \brief 0, TOM Channel Control Register鈥� */
+    Ifx_GTM_TOM_CH_CTRL CTRL;               /**< \brief 0, TOM Channel Control Register */
     Ifx_GTM_TOM_CH_SR0 SR0;                 /**< \brief 4, TOM Channel CCU0 Compare Shadow Register */
     Ifx_GTM_TOM_CH_SR1 SR1;                 /**< \brief 8, TOM Channel CCU1 Compare Shadow Register */
     Ifx_GTM_TOM_CH_CM0 CM0;                 /**< \brief C, TOM Channel CCU0 Compare Register */

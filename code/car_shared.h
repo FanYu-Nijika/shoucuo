@@ -90,6 +90,7 @@ extern volatile uint32_t car_camera_capture_time_ms;
 extern volatile uint32_t car_camera_completed_generation;
 extern volatile uint32_t car_camera_completed_time_ms;
 extern volatile uint8_t car_center_stop_request;
+extern volatile uint8_t car_vision_reset_request;
 extern volatile car_control_snapshot_t car_control_snapshots[2];
 extern volatile uint8_t car_control_snapshot_index;
 

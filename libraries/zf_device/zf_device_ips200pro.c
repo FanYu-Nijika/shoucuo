@@ -1,51 +1,51 @@
 /*********************************************************************************************************************
-* TC264 Opensourec Library ����TC264 ��Դ�⣩��һ�����ڹٷ� SDK �ӿڵĵ�������Դ��
-* Copyright (c) 2022 SEEKFREE ��ɿƼ�
+* TC264 Opensourec Library 即（TC264 开源库）是一个基于官方 SDK 接口的第三方开源库
+* Copyright (c) 2022 SEEKFREE 逐飞科技
 *
-* ���ļ��� TC264 ��Դ���һ����
+* 本文件是 TC264 开源库的一部分
 *
-* TC264 ��Դ�� ���������
-* �����Ը���������������ᷢ���� GPL��GNU General Public License���� GNUͨ�ù�������֤��������
-* �� GPL �ĵ�3�棨�� GPL3.0������ѡ��ģ��κκ����İ汾�����·�����/���޸���
+* TC264 开源库 是免费软件
+* 您可以根据自由软件基金会发布的 GPL（GNU General Public License，即 GNU通用公共许可证）的条款
+* 即 GPL 的第3版（即 GPL3.0）或（您选择的）任何后来的版本，重新发布和/或修改它
 *
-* ����Դ��ķ�����ϣ�����ܷ������ã�����δ�������κεı�֤
-* ����û�������������Ի��ʺ��ض���;�ı�֤
-* ����ϸ����μ� GPL
+* 本开源库的发布是希望它能发挥作用，但并未对其作任何的保证
+* 甚至没有隐含的适销性或适合特定用途的保证
+* 更多细节请参见 GPL
 *
-* ��Ӧ�����յ�����Դ���ͬʱ�յ�һ�� GPL �ĸ���
-* ���û�У������<https://www.gnu.org/licenses/>
+* 您应该在收到本开源库的同时收到一份 GPL 的副本
+* 如果没有，请参阅<https://www.gnu.org/licenses/>
 *
-* ����ע����
-* ����Դ��ʹ�� GPL3.0 ��Դ����֤Э�� ������������Ϊ���İ汾
-* ��������Ӣ�İ��� libraries/doc �ļ����µ� GPL3_permission_statement.txt �ļ���
-* ����֤������ libraries �ļ����� �����ļ����µ� LICENSE �ļ�
-* ��ӭ��λʹ�ò����������� ���޸�����ʱ���뱣����ɿƼ��İ�Ȩ����������������
+* 额外注明：
+* 本开源库使用 GPL3.0 开源许可证协议 以上许可申明为译文版本
+* 许可申明英文版在 libraries/doc 文件夹下的 GPL3_permission_statement.txt 文件中
+* 许可证副本在 libraries 文件夹下 即该文件夹下的 LICENSE 文件
+* 欢迎各位使用并传播本程序 但修改内容时必须保留逐飞科技的版权声明（即本声明）
 *
-* �ļ�����          zf_device_ips200pro
-* ��˾����          �ɶ���ɿƼ����޹�˾
-* �汾��Ϣ          �鿴 libraries/doc �ļ����� version �ļ� �汾˵��
-* ��������          ADS v1.10.2
-* ����ƽ̨          TC264D
-* ��������          https://seekfree.taobao.com/
+* 文件名称          zf_device_ips200pro
+* 公司名称          成都逐飞科技有限公司
+* 版本信息          查看 libraries/doc 文件夹内 version 文件 版本说明
+* 开发环境          ADS v1.10.2
+* 适用平台          TC264D
+* 店铺链接          https://seekfree.taobao.com/
 *
-* �޸ļ�¼
-* ����              ����                ��ע
+* 修改记录
+* 日期              作者                备注
 * 2025-05-15       seekfree          first version
 ********************************************************************************************************************/
 /********************************************************************************************************************
-* ���߶��壺
+* 接线定义：
 *                  ------------------------------------
-*                  ģ��ܽ�             ��Ƭ���ܽ�
-*                  // SPI ���� SPI ������ Ӳ������
-*                  SCL                �鿴 zf_device_ips200pro.h �� IPS200PRO_SCL_PIN_SPI  �궨��
-*                  SDA                �鿴 zf_device_ips200pro.h �� IPS200PRO_SDA_PIN_SPI  �궨��
-*                  RST                �鿴 zf_device_ips200pro.h �� IPS200PRO_RST_PIN_SPI  �궨��
-*                  DC                 �鿴 zf_device_ips200pro.h �� IPS200PRO_DC_PIN_SPI   �궨��
-*                  CS                 �鿴 zf_device_ips200pro.h �� IPS200PRO_CS_PIN_SPI   �궨��
-*                  BLk                �鿴 zf_device_ips200pro.h �� IPS200PRO_BLk_PIN_SPI  �궨��
-*                  VCC                3.3V��Դ
-*                  GND                ��Դ��
-*                  ���ֱ��� 320 * 240
+*                  模块管脚             单片机管脚
+*                  // SPI 串口 SPI 两寸屏 硬件引脚
+*                  SCL                查看 zf_device_ips200pro.h 中 IPS200PRO_SCL_PIN_SPI  宏定义
+*                  SDA                查看 zf_device_ips200pro.h 中 IPS200PRO_SDA_PIN_SPI  宏定义
+*                  RST                查看 zf_device_ips200pro.h 中 IPS200PRO_RST_PIN_SPI  宏定义
+*                  DC                 查看 zf_device_ips200pro.h 中 IPS200PRO_DC_PIN_SPI   宏定义
+*                  CS                 查看 zf_device_ips200pro.h 中 IPS200PRO_CS_PIN_SPI   宏定义
+*                  BLk                查看 zf_device_ips200pro.h 中 IPS200PRO_BLk_PIN_SPI  宏定义
+*                  VCC                3.3V电源
+*                  GND                电源地
+*                  最大分辨率 320 * 240
 *                  ------------------------------------
 ********************************************************************************************************************/
 
@@ -57,9 +57,9 @@
 #include "zf_device_type.h"
 #include "zf_device_ips200pro.h"
 
-#define IPS200PRO_SPI_LENGTH    ( 4096 )    // ÿ��SPIͨѶ��󳤶� �����޸�
+#define IPS200PRO_SPI_LENGTH    ( 4096 )    // 每次SPI通讯最大长度 不可修改
 
-// �����޸�
+// 不可修改
 #define MAX_ID_PAGE             ( 30 )
 #define MAX_ID_LABEL            ( 50 )
 #define MAX_ID_TABLE            ( 20 )
@@ -89,88 +89,88 @@ static uint8 ips200pro_image_num        = 0;
 static uint8 ips200pro_container_num    = 0;
 static uint8 ips200pro_page_num         = 0;
 
-// ϵͳ����������������Ļ�����������
+// 系统参数的子命令与屏幕组件的子命令
 typedef enum
 {
-    // �ɶ���д�Ĳ���
-    IPS200PRO_SYSTEM_DATE            = 0x01,// ϵͳ����
-    IPS200PRO_SYSTEM_TIME,                  // ϵͳʱ��
-    IPS200PRO_SYSTEM_PARENT,                // ������
-    IPS200PRO_SYSTEM_CODED_FORMAT,          // �����ʽ
-    IPS200PRO_SYSTEM_BACKLIGHT,             // ��������
-    IPS200PRO_SYSTEM_DIRECTION,             // ��Ļ��ʾ����
-    IPS200PRO_SYSTEM_CRC_STATE,             // CRCʹ��״̬
-    IPS200PRO_SYSTEM_FONT_SIZE,             // ȫ������
-    SCREEN_SYSTEM_OPTIMIZE,                 // �Ż� Ŀǰ�����ͼ������Ż�(Ĭ���Ż�����)
-    IPS200PRO_SYSTEM_THEME,                 // ϵͳ����
-    IPS200PRO_SYSTEM_SET_MAX,               // ռλʹ��
+    // 可读可写的参数
+    IPS200PRO_SYSTEM_DATE            = 0x01,// 系统日期
+    IPS200PRO_SYSTEM_TIME,                  // 系统时间
+    IPS200PRO_SYSTEM_PARENT,                // 父对象
+    IPS200PRO_SYSTEM_CODED_FORMAT,          // 编码格式
+    IPS200PRO_SYSTEM_BACKLIGHT,             // 背光亮度
+    IPS200PRO_SYSTEM_DIRECTION,             // 屏幕显示方向
+    IPS200PRO_SYSTEM_CRC_STATE,             // CRC使能状态
+    IPS200PRO_SYSTEM_FONT_SIZE,             // 全局字体
+    SCREEN_SYSTEM_OPTIMIZE,                 // 优化 目前仅针对图像进行优化(默认优化开启)
+    IPS200PRO_SYSTEM_THEME,                 // 系统主题
+    IPS200PRO_SYSTEM_SET_MAX,               // 占位使用
 
-    // ���ɶ��Ĳ���
-    IPS200PRO_SYSTEM_INFORMATION    = 0x10, // ��ĻID��š��ֱ��ʡ��̼��汾
-    IPS200PRO_SYSTEM_FREE_STACK,            // ϵͳ����ջ��С
-    IPS200PRO_SYSTEM_GET_MAX,               // ռλʹ��
+    // 仅可读的参数
+    IPS200PRO_SYSTEM_INFORMATION    = 0x10, // 屏幕ID编号、分辨率、固件版本
+    IPS200PRO_SYSTEM_FREE_STACK,            // 系统空闲栈大小
+    IPS200PRO_SYSTEM_GET_MAX,               // 占位使用
 
-    // ͨ�ò�������
-    IPS200PRO_COMMON_CREATE         = 0x01, // �������
-    IPS200PRO_COMMON_DELETE,                // ���ɾ��
-    IPS200PRO_COMMON_FONT_SIZE,             // ��������С
-    IPS200PRO_COMMON_COLOR,                 // �����ɫ
-    IPS200PRO_COMMON_VALUE,                 // �����ֵ ��ͬ����������Ͳ�ͬ
-    IPS200PRO_COMMON_POSITION,              // ���λ��
-    IPS200PRO_COMMON_HIDDEN,                // �������
-    IPS200PRO_COMMON_MAX,                   // ռλ
+    // 通用操作命令
+    IPS200PRO_COMMON_CREATE         = 0x01, // 组件创建
+    IPS200PRO_COMMON_DELETE,                // 组件删除
+    IPS200PRO_COMMON_FONT_SIZE,             // 组件字体大小
+    IPS200PRO_COMMON_COLOR,                 // 组件颜色
+    IPS200PRO_COMMON_VALUE,                 // 组件数值 不同组件数据类型不同
+    IPS200PRO_COMMON_POSITION,              // 组件位置
+    IPS200PRO_COMMON_HIDDEN,                // 组件隐藏
+    IPS200PRO_COMMON_MAX,                   // 占位
 
-    // PAGE���ר������
-    IPS200PRO_PAGE_SWITCH           = 0x10, // �л�ҳ��
-    IPS200PRO_PAGE_TITLE,                   // ����ҳ�������ʾλ�������
+    // PAGE组件专用命令
+    IPS200PRO_PAGE_SWITCH           = 0x10, // 切换页面
+    IPS200PRO_PAGE_TITLE,                   // 设置页面标题显示位置与宽度
     IPS200PRO_PAGE_MAX,
 
-    // LABEL���ר������
-    IPS200PRO_LABEL_LONG_MODE       = 0x10, // ���ı�ģʽ
+    // LABEL组件专用命令
+    IPS200PRO_LABEL_LONG_MODE       = 0x10, // 长文本模式
     IPS200PRO_LABEL_MAX,
 
-    // TABLE���ר������
-    IPS200PRO_TABLE_COL_WIDTH       = 0x10, // �����п�������  �и�����Ļ�Զ��������޷�����
-    IPS200PRO_TABLE_SELECT,                 // �����е�Ԫ��ѡ��
+    // TABLE组件专用命令
+    IPS200PRO_TABLE_COL_WIDTH       = 0x10, // 表格列宽度设置  行高由屏幕自动调整，无法设置
+    IPS200PRO_TABLE_SELECT,                 // 表格中单元格选中
     IPS200PRO_TABLE_MAX,
 
-    // WAVEFORM���ר������
-    IPS200PRO_WAVEFORM_LINE_STATE   = 0x10, // ����ָ������
-    IPS200PRO_WAVEFORM_LINE_TYPE,           // �������������������
-    IPS200PRO_WAVEFORM_CLEAR,               // �������������
+    // WAVEFORM组件专用命令
+    IPS200PRO_WAVEFORM_LINE_STATE   = 0x10, // 隐藏指定线条
+    IPS200PRO_WAVEFORM_LINE_TYPE,           // 设置组件中线条的类型
+    IPS200PRO_WAVEFORM_CLEAR,               // 将所有数据清空
     IPS200PRO_WAVEFORM_MAX,
 
-    // IMAGE���ר������
-    IPS200PRO_IMAGE_DRAW_LINE       = 0x10, // ͼ����
-    IPS200PRO_IMAGE_DRAW_RECTANGLE,         // ͼ�񻭿�
+    // IMAGE组件专用命令
+    IPS200PRO_IMAGE_DRAW_LINE       = 0x10, // 图像画线
+    IPS200PRO_IMAGE_DRAW_RECTANGLE,         // 图像画框
     IPS200PRO_IMAGE_MAX,
 }ips200pro_command2_enum;
 
 
-// ����ʹ�ú궨��ķ�ʽ��Ŀ����Ϊ�˱���ʹ�������ṹ�壬���²���IDE�޷����ߵ��Ե�ʱ��鿴�����ṹ�������
+// 这里使用宏定义的方式，目的是为了避免使用匿名结构体，导致部分IDE无法在线调试的时候查看匿名结构体的数据
 #define IPS200PRO_HEADER   \
-    uint8   command1;                       /* ����1     */ \
-    uint8   command2;                       /* ����2     */ \
-    uint8   check_crc8;                     /* CRCУ�顢Ĭ��δ����   */ \
-    uint8   widgets_id;                     /* ID���    */ \
-    uint32  length                          /* ���ݰ����� */ \
+    uint8   command1;                       /* 命令1     */ \
+    uint8   command2;                       /* 命令2     */ \
+    uint8   check_crc8;                     /* CRC校验、默认未启用   */ \
+    uint8   widgets_id;                     /* ID编号    */ \
+    uint32  length                          /* 数据包长度 */ \
 
 typedef struct
 {
     IPS200PRO_HEADER;
 }ips200pro_header_struct;
 
-// ���ݲ��������
+// 数据拆分联合体
 typedef union
 {
-    int8    int8_data[2];                   // �з����ֽ�����
-    uint8   uint8_data[2];                  // �޷����ֽ�����
-    int16   int16_data;                     // �з��Ű�������
-    uint16  uint16_data;                    // �޷��Ű�������
+    int8    int8_data[2];                   // 有符号字节数据
+    uint8   uint8_data[2];                  // 无符号字节数据
+    int16   int16_data;                     // 有符号半字数据
+    uint16  uint16_data;                    // 无符号半字数据
 }data_split_union;
 
 
-// ͨ�ýṹ��
+// 通用结构体
 #define IPS200PRO_COMMON_STRUCT(name, num) \
     struct common_packet\
     {\
@@ -181,11 +181,11 @@ typedef union
 #define ips200pro_write_8bit_data_spi_array(data, len)                 (spi_write_8bit_array(IPS200PRO_SPI_INDEX, (data), (len)))
 #define ips200pro_transfer_8bit_data_spi_array(tx_data, rx_data, len)  (spi_transfer_8bit(IPS200PRO_SPI_INDEX, (tx_data), (rx_data), (len)))
 //-------------------------------------------------------------------------------------------------------------------
-// �������     ��Ļ�ȴ�����
-// ����˵��     wait_time       �ȴ�ʱ��
-// ���ز���     uint8           1����ʱ�˳� 0��δ��ʱ
-// ʹ��ʾ��
-// ��ע��Ϣ     �ڲ�ʹ�ã��û��������
+// 函数简介     屏幕等待函数
+// 参数说明     wait_time       等待时间
+// 返回参数     uint8           1：超时退出 0：未超时
+// 使用示例
+// 备注信息     内部使用，用户无需关心
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 ips200pro_wait_idle (uint32 wait_time)
 {
@@ -219,9 +219,9 @@ uint8 ips200pro_send_buffer(const void *buffer, uint32 length, uint32 time_out, 
 {
     uint8 return_state = 1;
 
-    if(     ((0 == time_out) || (0 == ips200pro_wait_idle(time_out)))   // �ȴ�δ��ʱ
-        &&  (IPS200PRO_SPI_LENGTH >= length)                            // ������δ��������
-        &&  (NULL != buffer))                                           // ָ�벻Ϊ��
+    if(     ((0 == time_out) || (0 == ips200pro_wait_idle(time_out)))   // 等待未超时
+        &&  (IPS200PRO_SPI_LENGTH >= length)                            // 数据量未超过限制
+        &&  (NULL != buffer))                                           // 指针不为空
     {
         gpio_low(IPS200PRO_CS_PIN);
         ips200pro_write_8bit_data_spi_array((const uint8 *)buffer, length);
@@ -239,9 +239,9 @@ uint8 ips200pro_receive_buffer(void *buffer, uint32 length, uint32 time_out)
 {
     uint8 return_state = 1;
 
-    if(     ((0 == time_out) || (0 == ips200pro_wait_idle(time_out)))   // �ȴ�δ��ʱ
-        &&  (IPS200PRO_SPI_LENGTH >= length)                            // ������δ��������
-        &&  (NULL != buffer))                                           // ָ�벻Ϊ��
+    if(     ((0 == time_out) || (0 == ips200pro_wait_idle(time_out)))   // 等待未超时
+        &&  (IPS200PRO_SPI_LENGTH >= length)                            // 数据量未超过限制
+        &&  (NULL != buffer))                                           // 指针不为空
     {
         gpio_low(IPS200PRO_CS_PIN);
         ips200pro_transfer_8bit_data_spi_array((const uint8 *)buffer, (uint8 *)buffer, length);
@@ -284,9 +284,9 @@ uint8 ips200pro_read_parameter(ips200pro_command2_enum command2, ips200pro_heade
     temp->command1   = IPS200PRO_PARAMETER_GET;
     temp->command2   = command2;
     temp->length     = length;
-    // ��������
+    // 发送命令
     return_state    = ips200pro_send_buffer(temp, length, IPS200PRO_WAIT_TIME, 1);
-    // ��ȡ����
+    // 读取数据
     temp->command1  = 0x00;
     return_state    = ips200pro_receive_buffer(temp, length, IPS200PRO_WAIT_TIME);
     //*parameter = temp.data[0].uint8_data[0];
@@ -426,7 +426,7 @@ uint8 ips200pro_get_information(ips200pro_information_struct *information)
     return_state = ips200pro_read_parameter(IPS200PRO_SYSTEM_INFORMATION, (ips200pro_header_struct *)&temp, sizeof(temp));
     if(0 == return_state)
     {
-        information->version_major  = temp.widgets_id;              // ���汾
+        information->version_major  = temp.widgets_id;              // 主版本
         memcpy(&information->id, &(temp.data[0]), 8);
     }
     return return_state;
@@ -457,7 +457,7 @@ uint8 ips200pro_create_widgets(uint16 widgets_id, int16 x, int16 y, uint16 width
 
     if(ips200pro_page_num || (IPS200PRO_WIDGETS_PAGE == (widgets_id >> 8)))
     {
-        // ֻ����ҳ���Ѿ������󣬲����������������
+        // 只有在页面已经创建后，才允许创建其他组件
         return_state = ips200pro_write_packet(widgets_id >> 8, IPS200PRO_COMMON_CREATE, (uint8)widgets_id, (ips200pro_header_struct *)&temp, sizeof(temp), NULL, 0);
     }
 
@@ -748,7 +748,7 @@ uint8 ips200pro_progress_bar_set_value(uint16 progress_bar_id, uint8 start_value
 uint16 ips200pro_calendar_create(int16 x, int16 y, uint16 width, uint16 height)
 {
     uint8 return_state;
-    // ֻ�ܴ���һ�������ؼ�
+    // 只能创建一个日历控件
     return_state = ips200pro_create_widgets(1 | (IPS200PRO_WIDGETS_CALENDAR << 8), x, y, width, height);
     return return_state == 1 ? 0 : (1 | (IPS200PRO_WIDGETS_CALENDAR << 8));
 }
@@ -850,7 +850,7 @@ uint8 ips200pro_image_display(uint16 image_id, const void *image, uint16 width, 
 
     image_data = (uint8 *)image;
     image_size = width * height * (IMAGE_RGB565 == image_type ? 2 : 1);
-    // �����������㣬���ʾ����Ҫ����ͼ�����ݣ���֪ͨ��Ļ���±��߻����
+    // 任意条件满足，则表示不需要发送图像数据，仅通知屏幕更新边线或矩形
     if((NULL == image) || (!width) || (!height) || (IMAGE_NULL == image_type))
     {
         temp.data[0].uint16_data    = 0;
@@ -863,12 +863,12 @@ uint8 ips200pro_image_display(uint16 image_id, const void *image, uint16 width, 
         temp.data[1].uint16_data    = height;
         temp.data[2].uint8_data[1]  = image_type;
     }
-    temp.data[2].uint8_data[0]  = 1;            // ͼ��ʼ�����־λ
+    temp.data[2].uint8_data[0]  = 1;            // 图像开始传输标志位
     temp.data[3].uint16_data    = threshold;
 
     do
     {
-        // ���㱾�δ����ֽ���
+        // 计算本次传输字节数
         send_length = image_size > (IPS200PRO_SPI_LENGTH - sizeof(temp)) ? (IPS200PRO_SPI_LENGTH - sizeof(temp)) : (uint16)image_size;
         return_state += ips200pro_write_packet(IPS200PRO_WIDGETS_IMAGE, IPS200PRO_COMMON_VALUE, (uint8)image_id, (ips200pro_header_struct *)&temp, sizeof(temp), image_data, send_length);
         image_data += send_length;
@@ -943,7 +943,7 @@ uint16 ips200pro_init(char *str, ips200pro_title_position_enum title_position, u
     spi_init(IPS200PRO_SPI_INDEX, SPI_MODE0, IPS200PRO_SPI_SPEED, IPS200PRO_CLK_PIN, IPS200PRO_MOSI_PIN, IPS200PRO_MISO_PIN, SPI_CS_NULL);
     gpio_init(IPS200PRO_RST_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
     gpio_init(IPS200PRO_CS_PIN, GPO, GPIO_HIGH, GPO_PUSH_PULL);
-    // ����ĻӦ�������޸�Ϊ������������ʹ��Ļ��ʹ�ù����б��ε�Ҳ���ᵼ�³�����
+    // 将屏幕应答引脚修改为上拉，这样即使屏幕在使用过程中被拔掉也不会导致程序卡主
     gpio_init(IPS200PRO_INT_PIN, GPI, GPIO_HIGH, GPI_PULL_UP);
 
     gpio_set_level(IPS200PRO_RST_PIN, 0);
@@ -961,28 +961,28 @@ uint16 ips200pro_init(char *str, ips200pro_title_position_enum title_position, u
     ips200pro_container_num    = 0;
     ips200pro_page_num         = 0;
 
-    // ĳһЩ������Ļ�ӿ�����û��MISO���ţ������޷���ȡ��Ļ��Ϣ
+    // 某一些主板屏幕接口由于没有MISO引脚，所以无法读取屏幕信息
     // ips200pro_get_information(&ips200pro_information);
     // ips200pro_get_time(&ips200pro_time);
 
-    // ����ʱ���������Ч����˲��������ڳ�ʼ���е���ʱ�����ú���������ڳ�ʼ���е��þͻᵼ��ÿ���ϵ�֮��ʱ�䶼�ỹԭ
+    // 设置时间会立即生效，因此并不建议在初始化中调用时间设置函数，如果在初始化中调用就会导致每次上电之后时间都会还原
     // ips200pro_set_time(15, 54, 30);
 
-    // �ر�ע�⡢�ر�ע�⡢�ر�ע��
-    // ����ҳ�������ʾλ���Լ�������ȣ���Ҫע����ڴ���ҳ��֮ǰ���ò�����Ч
-    // �ر�ע�⡢�ر�ע�⡢�ر�ע��
+    // 特别注意、特别注意、特别注意
+    // 设置页面标题显示位置以及标题宽度，需要注意仅在创建页面之前调用才能生效
+    // 特别注意、特别注意、特别注意
     ips200pro_page_set_title_position_width(title_position, title_size);
     ips200pro_set_format(IPS200PRO_DEFAULT_FORMAT);
     ips200pro_set_default_font(IPS200PRO_DEFAULT_FONT_SIZE);
     ips200pro_set_optimize(IPS200PRO_DEFAULT_OPTIMIZE);
-    // ����Ĭ�ϲ���������һ��ҳ��
+    // 设置默认参数并创建一个页面
     if(NULL != str)
     {
-        page_id = ips200pro_page_create(str); // ����һ��ҳ��
+        page_id = ips200pro_page_create(str); // 创建一个页面
     }
 
 #if(1 == IPS200PRO_CRC_ENABLE)
-    ips200pro_set_crc_state(1);  // ʹ��CRCģʽ��ǿ������������������Ҫ��������һ����������CRC����
+    ips200pro_set_crc_state(1);  // 使能CRC模式增强抗干扰能力，但是需要消耗主控一部分算力做CRC计算
 #endif
 
     return page_id;

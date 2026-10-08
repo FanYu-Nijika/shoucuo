@@ -1,52 +1,52 @@
 
 /*********************************************************************************************************************
-* TC264 Opensourec Library ¼´£¨TC264 ¿ªÔ´¿â£©ÊÇÒ»¸ö»ùÓÚ¹Ù·½ SDK ½Ó¿ÚµÄµÚÈı·½¿ªÔ´¿â
-* Copyright (c) 2022 SEEKFREE Öğ·É¿Æ¼¼
+* TC264 Opensourec Library å³ï¼ˆTC264 å¼€æºåº“ï¼‰æ˜¯ä¸€ä¸ªåŸºäºå®˜æ–¹ SDK æ¥å£çš„ç¬¬ä¸‰æ–¹å¼€æºåº“
+* Copyright (c) 2022 SEEKFREE é€é£ç§‘æŠ€
 *
-* ±¾ÎÄ¼şÊÇ TC264 ¿ªÔ´¿âµÄÒ»²¿·Ö
+* æœ¬æ–‡ä»¶æ˜¯ TC264 å¼€æºåº“çš„ä¸€éƒ¨åˆ†
 *
-* TC264 ¿ªÔ´¿â ÊÇÃâ·ÑÈí¼ş
-* Äú¿ÉÒÔ¸ù¾İ×ÔÓÉÈí¼ş»ù½ğ»á·¢²¼µÄ GPL£¨GNU General Public License£¬¼´ GNUÍ¨ÓÃ¹«¹²Ğí¿ÉÖ¤£©µÄÌõ¿î
-* ¼´ GPL µÄµÚ3°æ£¨¼´ GPL3.0£©»ò£¨ÄúÑ¡ÔñµÄ£©ÈÎºÎºóÀ´µÄ°æ±¾£¬ÖØĞÂ·¢²¼ºÍ/»òĞŞ¸ÄËü
+* TC264 å¼€æºåº“ æ˜¯å…è´¹è½¯ä»¶
+* æ‚¨å¯ä»¥æ ¹æ®è‡ªç”±è½¯ä»¶åŸºé‡‘ä¼šå‘å¸ƒçš„ GPLï¼ˆGNU General Public Licenseï¼Œå³ GNUé€šç”¨å…¬å…±è®¸å¯è¯ï¼‰çš„æ¡æ¬¾
+* å³ GPL çš„ç¬¬3ç‰ˆï¼ˆå³ GPL3.0ï¼‰æˆ–ï¼ˆæ‚¨é€‰æ‹©çš„ï¼‰ä»»ä½•åæ¥çš„ç‰ˆæœ¬ï¼Œé‡æ–°å‘å¸ƒå’Œ/æˆ–ä¿®æ”¹å®ƒ
 *
-* ±¾¿ªÔ´¿âµÄ·¢²¼ÊÇÏ£ÍûËüÄÜ·¢»Ó×÷ÓÃ£¬µ«²¢Î´¶ÔÆä×÷ÈÎºÎµÄ±£Ö¤
-* ÉõÖÁÃ»ÓĞÒşº¬µÄÊÊÏúĞÔ»òÊÊºÏÌØ¶¨ÓÃÍ¾µÄ±£Ö¤
-* ¸ü¶àÏ¸½ÚÇë²Î¼û GPL
+* æœ¬å¼€æºåº“çš„å‘å¸ƒæ˜¯å¸Œæœ›å®ƒèƒ½å‘æŒ¥ä½œç”¨ï¼Œä½†å¹¶æœªå¯¹å…¶ä½œä»»ä½•çš„ä¿è¯
+* ç”šè‡³æ²¡æœ‰éšå«çš„é€‚é”€æ€§æˆ–é€‚åˆç‰¹å®šç”¨é€”çš„ä¿è¯
+* æ›´å¤šç»†èŠ‚è¯·å‚è§ GPL
 *
-* ÄúÓ¦¸ÃÔÚÊÕµ½±¾¿ªÔ´¿âµÄÍ¬Ê±ÊÕµ½Ò»·İ GPL µÄ¸±±¾
-* Èç¹ûÃ»ÓĞ£¬Çë²ÎÔÄ<https://www.gnu.org/licenses/>
+* æ‚¨åº”è¯¥åœ¨æ”¶åˆ°æœ¬å¼€æºåº“çš„åŒæ—¶æ”¶åˆ°ä¸€ä»½ GPL çš„å‰¯æœ¬
+* å¦‚æœæ²¡æœ‰ï¼Œè¯·å‚é˜…<https://www.gnu.org/licenses/>
 *
-* ¶îÍâ×¢Ã÷£º
-* ±¾¿ªÔ´¿âÊ¹ÓÃ GPL3.0 ¿ªÔ´Ğí¿ÉÖ¤Ğ­Òé ÒÔÉÏĞí¿ÉÉêÃ÷ÎªÒëÎÄ°æ±¾
-* Ğí¿ÉÉêÃ÷Ó¢ÎÄ°æÔÚ libraries/doc ÎÄ¼ş¼ĞÏÂµÄ GPL3_permission_statement.txt ÎÄ¼şÖĞ
-* Ğí¿ÉÖ¤¸±±¾ÔÚ libraries ÎÄ¼ş¼ĞÏÂ ¼´¸ÃÎÄ¼ş¼ĞÏÂµÄ LICENSE ÎÄ¼ş
-* »¶Ó­¸÷Î»Ê¹ÓÃ²¢´«²¥±¾³ÌĞò µ«ĞŞ¸ÄÄÚÈİÊ±±ØĞë±£ÁôÖğ·É¿Æ¼¼µÄ°æÈ¨ÉùÃ÷£¨¼´±¾ÉùÃ÷£©
+* é¢å¤–æ³¨æ˜ï¼š
+* æœ¬å¼€æºåº“ä½¿ç”¨ GPL3.0 å¼€æºè®¸å¯è¯åè®® ä»¥ä¸Šè®¸å¯ç”³æ˜ä¸ºè¯‘æ–‡ç‰ˆæœ¬
+* è®¸å¯ç”³æ˜è‹±æ–‡ç‰ˆåœ¨ libraries/doc æ–‡ä»¶å¤¹ä¸‹çš„ GPL3_permission_statement.txt æ–‡ä»¶ä¸­
+* è®¸å¯è¯å‰¯æœ¬åœ¨ libraries æ–‡ä»¶å¤¹ä¸‹ å³è¯¥æ–‡ä»¶å¤¹ä¸‹çš„ LICENSE æ–‡ä»¶
+* æ¬¢è¿å„ä½ä½¿ç”¨å¹¶ä¼ æ’­æœ¬ç¨‹åº ä½†ä¿®æ”¹å†…å®¹æ—¶å¿…é¡»ä¿ç•™é€é£ç§‘æŠ€çš„ç‰ˆæƒå£°æ˜ï¼ˆå³æœ¬å£°æ˜ï¼‰
 *
-* ÎÄ¼şÃû³Æ          zf_device_ips200pro
-* ¹«Ë¾Ãû³Æ          ³É¶¼Öğ·É¿Æ¼¼ÓĞÏŞ¹«Ë¾
-* °æ±¾ĞÅÏ¢          ²é¿´ libraries/doc ÎÄ¼ş¼ĞÄÚ version ÎÄ¼ş °æ±¾ËµÃ÷
-* ¿ª·¢»·¾³          ADS v1.10.2
-* ÊÊÓÃÆ½Ì¨          TC264D
-* µêÆÌÁ´½Ó          https://seekfree.taobao.com/
+* æ–‡ä»¶åç§°          zf_device_ips200pro
+* å…¬å¸åç§°          æˆéƒ½é€é£ç§‘æŠ€æœ‰é™å…¬å¸
+* ç‰ˆæœ¬ä¿¡æ¯          æŸ¥çœ‹ libraries/doc æ–‡ä»¶å¤¹å†… version æ–‡ä»¶ ç‰ˆæœ¬è¯´æ˜
+* å¼€å‘ç¯å¢ƒ          ADS v1.10.2
+* é€‚ç”¨å¹³å°          TC264D
+* åº—é“ºé“¾æ¥          https://seekfree.taobao.com/
 *
-* ĞŞ¸Ä¼ÇÂ¼
-* ÈÕÆÚ              ×÷Õß                ±¸×¢
+* ä¿®æ”¹è®°å½•
+* æ—¥æœŸ              ä½œè€…                å¤‡æ³¨
 * 2025-05-15       seekfree          first version
 ********************************************************************************************************************/
 /********************************************************************************************************************
-* ½ÓÏß¶¨Òå£º
+* æ¥çº¿å®šä¹‰ï¼š
 *                  ------------------------------------
-*                  Ä£¿é¹Ü½Å             µ¥Æ¬»ú¹Ü½Å
-*                  // SPI ´®¿Ú SPI Á½´çÆÁ Ó²¼şÒı½Å
-*                  SCL                ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_SCL_PIN_SPI  ºê¶¨Òå
-*                  SDA                ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_SDA_PIN_SPI  ºê¶¨Òå
-*                  RST                ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_RST_PIN_SPI  ºê¶¨Òå
-*                  DC                 ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_DC_PIN_SPI   ºê¶¨Òå
-*                  CS                 ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_CS_PIN_SPI   ºê¶¨Òå
-*                  BLk                ²é¿´ zf_device_ips200pro.h ÖĞ IPS200PRO_BLk_PIN_SPI  ºê¶¨Òå
-*                  VCC                3.3VµçÔ´
-*                  GND                µçÔ´µØ
-*                  ×î´ó·Ö±æÂÊ 320 * 240
+*                  æ¨¡å—ç®¡è„š             å•ç‰‡æœºç®¡è„š
+*                  // SPI ä¸²å£ SPI ä¸¤å¯¸å± ç¡¬ä»¶å¼•è„š
+*                  SCL                æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_SCL_PIN_SPI  å®å®šä¹‰
+*                  SDA                æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_SDA_PIN_SPI  å®å®šä¹‰
+*                  RST                æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_RST_PIN_SPI  å®å®šä¹‰
+*                  DC                 æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_DC_PIN_SPI   å®å®šä¹‰
+*                  CS                 æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_CS_PIN_SPI   å®å®šä¹‰
+*                  BLk                æŸ¥çœ‹ zf_device_ips200pro.h ä¸­ IPS200PRO_BLk_PIN_SPI  å®å®šä¹‰
+*                  VCC                3.3Vç”µæº
+*                  GND                ç”µæºåœ°
+*                  æœ€å¤§åˆ†è¾¨ç‡ 320 * 240
 *                  ------------------------------------
 ********************************************************************************************************************/
 #ifndef _zf_device_ips200pro_h_
@@ -55,51 +55,51 @@
 #include "zf_common_typedef.h"
 #include "board_pins.h"
 
-#define IPS200PRO_SPI_SPEED      			    ( 40*1000*1000      )   // Ó²¼ş SPI ËÙÂÊ
-#define IPS200PRO_SPI_INDEX                	    ( SPI_2             )   // Ó²¼ş SPI ºÅ
-#define IPS200PRO_CLK_PIN                  	    (BOARD_DISPLAY_SCL_SPI_PIN)    // Ó²¼ş SPI SCK Òı½Å
-#define IPS200PRO_MOSI_PIN                 	    (BOARD_DISPLAY_SDA_SPI_PIN)    // Ó²¼ş SPI MOSI Òı½Å
-#define IPS200PRO_MISO_PIN                 	    (BOARD_DISPLAY_MISO_SPI_PIN)   // Ó²¼ş SPI MISO Òı½Å  TFTÃ»ÓĞMISOÒı½Å£¬µ«ÊÇÕâÀïÈÎÈ»ĞèÒª¶¨Òå£¬ÔÚspiµÄ³õÊ¼»¯Ê±ĞèÒªÊ¹ÓÃ
-#define IPS200PRO_RST_PIN                  	    (BOARD_DISPLAY_RESET_PIN)      // Òº¾§¸´Î»Òı½Å¶¨Òå
-#define IPS200PRO_INT_PIN                  	    (BOARD_DISPLAY_DC_PIN)         // Òº¾§ÃüÁîÎ»Òı½Å¶¨Òå
-#define IPS200PRO_CS_PIN                   	    (BOARD_DISPLAY_CS_PIN)         // CS Æ¬Ñ¡Òı½Å
+#define IPS200PRO_SPI_SPEED      			    ( 40*1000*1000      )   // ç¡¬ä»¶ SPI é€Ÿç‡
+#define IPS200PRO_SPI_INDEX                	    ( SPI_2             )   // ç¡¬ä»¶ SPI å·
+#define IPS200PRO_CLK_PIN                  	    (BOARD_DISPLAY_SCL_SPI_PIN)    // ç¡¬ä»¶ SPI SCK å¼•è„š
+#define IPS200PRO_MOSI_PIN                 	    (BOARD_DISPLAY_SDA_SPI_PIN)    // ç¡¬ä»¶ SPI MOSI å¼•è„š
+#define IPS200PRO_MISO_PIN                 	    (BOARD_DISPLAY_MISO_SPI_PIN)   // ç¡¬ä»¶ SPI MISO å¼•è„š  TFTæ²¡æœ‰MISOå¼•è„šï¼Œä½†æ˜¯è¿™é‡Œä»»ç„¶éœ€è¦å®šä¹‰ï¼Œåœ¨spiçš„åˆå§‹åŒ–æ—¶éœ€è¦ä½¿ç”¨
+#define IPS200PRO_RST_PIN                  	    (BOARD_DISPLAY_RESET_PIN)      // æ¶²æ™¶å¤ä½å¼•è„šå®šä¹‰
+#define IPS200PRO_INT_PIN                  	    (BOARD_DISPLAY_DC_PIN)         // æ¶²æ™¶å‘½ä»¤ä½å¼•è„šå®šä¹‰
+#define IPS200PRO_CS_PIN                   	    (BOARD_DISPLAY_CS_PIN)         // CS ç‰‡é€‰å¼•è„š
 
-#define IPS200PRO_WAIT_TIME                	    ( 900               )   // Í¨Ñ¶µÈ´ıÊ±³¤£¬ÄÚ²¿ÊÇÈí¼şÑÓÊ±£¬Òò´ËÕâÀïÃ»ÓĞÊ±¼äµ¥Î»
-#define IPS200PRO_CRC_ENABLE                    ( 0                 )   // 0£º¹Ø±ÕCRCÄ£Ê½£¨Í¨³£¹Ø±Õ¼´¿É£© 1£ºÊ¹ÄÜCRCÄ£Ê½£¬ÔÚ´«ÊäµÄÊı¾İ°üÖĞ¼ÓÈëCRCĞ£Ñé£¬ÄÜÌá¸ßÆÁÄ»µÄ¿¹¸ÉÈÅµÄÄÜÁ¦
-#define IPS200PRO_DEFAULT_FORMAT                (IPS200PRO_FORMAT_GBK)  // Ä¬ÈÏ±àÂë¸ñÊ½£¬»áÔÚ³õÊ¼»¯ÆÁÄ»µÄÊ±ºò½øĞĞÉèÖÃ
-#define IPS200PRO_DEFAULT_FONT_SIZE             ( FONT_SIZE_16      )   // Ä¬ÈÏÖ¸¶¨´óĞ¡£¬»áÔÚ³õÊ¼»¯ÆÁÄ»µÄÊ±ºò½øĞĞÉèÖÃ
-#define IPS200PRO_DEFAULT_OPTIMIZE              ( 1                 )   // 0:¹Ø±ÕÓÅ»¯ 1£º¿ªÆôÓÅ»¯£¬Ä¬ÈÏ¿ªÆôÓÅ»¯£¬»áÔÚ³õÊ¼»¯ÆÁÄ»µÄÊ±ºò½øĞĞÉèÖÃ
+#define IPS200PRO_WAIT_TIME                	    ( 900               )   // é€šè®¯ç­‰å¾…æ—¶é•¿ï¼Œå†…éƒ¨æ˜¯è½¯ä»¶å»¶æ—¶ï¼Œå› æ­¤è¿™é‡Œæ²¡æœ‰æ—¶é—´å•ä½
+#define IPS200PRO_CRC_ENABLE                    ( 0                 )   // 0ï¼šå…³é—­CRCæ¨¡å¼ï¼ˆé€šå¸¸å…³é—­å³å¯ï¼‰ 1ï¼šä½¿èƒ½CRCæ¨¡å¼ï¼Œåœ¨ä¼ è¾“çš„æ•°æ®åŒ…ä¸­åŠ å…¥CRCæ ¡éªŒï¼Œèƒ½æé«˜å±å¹•çš„æŠ—å¹²æ‰°çš„èƒ½åŠ›
+#define IPS200PRO_DEFAULT_FORMAT                (IPS200PRO_FORMAT_GBK)  // é»˜è®¤ç¼–ç æ ¼å¼ï¼Œä¼šåœ¨åˆå§‹åŒ–å±å¹•çš„æ—¶å€™è¿›è¡Œè®¾ç½®
+#define IPS200PRO_DEFAULT_FONT_SIZE             ( FONT_SIZE_16      )   // é»˜è®¤æŒ‡å®šå¤§å°ï¼Œä¼šåœ¨åˆå§‹åŒ–å±å¹•çš„æ—¶å€™è¿›è¡Œè®¾ç½®
+#define IPS200PRO_DEFAULT_OPTIMIZE              ( 1                 )   // 0:å…³é—­ä¼˜åŒ– 1ï¼šå¼€å¯ä¼˜åŒ–ï¼Œé»˜è®¤å¼€å¯ä¼˜åŒ–ï¼Œä¼šåœ¨åˆå§‹åŒ–å±å¹•çš„æ—¶å€™è¿›è¡Œè®¾ç½®
 
-// RGB888×ªRGB565ºê¶¨Òå
+// RGB888è½¬RGB565å®å®šä¹‰
 #define IPS200PRO_RGB888_TO_RGB565(r8, g8, b8)  ((((r8 >> 3) & 0x1FU) << 11) | (((g8 >> 2) & 0x3FU) << 5) |  ((b8 >> 3) & 0x1FU))
 
 typedef enum
 {
-    IPS200PRO_PARAMETER_SET         = 0x01  ,                                   // ÉèÖÃÏµÍ³²ÎÊıÃüÁî
-    IPS200PRO_PARAMETER_GET                 ,                                   // »ñÈ¡ÏµÍ³²ÎÊıÃüÁî
-    IPS200PRO_WIDGETS_PAGE          = 0x10  ,                                   // Ò³Ãæ×é¼ş
-    IPS200PRO_WIDGETS_LABEL                 ,                                   // ÎÄ±¾±êÇ©×é¼ş
-    IPS200PRO_WIDGETS_TABLE                 ,                                   // ±í¸ñ×é¼ş
-    IPS200PRO_WIDGETS_METER                 ,                                   // ÒÇ±í×é¼ş
-    IPS200PRO_WIDGETS_CLOCK                 ,                                   // Ê±ÖÓ×é¼ş
-    IPS200PRO_WIDGETS_BAR                   ,                                   // ½ø¶ÈÌõ×é¼ş
-    IPS200PRO_WIDGETS_CALENDAR              ,                                   // ÈÕÀú×é¼ş
-    IPS200PRO_WIDGETS_WAVEFORM              ,                                   // ²¨ĞÎ×é¼ş
-    IPS200PRO_WIDGETS_IMAGE                 ,                                   // Í¼Ïñ×é¼ş
-    IPS200PRO_WIDGETS_CONTAINER             ,                                   // ÈİÆ÷×é¼ş
-    IPS200PRO_WIDGETS_MAX                   ,                                   // Õ¼Î»Ê¹ÓÃ
+    IPS200PRO_PARAMETER_SET         = 0x01  ,                                   // è®¾ç½®ç³»ç»Ÿå‚æ•°å‘½ä»¤
+    IPS200PRO_PARAMETER_GET                 ,                                   // è·å–ç³»ç»Ÿå‚æ•°å‘½ä»¤
+    IPS200PRO_WIDGETS_PAGE          = 0x10  ,                                   // é¡µé¢ç»„ä»¶
+    IPS200PRO_WIDGETS_LABEL                 ,                                   // æ–‡æœ¬æ ‡ç­¾ç»„ä»¶
+    IPS200PRO_WIDGETS_TABLE                 ,                                   // è¡¨æ ¼ç»„ä»¶
+    IPS200PRO_WIDGETS_METER                 ,                                   // ä»ªè¡¨ç»„ä»¶
+    IPS200PRO_WIDGETS_CLOCK                 ,                                   // æ—¶é’Ÿç»„ä»¶
+    IPS200PRO_WIDGETS_BAR                   ,                                   // è¿›åº¦æ¡ç»„ä»¶
+    IPS200PRO_WIDGETS_CALENDAR              ,                                   // æ—¥å†ç»„ä»¶
+    IPS200PRO_WIDGETS_WAVEFORM              ,                                   // æ³¢å½¢ç»„ä»¶
+    IPS200PRO_WIDGETS_IMAGE                 ,                                   // å›¾åƒç»„ä»¶
+    IPS200PRO_WIDGETS_CONTAINER             ,                                   // å®¹å™¨ç»„ä»¶
+    IPS200PRO_WIDGETS_MAX                   ,                                   // å ä½ä½¿ç”¨
 }ips200pro_command1_enum;
 
 typedef enum
 {
-    // ½ö16¡¢20¡¢24ºÅ×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾£¬ÆäÓà×ÖÌå½öÖ§³ÖÓ¢ÎÄÏÔÊ¾
+    // ä»…16ã€20ã€24å·å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤ºï¼Œå…¶ä½™å­—ä½“ä»…æ”¯æŒè‹±æ–‡æ˜¾ç¤º
     FONT_SIZE_12                            ,
     FONT_SIZE_14                            ,
-    FONT_SIZE_16                            ,                                   // 16×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾
+    FONT_SIZE_16                            ,                                   // 16å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤º
     FONT_SIZE_18                            ,
-    FONT_SIZE_20                            ,                                   // 20×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾
+    FONT_SIZE_20                            ,                                   // 20å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤º
     FONT_SIZE_22                            ,
-    FONT_SIZE_24                            ,                                   // 24×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾
+    FONT_SIZE_24                            ,                                   // 24å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤º
     FONT_SIZE_26                            ,
     FONT_SIZE_28                            ,
     FONT_SIZE_30                            ,
@@ -111,684 +111,684 @@ typedef enum
 
 typedef enum
 {
-    COLOR_FOREGROUND                        ,                                   // Ç°¾°É«      ³ı WAVEFORM CONTAINER ×é¼ş²»Ö§³ÖÆäËû¶¼Ö§³Ö
-    COLOR_BACKGROUND                        ,                                   // ±³¾°É«      ³ı IMAGE ×é¼ş²»Ö§³ÖÆäËû¶¼Ö§³Ö
-    COLOR_BORDER                            ,                                   // ×é¼ş±ßÏßÑÕÉ« Ö§³Ö×é¼şÓĞ LABEL TABLE METER CLOCK CALENDAR CONTAINER
+    COLOR_FOREGROUND                        ,                                   // å‰æ™¯è‰²      é™¤ WAVEFORM CONTAINER ç»„ä»¶ä¸æ”¯æŒå…¶ä»–éƒ½æ”¯æŒ
+    COLOR_BACKGROUND                        ,                                   // èƒŒæ™¯è‰²      é™¤ IMAGE ç»„ä»¶ä¸æ”¯æŒå…¶ä»–éƒ½æ”¯æŒ
+    COLOR_BORDER                            ,                                   // ç»„ä»¶è¾¹çº¿é¢œè‰² æ”¯æŒç»„ä»¶æœ‰ LABEL TABLE METER CLOCK CALENDAR CONTAINER
 
-    // ×¨ÓÃÖ¸Áî
-    COLOR_PAGE_SELECTED_TEXT                ,                                   // Ñ¡ÖĞÒ³ÃæºóµÄ±êÌâÎÄ×ÖÑÕÉ«
-    COLOR_PAGE_SELECTED_BG                  ,                                   // Ñ¡ÖĞÒ³ÃæºóµÄ±êÌâ±³¾°ÑÕÉ«
+    // ä¸“ç”¨æŒ‡ä»¤
+    COLOR_PAGE_SELECTED_TEXT                ,                                   // é€‰ä¸­é¡µé¢åçš„æ ‡é¢˜æ–‡å­—é¢œè‰²
+    COLOR_PAGE_SELECTED_BG                  ,                                   // é€‰ä¸­é¡µé¢åçš„æ ‡é¢˜èƒŒæ™¯é¢œè‰²
 
-    COLOR_TABLE_SELECTED_BG                 ,                                   // ±í¸ñÑ¡ÖĞºóµÄÑÕÉ«
+    COLOR_TABLE_SELECTED_BG                 ,                                   // è¡¨æ ¼é€‰ä¸­åçš„é¢œè‰²
 
-    COLOR_MRTER_INDICATOR                   ,                                   // ÒÇ±í×é¼şµÄÖ¸ÕëÑÕÉ«
-    COLOR_MRTER_TICKS                       ,                                   // ÒÇ±í×é¼ş¿Ì¶ÈÑÕÉ«
+    COLOR_MRTER_INDICATOR                   ,                                   // ä»ªè¡¨ç»„ä»¶çš„æŒ‡é’ˆé¢œè‰²
+    COLOR_MRTER_TICKS                       ,                                   // ä»ªè¡¨ç»„ä»¶åˆ»åº¦é¢œè‰²
 
-    COLOR_CLOCK_HOUR                        ,                                   // Ô²ĞÎÊ±ÖÓÊ±ÕëÑÕÉ«
-    COLOR_CLOCK_MINUTE                      ,                                   // Ô²ĞÎÊ±ÖÓ·ÖÕëÑÕÉ«
-    COLOR_CLOCK_SECOND                      ,                                   // Ô²ĞÎÊ±ÖÓÃëÕëÑÕÉ«
-    COLOR_CLOCK_TICKS                       ,                                   // Ô²ĞÎÊ±ÖÓ×é¼ş¿Ì¶ÈÑÕÉ«
+    COLOR_CLOCK_HOUR                        ,                                   // åœ†å½¢æ—¶é’Ÿæ—¶é’ˆé¢œè‰²
+    COLOR_CLOCK_MINUTE                      ,                                   // åœ†å½¢æ—¶é’Ÿåˆ†é’ˆé¢œè‰²
+    COLOR_CLOCK_SECOND                      ,                                   // åœ†å½¢æ—¶é’Ÿç§’é’ˆé¢œè‰²
+    COLOR_CLOCK_TICKS                       ,                                   // åœ†å½¢æ—¶é’Ÿç»„ä»¶åˆ»åº¦é¢œè‰²
 
-    COLOR_CALENDAR_YEAR                     ,                                   // Äê·İÑÕÉ«
-    COLOR_CALENDAR_WEEK                     ,                                   // ĞÇÆÚÑÕÉ«
-    COLOR_CALENDAR_TODAY                    ,                                   // ½ñÈÕÑÕÉ«
+    COLOR_CALENDAR_YEAR                     ,                                   // å¹´ä»½é¢œè‰²
+    COLOR_CALENDAR_WEEK                     ,                                   // æ˜ŸæœŸé¢œè‰²
+    COLOR_CALENDAR_TODAY                    ,                                   // ä»Šæ—¥é¢œè‰²
 }ips200pro_widgets_color_type_enum;
 
 typedef enum
 {
-    PAGE_ANIM_OFF                           ,                                   // Ò³ÃæÇĞ»»Ê±¹Ø±Õ¶¯»­Ğ§¹û
-    PAGE_ANIM_ON                            ,                                   // Ò³ÃæÇĞ»»Ê±¿ªÆô¶¯»­Ğ§¹û
+    PAGE_ANIM_OFF                           ,                                   // é¡µé¢åˆ‡æ¢æ—¶å…³é—­åŠ¨ç”»æ•ˆæœ
+    PAGE_ANIM_ON                            ,                                   // é¡µé¢åˆ‡æ¢æ—¶å¼€å¯åŠ¨ç”»æ•ˆæœ
 }ips200pro_page_animations_enum;
 
 typedef enum
 {
-    LABEL_AUTO                              ,                                   // µ±¿í¶ÈÎŞ·¨ÏÔÊ¾È«²¿ÄÚÈİÊ±£¬»á×Ô¶¯»»ĞĞÏÔÊ¾
-    LABEL_DOT                               ,                                   // µ±ÎŞ·¨È«²¿ÏÔÊ¾µÄÊ±ºò£¬Ä©Î²ÓÒÏÂ½ÇÏÔÊ¾...
-    LABEL_SCROLL                            ,                                   // µ±¿í¶ÈÎŞ·¨ÏÔÊ¾È«²¿ÄÚÈİÊ±Ë®Æ½¹ö¶¯ÏÔÊ¾£¬µ±¸ß¶ÈÎŞ·¨ÏÔÊ¾È«²¿ÄÚÈİÊ±´¹Ö±¹ö¶¯ÏÔÊ¾£¬Ö»°´ÕÕÒ»¸ö·½Ïò×óÓÒ»òÕßÉÏÏÂ¹ö¶¯ÏÔÊ¾£¬Ë®Æ½¹ö¶¯ÓÅÏÈ
-    LABEL_SCROLL_CIRCULAR                   ,                                   // µ±¿í¶ÈÎŞ·¨ÏÔÊ¾È«²¿ÄÚÈİÊ±Ë®Æ½¹ö¶¯ÏÔÊ¾£¬µ±¸ß¶ÈÎŞ·¨ÏÔÊ¾È«²¿ÄÚÈİÊ±´¹Ö±¹ö¶¯ÏÔÊ¾£¬Ö»°´ÕÕÒ»¸ö·½ÏòÑ­»·¹ö¶¯ÏÔÊ¾£¬Ë®Æ½¹ö¶¯ÓÅÏÈ
-    LABEL_CLIP                              ,                                   // ½«ÎŞ·¨ÏÔÊ¾µÄÄÚÈİ²Ã¼ôµô
+    LABEL_AUTO                              ,                                   // å½“å®½åº¦æ— æ³•æ˜¾ç¤ºå…¨éƒ¨å†…å®¹æ—¶ï¼Œä¼šè‡ªåŠ¨æ¢è¡Œæ˜¾ç¤º
+    LABEL_DOT                               ,                                   // å½“æ— æ³•å…¨éƒ¨æ˜¾ç¤ºçš„æ—¶å€™ï¼Œæœ«å°¾å³ä¸‹è§’æ˜¾ç¤º...
+    LABEL_SCROLL                            ,                                   // å½“å®½åº¦æ— æ³•æ˜¾ç¤ºå…¨éƒ¨å†…å®¹æ—¶æ°´å¹³æ»šåŠ¨æ˜¾ç¤ºï¼Œå½“é«˜åº¦æ— æ³•æ˜¾ç¤ºå…¨éƒ¨å†…å®¹æ—¶å‚ç›´æ»šåŠ¨æ˜¾ç¤ºï¼ŒåªæŒ‰ç…§ä¸€ä¸ªæ–¹å‘å·¦å³æˆ–è€…ä¸Šä¸‹æ»šåŠ¨æ˜¾ç¤ºï¼Œæ°´å¹³æ»šåŠ¨ä¼˜å…ˆ
+    LABEL_SCROLL_CIRCULAR                   ,                                   // å½“å®½åº¦æ— æ³•æ˜¾ç¤ºå…¨éƒ¨å†…å®¹æ—¶æ°´å¹³æ»šåŠ¨æ˜¾ç¤ºï¼Œå½“é«˜åº¦æ— æ³•æ˜¾ç¤ºå…¨éƒ¨å†…å®¹æ—¶å‚ç›´æ»šåŠ¨æ˜¾ç¤ºï¼ŒåªæŒ‰ç…§ä¸€ä¸ªæ–¹å‘å¾ªç¯æ»šåŠ¨æ˜¾ç¤ºï¼Œæ°´å¹³æ»šåŠ¨ä¼˜å…ˆ
+    LABEL_CLIP                              ,                                   // å°†æ— æ³•æ˜¾ç¤ºçš„å†…å®¹è£å‰ªæ‰
 }ips200pro_label_mode_enum;
 
 typedef enum
 {
-    IPS200PRO_PORTRAIT              = 0x01  ,                                   // ÊúÆÁÄ£Ê½
-    IPS200PRO_PORTRAIT_180          = 0x02  ,                                   // ÊúÆÁÄ£Ê½  Ğı×ª180
-    IPS200PRO_CROSSWISE             = 0x03  ,                                   // ºáÆÁÄ£Ê½
-    IPS200PRO_CROSSWISE_180         = 0x04  ,                                   // ºáÆÁÄ£Ê½  Ğı×ª180
+    IPS200PRO_PORTRAIT              = 0x01  ,                                   // ç«–å±æ¨¡å¼
+    IPS200PRO_PORTRAIT_180          = 0x02  ,                                   // ç«–å±æ¨¡å¼  æ—‹è½¬180
+    IPS200PRO_CROSSWISE             = 0x03  ,                                   // æ¨ªå±æ¨¡å¼
+    IPS200PRO_CROSSWISE_180         = 0x04  ,                                   // æ¨ªå±æ¨¡å¼  æ—‹è½¬180
 }ips200pro_display_direction_enum;
 
 typedef enum
 {
-    IPS200PRO_TITLE_LEFT            = 0x00  ,                                   // Ò³Ãæ±êÌâÏÔÊ¾ÔÚ×ó²à Èç¹û²»ĞèÒªÏÔÊ¾±êÌâ£¬Ôò½«±êÌâ¸ß¶ÈÉèÖÃÎª0¼´¿É
-    IPS200PRO_TITLE_RIGHT           = 0x01  ,                                   // Ò³Ãæ±êÌâÏÔÊ¾ÔÚÓÒ²à
-    IPS200PRO_TITLE_TOP             = 0x02  ,                                   // Ò³Ãæ±êÌâÏÔÊ¾ÔÚÉÏ²à
-    IPS200PRO_TITLE_BOTTOM          = 0x03  ,                                   // Ò³Ãæ±êÌâÏÔÊ¾ÔÚµ×²à
+    IPS200PRO_TITLE_LEFT            = 0x00  ,                                   // é¡µé¢æ ‡é¢˜æ˜¾ç¤ºåœ¨å·¦ä¾§ å¦‚æœä¸éœ€è¦æ˜¾ç¤ºæ ‡é¢˜ï¼Œåˆ™å°†æ ‡é¢˜é«˜åº¦è®¾ç½®ä¸º0å³å¯
+    IPS200PRO_TITLE_RIGHT           = 0x01  ,                                   // é¡µé¢æ ‡é¢˜æ˜¾ç¤ºåœ¨å³ä¾§
+    IPS200PRO_TITLE_TOP             = 0x02  ,                                   // é¡µé¢æ ‡é¢˜æ˜¾ç¤ºåœ¨ä¸Šä¾§
+    IPS200PRO_TITLE_BOTTOM          = 0x03  ,                                   // é¡µé¢æ ‡é¢˜æ˜¾ç¤ºåœ¨åº•ä¾§
 }ips200pro_title_position_enum;
 
 typedef enum
 {
-    IPS200PRO_CALENDAR_CHINESE      = 0x01  ,                                   // ÈÕÀúÊ¹ÓÃÖĞÎÄÏÔÊ¾  ½ö16¡¢20¡¢24ºÅ×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾
-    IPS200PRO_CALENDAR_ENGLISH      = 0x02  ,                                   // ÈÕÀúÊ¹ÓÃÓ¢ÎÄÏÔÊ¾
+    IPS200PRO_CALENDAR_CHINESE      = 0x01  ,                                   // æ—¥å†ä½¿ç”¨ä¸­æ–‡æ˜¾ç¤º  ä»…16ã€20ã€24å·å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤º
+    IPS200PRO_CALENDAR_ENGLISH      = 0x02  ,                                   // æ—¥å†ä½¿ç”¨è‹±æ–‡æ˜¾ç¤º
 }ips200pro_calendar_mode_enum;
 
 typedef enum
 {
-    IMAGE_NULL                      = 0x00  ,                                   // Í¼ÏñÎª¿Õ£¬ÓÃÓÚ´¿±ßÏßÏÔÊ¾
-    IMAGE_GRAYSCALE                 = 0x03  ,                                   // »Ò¶È ×Ü×ê·ç¡¢Ğ¡×ê·ç½âÑ¹ºóµÄÍ¼ÏñÊ¹ÓÃ´ËÃ¶¾Ù¶¨Òå
-    IMAGE_RGB565                            ,                                   // RGB565²ÊÉ« ÁèÍ«Ê¹ÓÃ´ËÃ¶¾Ù¶¨Òå
+    IMAGE_NULL                      = 0x00  ,                                   // å›¾åƒä¸ºç©ºï¼Œç”¨äºçº¯è¾¹çº¿æ˜¾ç¤º
+    IMAGE_GRAYSCALE                 = 0x03  ,                                   // ç°åº¦ æ€»é’»é£ã€å°é’»é£è§£å‹åçš„å›¾åƒä½¿ç”¨æ­¤æšä¸¾å®šä¹‰
+    IMAGE_RGB565                            ,                                   // RGB565å½©è‰² å‡Œç³ä½¿ç”¨æ­¤æšä¸¾å®šä¹‰
 }ips200pro_image_type_enum;
 
 typedef enum
 {
-    IMAGE_LINE_TYPE_UINT8           = 0x01  ,                                   // ÏßÌõÊı¾İÊÇ8Î»ÀàĞÍ
-    IMAGE_LINE_TYPE_UINT16          = 0x02  ,                                   // ÏßÌõÊı¾İÊÇ16Î»ÀàĞÍ
+    IMAGE_LINE_TYPE_UINT8           = 0x01  ,                                   // çº¿æ¡æ•°æ®æ˜¯8ä½ç±»å‹
+    IMAGE_LINE_TYPE_UINT16          = 0x02  ,                                   // çº¿æ¡æ•°æ®æ˜¯16ä½ç±»å‹
 }ips200pro_image_line_type_enum;
 
 typedef enum
 {
-    IPS200PRO_FORMAT_GBK            = 0x01  ,                                   // GBK±àÂë£¬¿ªÔ´¿âÄ¬ÈÏµÄÎÄ¼ş¶¼ÊÇGBK±àÂë
-    IPS200PRO_FORMAT_UTF8           = 0x02  ,                                   // UTF-8±àÂë
+    IPS200PRO_FORMAT_GBK            = 0x01  ,                                   // GBKç¼–ç ï¼Œå¼€æºåº“é»˜è®¤çš„æ–‡ä»¶éƒ½æ˜¯GBKç¼–ç 
+    IPS200PRO_FORMAT_UTF8           = 0x02  ,                                   // UTF-8ç¼–ç 
 }ips200pro_format_enum;
 
 typedef enum
 {
-    METER_ANGLE                     = 0x01  ,                                   // ½Ç¶ÈÖ¸Ê¾ÒÇ±í£¬¿ÉÉèÖÃ×ÖÌå¡¢±³¾°¡¢±ßÏß¡¢¿Ì¶È¡¢Ö¸ÕëµÄÑÕÉ«
-    METER_SPEED                             ,                                   // ËÙ¶ÈÖ¸Ê¾ÒÇ±í£¬¿ÉÉèÖÃ×ÖÌå¡¢±³¾°¡¢±ßÏß¡¢¿Ì¶È¡¢Ö¸ÕëµÄÑÕÉ«
+    METER_ANGLE                     = 0x01  ,                                   // è§’åº¦æŒ‡ç¤ºä»ªè¡¨ï¼Œå¯è®¾ç½®å­—ä½“ã€èƒŒæ™¯ã€è¾¹çº¿ã€åˆ»åº¦ã€æŒ‡é’ˆçš„é¢œè‰²
+    METER_SPEED                             ,                                   // é€Ÿåº¦æŒ‡ç¤ºä»ªè¡¨ï¼Œå¯è®¾ç½®å­—ä½“ã€èƒŒæ™¯ã€è¾¹çº¿ã€åˆ»åº¦ã€æŒ‡é’ˆçš„é¢œè‰²
 }ips200pro_meter_style_enum;
 
 typedef enum
 {
-    CLOCK_DIGITAL                   = 0x01  ,                                   // Êı×ÖÊ±ÖÓ£¬¿ÉÉèÖÃ×ÖÌå¡¢±³¾°¡¢±ßÏßµÄÑÕÉ«
-    CLOCK_ANALOG                            ,                                   // Ö¸ÕëÊ±ÖÓ£¬¿ÉÉèÖÃ×ÖÌå¡¢±³¾°¡¢±ßÏß¡¢¿Ì¶È¡¢Ö¸ÕëµÄÑÕÉ«
+    CLOCK_DIGITAL                   = 0x01  ,                                   // æ•°å­—æ—¶é’Ÿï¼Œå¯è®¾ç½®å­—ä½“ã€èƒŒæ™¯ã€è¾¹çº¿çš„é¢œè‰²
+    CLOCK_ANALOG                            ,                                   // æŒ‡é’ˆæ—¶é’Ÿï¼Œå¯è®¾ç½®å­—ä½“ã€èƒŒæ™¯ã€è¾¹çº¿ã€åˆ»åº¦ã€æŒ‡é’ˆçš„é¢œè‰²
 }ips200pro_clock_style_enum;
 
-// Í¼Ïñµş¼ÓÏßÌõ uint8ÀàĞÍµÄÏßÌõ½á¹¹Ìå
+// å›¾åƒå åŠ çº¿æ¡ uint8ç±»å‹çš„çº¿æ¡ç»“æ„ä½“
 typedef struct
 {
-    uint8 x                                 ;                                   // µãµÄºá×ø±ê
-    uint8 y                                 ;                                   // µãµÄ×İ×ø±ê
+    uint8 x                                 ;                                   // ç‚¹çš„æ¨ªåæ ‡
+    uint8 y                                 ;                                   // ç‚¹çš„çºµåæ ‡
 }ips200pro_image_line_uint8_struct;
 
-// Í¼Ïñµş¼ÓÏßÌõ uint16ÀàĞÍµÄÏßÌõ½á¹¹Ìå
+// å›¾åƒå åŠ çº¿æ¡ uint16ç±»å‹çš„çº¿æ¡ç»“æ„ä½“
 typedef struct
 {
-    uint16 x                                ;                                   // µãµÄºá×ø±ê
-    uint16 y                                ;                                   // µãµÄ×İ×ø±ê
+    uint16 x                                ;                                   // ç‚¹çš„æ¨ªåæ ‡
+    uint16 y                                ;                                   // ç‚¹çš„çºµåæ ‡
 }ips200pro_image_line_uint16_struct;
 
 typedef struct
 {
-    uint16  id                              ;                                   // ÆÁÄ»ID±àºÅ
-    uint16  width                           ;                                   // ÆÁÄ»×î´óÏÔÊ¾¿í¶È
-    uint16  height                          ;                                   // ÆÁÄ»×î´óÏÔÊ¾¸ß¶È
-    uint8   version_major                   ;                                   // ¹Ì¼ş°æ±¾-Ö÷°æ±¾
-    uint8   version_middle                  ;                                   // ¹Ì¼ş°æ±¾-ÖĞ°æ±¾
-    uint8   version_micro                   ;                                   // ¹Ì¼ş°æ±¾-Î¢°æ±¾
+    uint16  id                              ;                                   // å±å¹•IDç¼–å·
+    uint16  width                           ;                                   // å±å¹•æœ€å¤§æ˜¾ç¤ºå®½åº¦
+    uint16  height                          ;                                   // å±å¹•æœ€å¤§æ˜¾ç¤ºé«˜åº¦
+    uint8   version_major                   ;                                   // å›ºä»¶ç‰ˆæœ¬-ä¸»ç‰ˆæœ¬
+    uint8   version_middle                  ;                                   // å›ºä»¶ç‰ˆæœ¬-ä¸­ç‰ˆæœ¬
+    uint8   version_micro                   ;                                   // å›ºä»¶ç‰ˆæœ¬-å¾®ç‰ˆæœ¬
 }ips200pro_information_struct;
 
 typedef struct
 {
-    uint16  year                            ;                                   // Äê
-    uint8   month                           ;                                   // ÔÂ
-    uint8   day                             ;                                   // ÈÕ
-    uint8   hour                            ;                                   // Ê±
-    uint8   minute                          ;                                   // ·Ö
-    uint8   second                          ;                                   // Ãë
-    uint8   week                            ;                                   // ĞÇÆÚ
+    uint16  year                            ;                                   // å¹´
+    uint8   month                           ;                                   // æœˆ
+    uint8   day                             ;                                   // æ—¥
+    uint8   hour                            ;                                   // æ—¶
+    uint8   minute                          ;                                   // åˆ†
+    uint8   second                          ;                                   // ç§’
+    uint8   week                            ;                                   // æ˜ŸæœŸ
 }ips200pro_time_struct;
 
 extern ips200pro_information_struct    ips200pro_information;
 extern ips200pro_time_struct           ips200pro_time;
 
-//------------------------------------¹¦ÄÜº¯ÊıÒ»ÀÀ±í-------------------------------------------
+//------------------------------------åŠŸèƒ½å‡½æ•°ä¸€è§ˆè¡¨-------------------------------------------
 
-//------------------------------------ÏµÍ³¹¦ÄÜº¯Êı-------------------------------------------
-// uint8  ips200pro_set_date                (uint16 year, uint8 month, uint8 day);                                                  // ÉèÖÃÏµÍ³ÈÕÆÚ
-// uint8  ips200pro_set_time                (uint8 hour, uint8 minute, uint8 second);                                               // ÉèÖÃÏµÍ³Ê±¼ä
-// uint8  ips200pro_set_parent              (uint16 child_id, uint16 parent_id);                                                    // ÉèÖÃ×é¼ş¸¸¶ÔÏó
-// uint8  ips200pro_set_format              (ips200pro_format_enum format);                                                         // ÉèÖÃºº×Ö±àÂë¸ñÊ½
-// uint8  ips200pro_set_backlight           (uint8 backlight);                                                                      // ÉèÖÃÆÁÄ»±³¹âÁÁ¶È
-// uint8  ips200pro_set_direction           (ips200pro_display_direction_enum dir);                                                 // ÉèÖÃÆÁÄ»ÏÔÊ¾·½Ïò
-// uint8  ips200pro_set_default_font        (ips200pro_font_size_enum font);                                                        // ÉèÖÃÄ¬ÈÏ×ÖÌå´óĞ¡
-// uint8  ips200pro_set_optimize            (uint8 state)                                                                           // ÉèÖÃÓÅ»¯£¨Ä¬ÈÏÊÇ¿ªÆôµÄ£©
+//------------------------------------ç³»ç»ŸåŠŸèƒ½å‡½æ•°-------------------------------------------
+// uint8  ips200pro_set_date                (uint16 year, uint8 month, uint8 day);                                                  // è®¾ç½®ç³»ç»Ÿæ—¥æœŸ
+// uint8  ips200pro_set_time                (uint8 hour, uint8 minute, uint8 second);                                               // è®¾ç½®ç³»ç»Ÿæ—¶é—´
+// uint8  ips200pro_set_parent              (uint16 child_id, uint16 parent_id);                                                    // è®¾ç½®ç»„ä»¶çˆ¶å¯¹è±¡
+// uint8  ips200pro_set_format              (ips200pro_format_enum format);                                                         // è®¾ç½®æ±‰å­—ç¼–ç æ ¼å¼
+// uint8  ips200pro_set_backlight           (uint8 backlight);                                                                      // è®¾ç½®å±å¹•èƒŒå…‰äº®åº¦
+// uint8  ips200pro_set_direction           (ips200pro_display_direction_enum dir);                                                 // è®¾ç½®å±å¹•æ˜¾ç¤ºæ–¹å‘
+// uint8  ips200pro_set_default_font        (ips200pro_font_size_enum font);                                                        // è®¾ç½®é»˜è®¤å­—ä½“å¤§å°
+// uint8  ips200pro_set_optimize            (uint8 state)                                                                           // è®¾ç½®ä¼˜åŒ–ï¼ˆé»˜è®¤æ˜¯å¼€å¯çš„ï¼‰
 //
-// uint8  ips200pro_get_date                (ips200pro_time_struct *time);                                                          // »ñÈ¡ÏµÍ³ÈÕÆÚ
-// uint8  ips200pro_get_time                (ips200pro_time_struct *time);                                                          // »ñÈ¡ÏµÍ³Ê±¼ä
-// uint8  ips200pro_get_information         (ips200pro_information_struct *information);                                            // »ñÈ¡ÏµÍ³ĞÅÏ¢
-// uint8  ips200pro_get_free_stack_size     (uint32 *stack_size);                                                                   // »ñÈ¡ÏµÍ³¿ÕÏĞÕ»´óĞ¡
+// uint8  ips200pro_get_date                (ips200pro_time_struct *time);                                                          // è·å–ç³»ç»Ÿæ—¥æœŸ
+// uint8  ips200pro_get_time                (ips200pro_time_struct *time);                                                          // è·å–ç³»ç»Ÿæ—¶é—´
+// uint8  ips200pro_get_information         (ips200pro_information_struct *information);                                            // è·å–ç³»ç»Ÿä¿¡æ¯
+// uint8  ips200pro_get_free_stack_size     (uint32 *stack_size);                                                                   // è·å–ç³»ç»Ÿç©ºé—²æ ˆå¤§å°
 
-//-----------------------------------Í¨ÓÃº¯Êı½Ó¿Ú-------------------------------------------
-// uint8  ips200pro_delete_widgets          (uint16 widgets_id);                                                                    // É¾³ı×é¼ş
-// uint8  ips200pro_set_font                (uint16 widgets_id, ips200pro_font_size_enum font_size);                                // ÉèÖÃ×é¼şµÄ×ÖÌå
-// uint8  ips200pro_set_color               (uint16 widgets_id, ips200pro_widgets_color_type_enum color_type, uint16 color);        // ÉèÖÃ×é¼şÑÕÉ«
-// uint8  ips200pro_set_position            (uint16 widgets_id, int16 x, int16 y);                                                  // ÉèÖÃ×é¼şÎ»ÖÃ
-// uint8  ips200pro_set_hidden              (uint16 widgets_id, uint8 state);                                                       // ÉèÖÃ×é¼şÒş²Ø
+//-----------------------------------é€šç”¨å‡½æ•°æ¥å£-------------------------------------------
+// uint8  ips200pro_delete_widgets          (uint16 widgets_id);                                                                    // åˆ é™¤ç»„ä»¶
+// uint8  ips200pro_set_font                (uint16 widgets_id, ips200pro_font_size_enum font_size);                                // è®¾ç½®ç»„ä»¶çš„å­—ä½“
+// uint8  ips200pro_set_color               (uint16 widgets_id, ips200pro_widgets_color_type_enum color_type, uint16 color);        // è®¾ç½®ç»„ä»¶é¢œè‰²
+// uint8  ips200pro_set_position            (uint16 widgets_id, int16 x, int16 y);                                                  // è®¾ç½®ç»„ä»¶ä½ç½®
+// uint8  ips200pro_set_hidden              (uint16 widgets_id, uint8 state);                                                       // è®¾ç½®ç»„ä»¶éšè—
 
-//-----------------------------------PAGEÒ³Ãæ²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_page_create             (char *str);                                                                            // Ò³Ãæ´´½¨
-// uint8  ips200pro_page_switch             (uint16 page_id, ips200pro_page_animations_enum anim_en);                               // Ò³ÃæÇĞ»»
-// uint8  ips200pro_page_hidden             (uint16 page_id, uint8 state)                                                           // Ò³ÃæÒş²Ø
-// uint8  ips200pro_page_set_title_name     (uint16 page_id, char *str);                                                            // Ò³Ãæ±êÌâÉèÖÃ
+//-----------------------------------PAGEé¡µé¢æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_page_create             (char *str);                                                                            // é¡µé¢åˆ›å»º
+// uint8  ips200pro_page_switch             (uint16 page_id, ips200pro_page_animations_enum anim_en);                               // é¡µé¢åˆ‡æ¢
+// uint8  ips200pro_page_hidden             (uint16 page_id, uint8 state)                                                           // é¡µé¢éšè—
+// uint8  ips200pro_page_set_title_name     (uint16 page_id, char *str);                                                            // é¡µé¢æ ‡é¢˜è®¾ç½®
 
-//-----------------------------------ÎÄ±¾±êÇ©²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_label_create            (int16 x, int16 y, uint16 width, uint16 height);                                        // ÎÄ±¾±êÇ©´´½¨
-// uint8  ips200pro_label_printf            (uint16 label_id, const char *format, ...);                                             // ÎÄ±¾±êÇ©ÄÚÈİÉèÖÃ
-// uint8  ips200pro_label_show_string       (uint16 label_id, const char *str)                                                      // ÎÄ±¾±êÇ©×Ö·û´®ÏÔÊ¾
-// uint8  ips200pro_label_mode              (uint16 label_id, ips200pro_label_mode_enum mode);                                      // ÎÄ±¾±êÇ©Ä£Ê½ÉèÖÃ
+//-----------------------------------æ–‡æœ¬æ ‡ç­¾æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_label_create            (int16 x, int16 y, uint16 width, uint16 height);                                        // æ–‡æœ¬æ ‡ç­¾åˆ›å»º
+// uint8  ips200pro_label_printf            (uint16 label_id, const char *format, ...);                                             // æ–‡æœ¬æ ‡ç­¾å†…å®¹è®¾ç½®
+// uint8  ips200pro_label_show_string       (uint16 label_id, const char *str)                                                      // æ–‡æœ¬æ ‡ç­¾å­—ç¬¦ä¸²æ˜¾ç¤º
+// uint8  ips200pro_label_mode              (uint16 label_id, ips200pro_label_mode_enum mode);                                      // æ–‡æœ¬æ ‡ç­¾æ¨¡å¼è®¾ç½®
 
-//-----------------------------------±í¸ñTABLE²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_table_create            (int16 x, int16 y, uint16 row_num, uint16 col_num);                                     // ±í¸ñ´´½¨
-// uint8  ips200pro_table_cell_printf       (uint16 table_id, uint8 row, uint8 col, char *format, ...);                             // ±í¸ñµ¥Ôª¸ñÄÚÈİÉèÖÃ
-// uint8  ips200pro_table_set_col_width     (uint16 table_id, uint8 col, uint16 width);                                             // ±í¸ñÁĞ¿í¶ÈÉèÖÃ
-// uint8  ips200pro_table_select            (uint16 table_id, uint8 row, uint8 col);                                                // µ¥Ôª¸ñÑ¡ÖĞ
+//-----------------------------------è¡¨æ ¼TABLEæ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_table_create            (int16 x, int16 y, uint16 row_num, uint16 col_num);                                     // è¡¨æ ¼åˆ›å»º
+// uint8  ips200pro_table_cell_printf       (uint16 table_id, uint8 row, uint8 col, char *format, ...);                             // è¡¨æ ¼å•å…ƒæ ¼å†…å®¹è®¾ç½®
+// uint8  ips200pro_table_set_col_width     (uint16 table_id, uint8 col, uint16 width);                                             // è¡¨æ ¼åˆ—å®½åº¦è®¾ç½®
+// uint8  ips200pro_table_select            (uint16 table_id, uint8 row, uint8 col);                                                // å•å…ƒæ ¼é€‰ä¸­
 
-//-----------------------------------ÒÇ±íÖ¸Ê¾Æ÷²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_meter_create            (int16 x, int16 y, uint16 size, ips200pro_meter_style_enum style);                      // ÒÇ±í´´½¨
-// uint8  ips200pro_meter_set_value         (uint16 meter_id, int16 value);                                                         // ÒÇ±íÊıÖµÉèÖÃ
+//-----------------------------------ä»ªè¡¨æŒ‡ç¤ºå™¨æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_meter_create            (int16 x, int16 y, uint16 size, ips200pro_meter_style_enum style);                      // ä»ªè¡¨åˆ›å»º
+// uint8  ips200pro_meter_set_value         (uint16 meter_id, int16 value);                                                         // ä»ªè¡¨æ•°å€¼è®¾ç½®
 
-//-----------------------------------Ê±ÖÓ²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_clock_create            (int16 x, int16 y, uint16 clock_size, ips200pro_clock_style_enum clock_type)            // Ê±ÖÓ´´½¨
+//-----------------------------------æ—¶é’Ÿæ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_clock_create            (int16 x, int16 y, uint16 clock_size, ips200pro_clock_style_enum clock_type)            // æ—¶é’Ÿåˆ›å»º
 
-//-----------------------------------½ø¶ÈÌõ²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_progress_bar_create     (int16 x, int16 y, uint16 width, uint16 height);                                        // ½ø¶ÈÌõ´´½¨
-// uint8  ips200pro_progress_bar_set_value  (uint16 progress_bar_id, uint8 start_value, uint8 end_value);                           // ½ø¶ÈÌõÊıÖµÉèÖÃ
+//-----------------------------------è¿›åº¦æ¡æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_progress_bar_create     (int16 x, int16 y, uint16 width, uint16 height);                                        // è¿›åº¦æ¡åˆ›å»º
+// uint8  ips200pro_progress_bar_set_value  (uint16 progress_bar_id, uint8 start_value, uint8 end_value);                           // è¿›åº¦æ¡æ•°å€¼è®¾ç½®
 
-//-----------------------------------ÈÕÀú²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_calendar_create         (int16 x, int16 y, uint16 width, uint16 height);                                        // ÈÕÀú´´½¨
-// uint8  ips200pro_calendar_display        (uint16 year, uint8 month, uint8 ips200pro_calendar_mode_enum);                         // ÈÕÀúÏÔÊ¾ÉèÖÃ
+//-----------------------------------æ—¥å†æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_calendar_create         (int16 x, int16 y, uint16 width, uint16 height);                                        // æ—¥å†åˆ›å»º
+// uint8  ips200pro_calendar_display        (uint16 year, uint8 month, uint8 ips200pro_calendar_mode_enum);                         // æ—¥å†æ˜¾ç¤ºè®¾ç½®
 
-//-----------------------------------²¨ĞÎÍ¼²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_waveform_create         (int16 x, int16 y, uint16 width, uint16 height);                                        // ²¨ĞÎÍ¼´´½¨
-// uint8  ips200pro_waveform_add_value      (uint16 waveform_id, uint8 line_id, const uint16 *data, uint16 length, uint16 color);   // ²¨ĞÎÍ¼Ìí¼ÓÊı¾İ
-// uint8  ips200pro_waveform_line_state     (uint16 waveform_id, uint16 line_id, uint16 line_state);                                // ²¨ĞÎÍ¼ÏßÌõ×´Ì¬ÉèÖÃ
-// uint8  ips200pro_waveform_line_type      (uint16 waveform_id, uint8 line_type);                                                  // ²¨ĞÎÍ¼ÏßÌõÀàĞÍÉèÖÃ
-// uint8  ips200pro_waveform_clear          (uint16 waveform_id);                                                                   // ²¨ĞÎÍ¼Êı¾İÇå¿Õ
+//-----------------------------------æ³¢å½¢å›¾æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_waveform_create         (int16 x, int16 y, uint16 width, uint16 height);                                        // æ³¢å½¢å›¾åˆ›å»º
+// uint8  ips200pro_waveform_add_value      (uint16 waveform_id, uint8 line_id, const uint16 *data, uint16 length, uint16 color);   // æ³¢å½¢å›¾æ·»åŠ æ•°æ®
+// uint8  ips200pro_waveform_line_state     (uint16 waveform_id, uint16 line_id, uint16 line_state);                                // æ³¢å½¢å›¾çº¿æ¡çŠ¶æ€è®¾ç½®
+// uint8  ips200pro_waveform_line_type      (uint16 waveform_id, uint8 line_type);                                                  // æ³¢å½¢å›¾çº¿æ¡ç±»å‹è®¾ç½®
+// uint8  ips200pro_waveform_clear          (uint16 waveform_id);                                                                   // æ³¢å½¢å›¾æ•°æ®æ¸…ç©º
 
-//-----------------------------------Í¼Ïñ²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_image_create            (int16 x, int16 y, uint16 width, uint16 height);                                        // Í¼Ïñ×é¼ş´´½¨
-// uint8  ips200pro_image_display           (image_id, *image, width, height, image_type, threshold);                               // Í¼ÏñÊı¾İ¸üĞÂ
-// uint8  ips200pro_image_draw_line         (image_id, line_id, *line_data, line_length, data_type, color);                         // Í¼ÏñÉÏ»­Ïß ÏÈ·¢ËÍips200pro_image_draw_lineÔÙ·¢ËÍips200pro_image_display
-// uint8  ips200pro_image_draw_rectangle    (image_id, rectangle_id, x, y, rectangle_width, rectangle_height, color);               // Í¼ÏñÉÏ»­¿ò ÏÈ·¢ËÍips200pro_image_draw_rectangleÔÙ·¢ËÍips200pro_image_display
+//-----------------------------------å›¾åƒæ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_image_create            (int16 x, int16 y, uint16 width, uint16 height);                                        // å›¾åƒç»„ä»¶åˆ›å»º
+// uint8  ips200pro_image_display           (image_id, *image, width, height, image_type, threshold);                               // å›¾åƒæ•°æ®æ›´æ–°
+// uint8  ips200pro_image_draw_line         (image_id, line_id, *line_data, line_length, data_type, color);                         // å›¾åƒä¸Šç”»çº¿ å…ˆå‘é€ips200pro_image_draw_lineå†å‘é€ips200pro_image_display
+// uint8  ips200pro_image_draw_rectangle    (image_id, rectangle_id, x, y, rectangle_width, rectangle_height, color);               // å›¾åƒä¸Šç”»æ¡† å…ˆå‘é€ips200pro_image_draw_rectangleå†å‘é€ips200pro_image_display
 
-//-----------------------------------ÈİÆ÷²Ù×÷½Ó¿Ú-------------------------------------------
-// uint16 ips200pro_container_create        (int16 x, int16 y, uint16 width, uint16 height);                                        // ÈİÆ÷×é¼ş´´½¨
-// uint8  ips200pro_container_radius        (uint16 container_id, uint16 border_width, uint16 radius);                              // ÉèÖÃÈİÆ÷µÄ±ßÏß¿í¶ÈÓëÔ²½Ç°ë¾¶
+//-----------------------------------å®¹å™¨æ“ä½œæ¥å£-------------------------------------------
+// uint16 ips200pro_container_create        (int16 x, int16 y, uint16 width, uint16 height);                                        // å®¹å™¨ç»„ä»¶åˆ›å»º
+// uint8  ips200pro_container_radius        (uint16 container_id, uint16 border_width, uint16 radius);                              // è®¾ç½®å®¹å™¨çš„è¾¹çº¿å®½åº¦ä¸åœ†è§’åŠå¾„
 
-//-----------------------------------ÆÁÄ»³õÊ¼»¯-------------------------------------------
-// uint16 ips200pro_init                    (char *str, ips200pro_title_position_enum title_position, uint8 title_size);            // ÆÁÄ»³õÊ¼»¯
+//-----------------------------------å±å¹•åˆå§‹åŒ–-------------------------------------------
+// uint16 ips200pro_init                    (char *str, ips200pro_title_position_enum title_position, uint8 title_size);            // å±å¹•åˆå§‹åŒ–
 
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÏµÍ³ÈÕÆÚ
-// ²ÎÊıËµÃ÷     year            Äê
-// ²ÎÊıËµÃ÷     month           ÔÂ
-// ²ÎÊıËµÃ÷     day             ÈÕ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_date(2024, 10, 31);  // 2024Äê10ÔÂ31ÈÕ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ç³»ç»Ÿæ—¥æœŸ
+// å‚æ•°è¯´æ˜     year            å¹´
+// å‚æ•°è¯´æ˜     month           æœˆ
+// å‚æ•°è¯´æ˜     day             æ—¥
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_date(2024, 10, 31);  // 2024å¹´10æœˆ31æ—¥
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_date              (uint16 year, uint8 month, uint8 day);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÏµÍ³Ê±¼ä
-// ²ÎÊıËµÃ÷     hour            Ê±   24Ğ¡Ê±ÖÆ£¨½öÖ§³Ö24Ğ¡Ê±ÖÆ£©
-// ²ÎÊıËµÃ÷     minute          ·Ö
-// ²ÎÊıËµÃ÷     second          Ãë
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_time(13, 19, 15);  // 13µã19·Ö15Ãë
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ç³»ç»Ÿæ—¶é—´
+// å‚æ•°è¯´æ˜     hour            æ—¶   24å°æ—¶åˆ¶ï¼ˆä»…æ”¯æŒ24å°æ—¶åˆ¶ï¼‰
+// å‚æ•°è¯´æ˜     minute          åˆ†
+// å‚æ•°è¯´æ˜     second          ç§’
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_time(13, 19, 15);  // 13ç‚¹19åˆ†15ç§’
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_time              (uint8 hour, uint8 minute, uint8 second);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ×é¼ş¸¸¶ÔÏó
-// ²ÎÊıËµÃ÷     child_id        ×Ó×é¼şID
-// ²ÎÊıËµÃ÷     parent_id       ¸¸×é¼şID
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_parent(1, label_id, container_id);  // ½«labelÏÔÊ¾µ½ÈİÆ÷ÉÏ ÉèÖÃºólabelµÄ×ø±êÔ­µãÎªÈİÆ÷µÄ×óÉÏ½Ç£¬²»ÔÙÊÇÆÁÄ»µÄ×óÉÏ½Ç£¬²¢ÇÒ³¬³öÈİÆ÷·¶Î§µÄÄÚÈİ²»»á½øĞĞÏÔÊ¾
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ç»„ä»¶çˆ¶å¯¹è±¡
+// å‚æ•°è¯´æ˜     child_id        å­ç»„ä»¶ID
+// å‚æ•°è¯´æ˜     parent_id       çˆ¶ç»„ä»¶ID
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_parent(1, label_id, container_id);  // å°†labelæ˜¾ç¤ºåˆ°å®¹å™¨ä¸Š è®¾ç½®ålabelçš„åæ ‡åŸç‚¹ä¸ºå®¹å™¨çš„å·¦ä¸Šè§’ï¼Œä¸å†æ˜¯å±å¹•çš„å·¦ä¸Šè§’ï¼Œå¹¶ä¸”è¶…å‡ºå®¹å™¨èŒƒå›´çš„å†…å®¹ä¸ä¼šè¿›è¡Œæ˜¾ç¤º
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_parent            (uint16 child_id, uint16 parent_id);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÖĞÎÄ±àÂë¸ñÊ½
-// ²ÎÊıËµÃ÷     format          ÖĞÎÄ±àÂë¸ñÊ½
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_format(IPS200PRO_FORMAT_GBK);  // ½«IDÎª1µÄ±í¸ñÏÔÊ¾ÔÚIDÎª2µÄÒ³ÃæÉÏ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ä¸­æ–‡ç¼–ç æ ¼å¼
+// å‚æ•°è¯´æ˜     format          ä¸­æ–‡ç¼–ç æ ¼å¼
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_format(IPS200PRO_FORMAT_GBK);  // å°†IDä¸º1çš„è¡¨æ ¼æ˜¾ç¤ºåœ¨IDä¸º2çš„é¡µé¢ä¸Š
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_format            (ips200pro_format_enum format);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ±³¹âÁÁ¶È
-// ²ÎÊıËµÃ÷     backlight       ÁÁ¶È1-255
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_backlight(100);  // ±³¹âÁÁ¶ÈÉèÖÃÎª100
+// å‡½æ•°ç®€ä»‹     è®¾ç½®èƒŒå…‰äº®åº¦
+// å‚æ•°è¯´æ˜     backlight       äº®åº¦1-255
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_backlight(100);  // èƒŒå…‰äº®åº¦è®¾ç½®ä¸º100
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_backlight         (uint8 backlight);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÆÁÄ»ÏÔÊ¾·½Ïò
-// ²ÎÊıËµÃ÷     dir             ÁÁ¶È1-255
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_backlight(100);  // ±³¹âÁÁ¶ÈÉèÖÃÎª100
+// å‡½æ•°ç®€ä»‹     è®¾ç½®å±å¹•æ˜¾ç¤ºæ–¹å‘
+// å‚æ•°è¯´æ˜     dir             äº®åº¦1-255
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_backlight(100);  // èƒŒå…‰äº®åº¦è®¾ç½®ä¸º100
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_direction         (ips200pro_display_direction_enum dir);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÄ¬ÈÏ×ÖÌå´óĞ¡
-// ²ÎÊıËµÃ÷     font            Ä¬ÈÏ×ÖÌå´óĞ¡
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_default_font(FONT_SIZE_20);  // ½«Ä¬ÈÏ×ÖÌåÉèÖÃÎª20ºÅ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®é»˜è®¤å­—ä½“å¤§å°
+// å‚æ•°è¯´æ˜     font            é»˜è®¤å­—ä½“å¤§å°
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_default_font(FONT_SIZE_20);  // å°†é»˜è®¤å­—ä½“è®¾ç½®ä¸º20å·
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_default_font      (ips200pro_font_size_enum font);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÓÅ»¯£¨Ä¬ÈÏÎª¿ªÆô×´Ì¬£©
-// ²ÎÊıËµÃ÷     font            Ä¬ÈÏ×ÖÌå´óĞ¡
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º¹Ø±ÕÓÅ»¯  1£º¿ªÆôÓÅ»¯
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_optimize(1);  // ¿ªÆôÓÅ»¯
-// ±¸×¢ËµÃ÷     Ä¿Ç°½öÕë¶ÔÍ¼Ïñ½øĞĞÓÅ»¯£¬µ±¿ªÆôÓÅ»¯Ê±£¬·¢ËÍÍ¼Ïñ¸øÆÁÄ»½øĞĞÏÔÊ¾£¬Èç¹ûÆÁÄ»ÕıÔÚÏÔÊ¾ÉÏ´ÎµÄÍ¼Ïñ£¬Ôò±¾´ÎÍ¼ÏñÖ±½Ó¶ªÆú£¬ÕâÑù±ÜÃâÓÃ»§µÈ´ıÖ¸ÁîÏìÓ¦Íê³É£¬´Ó¶ø¾¡Á¿±ÜÃâÓÃ»§³ÌĞòµÈ´ıµÄÎÊÌâ
-//             Èç¹û¹Ø±ÕÓÅ»¯£¬ÔòµÈ´ıÉÏ´ÎÍ¼ÏñÏÔÊ¾Íê³ÉÖ®ºó£¬ÔÙ´¦ÀíĞÂµÄÍ¼Ïñ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ä¼˜åŒ–ï¼ˆé»˜è®¤ä¸ºå¼€å¯çŠ¶æ€ï¼‰
+// å‚æ•°è¯´æ˜     font            é»˜è®¤å­—ä½“å¤§å°
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šå…³é—­ä¼˜åŒ–  1ï¼šå¼€å¯ä¼˜åŒ–
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_optimize(1);  // å¼€å¯ä¼˜åŒ–
+// å¤‡æ³¨è¯´æ˜     ç›®å‰ä»…é’ˆå¯¹å›¾åƒè¿›è¡Œä¼˜åŒ–ï¼Œå½“å¼€å¯ä¼˜åŒ–æ—¶ï¼Œå‘é€å›¾åƒç»™å±å¹•è¿›è¡Œæ˜¾ç¤ºï¼Œå¦‚æœå±å¹•æ­£åœ¨æ˜¾ç¤ºä¸Šæ¬¡çš„å›¾åƒï¼Œåˆ™æœ¬æ¬¡å›¾åƒç›´æ¥ä¸¢å¼ƒï¼Œè¿™æ ·é¿å…ç”¨æˆ·ç­‰å¾…æŒ‡ä»¤å“åº”å®Œæˆï¼Œä»è€Œå°½é‡é¿å…ç”¨æˆ·ç¨‹åºç­‰å¾…çš„é—®é¢˜
+//             å¦‚æœå…³é—­ä¼˜åŒ–ï¼Œåˆ™ç­‰å¾…ä¸Šæ¬¡å›¾åƒæ˜¾ç¤ºå®Œæˆä¹‹åï¼Œå†å¤„ç†æ–°çš„å›¾åƒ
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_optimize           (uint8 state);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     »ñÈ¡ÏµÍ³ÈÕÆÚ
-// ²ÎÊıËµÃ÷     *time           ±£´æÊ±¼äµÄÖ¸Õë
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_get_date(&ips200pro_time);  //
+// å‡½æ•°ç®€ä»‹     è·å–ç³»ç»Ÿæ—¥æœŸ
+// å‚æ•°è¯´æ˜     *time           ä¿å­˜æ—¶é—´çš„æŒ‡é’ˆ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_get_date(&ips200pro_time);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_get_date              (ips200pro_time_struct *time);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     »ñÈ¡ÏµÍ³Ê±¼ä
-// ²ÎÊıËµÃ÷     *time           ±£´æÊ±¼äµÄÖ¸Õë
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_get_time(&ips200pro_time);  //
+// å‡½æ•°ç®€ä»‹     è·å–ç³»ç»Ÿæ—¶é—´
+// å‚æ•°è¯´æ˜     *time           ä¿å­˜æ—¶é—´çš„æŒ‡é’ˆ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_get_time(&ips200pro_time);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_get_time              (ips200pro_time_struct *time);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     »ñÈ¡¿ÕÏĞÕ»´óĞ¡
-// ²ÎÊıËµÃ÷     *information    ±£´æÏµÍ³ĞÅÏ¢µÄÖ¸Õë
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_get_information(&ips200pro_information);  //
+// å‡½æ•°ç®€ä»‹     è·å–ç©ºé—²æ ˆå¤§å°
+// å‚æ•°è¯´æ˜     *information    ä¿å­˜ç³»ç»Ÿä¿¡æ¯çš„æŒ‡é’ˆ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_get_information(&ips200pro_information);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_get_information       (ips200pro_information_struct *information);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     »ñÈ¡ÏµÍ³ĞÅÏ¢
-// ²ÎÊıËµÃ÷     *stack_size     ±£´æ¿ÕÏĞÕ»´óĞ¡µÄÖ¸Õë
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_get_free_stack_size(&stack_size);  //
+// å‡½æ•°ç®€ä»‹     è·å–ç³»ç»Ÿä¿¡æ¯
+// å‚æ•°è¯´æ˜     *stack_size     ä¿å­˜ç©ºé—²æ ˆå¤§å°çš„æŒ‡é’ˆ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_get_free_stack_size(&stack_size);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_get_free_stack_size   (uint32 *stack_size);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ×é¼ş×ÖÌå´óĞ¡
-// ²ÎÊıËµÃ÷     widgets_id      ×é¼şµÄ±àºÅ
-// ²ÎÊıËµÃ÷     font_size       ×ÖÌå´óĞ¡£¨½ö16 20 24ºÅ×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾£©
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_font(widgets_id, FONT_SIZE_20);  // ½«Ñ¡ÖĞµÄ×é¼ş×ÖÌå´óĞ¡ÉèÖÃÎª20ºÅ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®ç»„ä»¶å­—ä½“å¤§å°
+// å‚æ•°è¯´æ˜     widgets_id      ç»„ä»¶çš„ç¼–å·
+// å‚æ•°è¯´æ˜     font_size       å­—ä½“å¤§å°ï¼ˆä»…16 20 24å·å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤ºï¼‰
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_font(widgets_id, FONT_SIZE_20);  // å°†é€‰ä¸­çš„ç»„ä»¶å­—ä½“å¤§å°è®¾ç½®ä¸º20å·
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_font              (uint16 widgets_id, ips200pro_font_size_enum font_size);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ×é¼şÑÕÉ«ÉèÖÃ
-// ²ÎÊıËµÃ÷     widgets_id      ×é¼şµÄ±àºÅ
-// ²ÎÊıËµÃ÷     color_type      ÑÕÉ«ÀàĞÍ
-// ²ÎÊıËµÃ÷     color           RGB565ÊıÖµ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_color(widgets_id, COLOR_BORDER, RGB565_RED);  // ½«Ñ¡ÖĞµÄ×é¼ş±ßÏßÑÕÉ«ÉèÖÃÎªºìÉ«
+// å‡½æ•°ç®€ä»‹     ç»„ä»¶é¢œè‰²è®¾ç½®
+// å‚æ•°è¯´æ˜     widgets_id      ç»„ä»¶çš„ç¼–å·
+// å‚æ•°è¯´æ˜     color_type      é¢œè‰²ç±»å‹
+// å‚æ•°è¯´æ˜     color           RGB565æ•°å€¼
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_color(widgets_id, COLOR_BORDER, RGB565_RED);  // å°†é€‰ä¸­çš„ç»„ä»¶è¾¹çº¿é¢œè‰²è®¾ç½®ä¸ºçº¢è‰²
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_color             (uint16 widgets_id, ips200pro_widgets_color_type_enum color_type, uint16 color);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ×é¼şÎ»ÖÃÉèÖÃ
-// ²ÎÊıËµÃ÷     widgets_id      ×é¼şµÄ±àºÅ
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_position(widgets_id, 10, 10);  // ½«Ñ¡ÖĞµÄ×é¼şÆğÊ¼×ø±êÉèÖÃÎª10,10
+// å‡½æ•°ç®€ä»‹     ç»„ä»¶ä½ç½®è®¾ç½®
+// å‚æ•°è¯´æ˜     widgets_id      ç»„ä»¶çš„ç¼–å·
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_position(widgets_id, 10, 10);  // å°†é€‰ä¸­çš„ç»„ä»¶èµ·å§‹åæ ‡è®¾ç½®ä¸º10,10
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_position          (uint16 widgets_id, int16 x, int16 y);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ×é¼şÒş²ØÉèÖÃ
-// ²ÎÊıËµÃ÷     widgets_id      ×é¼şµÄ±àºÅ
-// ²ÎÊıËµÃ÷     state           0£ºÈ¡ÏûÒş²Ø  1£º½«×é¼şÒş²Ø
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_set_hidden(widgets_id, 1);  // ½«Ñ¡ÖĞµÄ×é¼şÒş²ØÏÔÊ¾
+// å‡½æ•°ç®€ä»‹     ç»„ä»¶éšè—è®¾ç½®
+// å‚æ•°è¯´æ˜     widgets_id      ç»„ä»¶çš„ç¼–å·
+// å‚æ•°è¯´æ˜     state           0ï¼šå–æ¶ˆéšè—  1ï¼šå°†ç»„ä»¶éšè—
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_set_hidden(widgets_id, 1);  // å°†é€‰ä¸­çš„ç»„ä»¶éšè—æ˜¾ç¤º
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_set_hidden            (uint16 widgets_id, uint8 state);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨Ò³Ãæ
-// ²ÎÊıËµÃ÷     *str            Ò³ÃæÃû³Æ ²»ĞèÒªÃû³Æ¿ÉÒÔÖ±½ÓÌîĞ´ ""
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 page1_id = ips200pro_page_create("Test");  // ´´½¨Ò»¸öÃû³ÆÎªTestµÄÒ³Ãæ
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºé¡µé¢
+// å‚æ•°è¯´æ˜     *str            é¡µé¢åç§° ä¸éœ€è¦åç§°å¯ä»¥ç›´æ¥å¡«å†™ ""
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 page1_id = ips200pro_page_create("Test");  // åˆ›å»ºä¸€ä¸ªåç§°ä¸ºTestçš„é¡µé¢
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_page_create           (char *str);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÇĞ»»Ò³Ãæ
-// ²ÎÊıËµÃ÷     page_id         Ò³ÃæID
-// ²ÎÊıËµÃ÷     anim_en         ¶¯»­Ê¹ÄÜ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_page_switch(page_id, PAGE_ANIM_ON);  // ÇĞ»»µ½Ñ¡ÖĞµÄÒ³Ãæ½øĞĞÏÔÊ¾ ¿ªÆô¶¯»­Ğ§¹û
+// å‡½æ•°ç®€ä»‹     åˆ‡æ¢é¡µé¢
+// å‚æ•°è¯´æ˜     page_id         é¡µé¢ID
+// å‚æ•°è¯´æ˜     anim_en         åŠ¨ç”»ä½¿èƒ½
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_page_switch(page_id, PAGE_ANIM_ON);  // åˆ‡æ¢åˆ°é€‰ä¸­çš„é¡µé¢è¿›è¡Œæ˜¾ç¤º å¼€å¯åŠ¨ç”»æ•ˆæœ
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_page_switch           (uint16 page_id, ips200pro_page_animations_enum anim_en);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Òş²ØÒ³Ãæ
-// ²ÎÊıËµÃ÷     page_id         Ò³ÃæID
-// ²ÎÊıËµÃ÷     state           Òş²Ø×´Ì¬ 1£º½«Ò³ÃæÒş²Ø 0£ºÈ¡ÏûÒş²Ø
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_page_hidden(page_id, 1);  // ½«Ñ¡ÖĞµÄÒ³ÃæÒş²Ø
-// ×¢ÒâÊÂÏî     IDÉèÖÃÎª0£¬Ôò±íÊ¾¶ÔËùÓĞµÄÒ³ÃæÍ¬Ê±½øĞĞÉèÖÃ
+// å‡½æ•°ç®€ä»‹     éšè—é¡µé¢
+// å‚æ•°è¯´æ˜     page_id         é¡µé¢ID
+// å‚æ•°è¯´æ˜     state           éšè—çŠ¶æ€ 1ï¼šå°†é¡µé¢éšè— 0ï¼šå–æ¶ˆéšè—
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_page_hidden(page_id, 1);  // å°†é€‰ä¸­çš„é¡µé¢éšè—
+// æ³¨æ„äº‹é¡¹     IDè®¾ç½®ä¸º0ï¼Œåˆ™è¡¨ç¤ºå¯¹æ‰€æœ‰çš„é¡µé¢åŒæ—¶è¿›è¡Œè®¾ç½®
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_page_hidden           (uint16 page_id, uint8 state);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÒ³ÃæÃû³Æ
-// ²ÎÊıËµÃ÷     page_id         Ò³ÃæID
-// ²ÎÊıËµÃ÷     *str            Ò³ÃæÃû³Æ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£ºÉèÖÃ³É¹¦  1£ºÉèÖÃÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_page_set_title_name(page_id, "Test");  // ½«Ñ¡ÖĞµÄÒ³Ãæ£¬Ãû³ÆÉèÖÃÎªTest
+// å‡½æ•°ç®€ä»‹     è®¾ç½®é¡µé¢åç§°
+// å‚æ•°è¯´æ˜     page_id         é¡µé¢ID
+// å‚æ•°è¯´æ˜     *str            é¡µé¢åç§°
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šè®¾ç½®æˆåŠŸ  1ï¼šè®¾ç½®å¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_page_set_title_name(page_id, "Test");  // å°†é€‰ä¸­çš„é¡µé¢ï¼Œåç§°è®¾ç½®ä¸ºTest
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_page_set_title_name   (uint16 page_id, char *str);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨ÎÄ±¾±êÇ©
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 label_id = ips200pro_label_create(0, 0, 50, 20);  // ´´½¨Ò»¸öÎÄ±¾±êÇ© ×óÉÏ½Ç×ø±ê0,0 ¿í¶È50 ¸ß¶È20
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºæ–‡æœ¬æ ‡ç­¾
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 label_id = ips200pro_label_create(0, 0, 50, 20);  // åˆ›å»ºä¸€ä¸ªæ–‡æœ¬æ ‡ç­¾ å·¦ä¸Šè§’åæ ‡0,0 å®½åº¦50 é«˜åº¦20
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_label_create          (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÎÄ±¾±êÇ©¸ñÊ½»¯²¢ÏÔÊ¾
-// ²ÎÊıËµÃ÷     label_id        ÎÄ±¾±êÇ©ID
-// ²ÎÊıËµÃ÷     *format         ×Ö·û´®
-// ²ÎÊıËµÃ÷     ...             ¿É±ä²ÎÊıÁĞ±í£¬·½·¨ÓëprintfÏàÍ¬
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_label_printf(label_id, "tset=%d", test);
+// å‡½æ•°ç®€ä»‹     æ–‡æœ¬æ ‡ç­¾æ ¼å¼åŒ–å¹¶æ˜¾ç¤º
+// å‚æ•°è¯´æ˜     label_id        æ–‡æœ¬æ ‡ç­¾ID
+// å‚æ•°è¯´æ˜     *format         å­—ç¬¦ä¸²
+// å‚æ•°è¯´æ˜     ...             å¯å˜å‚æ•°åˆ—è¡¨ï¼Œæ–¹æ³•ä¸printfç›¸åŒ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_label_printf(label_id, "tset=%d", test);
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_label_printf          (uint16 label_id, const char *format, ...);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÎÄ±¾±êÇ©×Ö·û´®ÏÔÊ¾
-// ²ÎÊıËµÃ÷     label_id        ÎÄ±¾±êÇ©ID
-// ²ÎÊıËµÃ÷     *str            ×Ö·û´®Ê×µØÖ·
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_label_show_string(label_id, ¡°This is a test¡±);
+// å‡½æ•°ç®€ä»‹     æ–‡æœ¬æ ‡ç­¾å­—ç¬¦ä¸²æ˜¾ç¤º
+// å‚æ•°è¯´æ˜     label_id        æ–‡æœ¬æ ‡ç­¾ID
+// å‚æ•°è¯´æ˜     *str            å­—ç¬¦ä¸²é¦–åœ°å€
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_label_show_string(label_id, â€œThis is a testâ€);
 //-------------------------------------------------------------------------------------------------------------------
 uint8 ips200pro_label_show_string       (uint16 label_id, const char *str);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÎÄ±¾±êÇ©³¤ÎÄ±¾Ä£Ê½
-// ²ÎÊıËµÃ÷     label_id        ÎÄ±¾±êÇ©ID
-// ²ÎÊıËµÃ÷     mode            ³¤ÎÄ±¾Ä£Ê½£¬µ±ÎÄ±¾³¬¹ı×é¼ş¿ÉÏÔÊ¾·¶Î§Ê±µÄ´¦Àí·½Ê½
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_label_mode(label_id, "tset=%d", test);
+// å‡½æ•°ç®€ä»‹     è®¾ç½®æ–‡æœ¬æ ‡ç­¾é•¿æ–‡æœ¬æ¨¡å¼
+// å‚æ•°è¯´æ˜     label_id        æ–‡æœ¬æ ‡ç­¾ID
+// å‚æ•°è¯´æ˜     mode            é•¿æ–‡æœ¬æ¨¡å¼ï¼Œå½“æ–‡æœ¬è¶…è¿‡ç»„ä»¶å¯æ˜¾ç¤ºèŒƒå›´æ—¶çš„å¤„ç†æ–¹å¼
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_label_mode(label_id, "tset=%d", test);
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_label_mode            (uint16 label_id, ips200pro_label_mode_enum mode);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨±í¸ñ±êÇ©
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     row_num         ±í¸ñĞĞÊıÁ¿
-// ²ÎÊıËµÃ÷     col_num         ±í¸ñÁĞÊıÁ¿
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 table2_id = ips200pro_table_create(0, 0, 5, 4);  // ´´½¨5ĞĞ4ÁĞ±í¸ñ ×óÉÏ½Ç×ø±ê0,0£¬ÈçĞèµ÷Õû¿í¶ÈÊ¹ÓÃips200pro_table_set_col_widthº¯Êıµ¥¶Àµ÷Õû
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºè¡¨æ ¼æ ‡ç­¾
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     row_num         è¡¨æ ¼è¡Œæ•°é‡
+// å‚æ•°è¯´æ˜     col_num         è¡¨æ ¼åˆ—æ•°é‡
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 table2_id = ips200pro_table_create(0, 0, 5, 4);  // åˆ›å»º5è¡Œ4åˆ—è¡¨æ ¼ å·¦ä¸Šè§’åæ ‡0,0ï¼Œå¦‚éœ€è°ƒæ•´å®½åº¦ä½¿ç”¨ips200pro_table_set_col_widthå‡½æ•°å•ç‹¬è°ƒæ•´
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_table_create          (int16 x, int16 y, uint16 row_num, uint16 col_num);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     µ¥Ôª¸ñ¸ñÊ½»¯²¢ÏÔÊ¾
-// ²ÎÊıËµÃ÷     table_id        ±í¸ñID
-// ²ÎÊıËµÃ÷     row             µ¥Ôª¸ñËùÔÚĞĞ ĞĞºÅ´Ó1¿ªÊ¼
-// ²ÎÊıËµÃ÷     col             µ¥Ôª¸ñËùÔÚÁĞ ÁĞºÅ´Ó1¿ªÊ¼
-// ²ÎÊıËµÃ÷     *format         ×Ö·û´®
-// ²ÎÊıËµÃ÷     ...             ¿É±ä²ÎÊıÁĞ±í£¬·½·¨ÓëprintfÏàÍ¬
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_label_printf(table_id, 1, 1, "tset=%d", test);  // ¸ñÊ½»¯×Ö·û´®£¬²¢ÏÔÊ¾ÔÚ±í¸ñµÄµÚÒ»ĞĞ µÚÒ»ÁĞ£¨¼´×óÉÏ½ÇµÄµ¥Ôª¸ñ£©
+// å‡½æ•°ç®€ä»‹     å•å…ƒæ ¼æ ¼å¼åŒ–å¹¶æ˜¾ç¤º
+// å‚æ•°è¯´æ˜     table_id        è¡¨æ ¼ID
+// å‚æ•°è¯´æ˜     row             å•å…ƒæ ¼æ‰€åœ¨è¡Œ è¡Œå·ä»1å¼€å§‹
+// å‚æ•°è¯´æ˜     col             å•å…ƒæ ¼æ‰€åœ¨åˆ— åˆ—å·ä»1å¼€å§‹
+// å‚æ•°è¯´æ˜     *format         å­—ç¬¦ä¸²
+// å‚æ•°è¯´æ˜     ...             å¯å˜å‚æ•°åˆ—è¡¨ï¼Œæ–¹æ³•ä¸printfç›¸åŒ
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_label_printf(table_id, 1, 1, "tset=%d", test);  // æ ¼å¼åŒ–å­—ç¬¦ä¸²ï¼Œå¹¶æ˜¾ç¤ºåœ¨è¡¨æ ¼çš„ç¬¬ä¸€è¡Œ ç¬¬ä¸€åˆ—ï¼ˆå³å·¦ä¸Šè§’çš„å•å…ƒæ ¼ï¼‰
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_table_cell_printf     (uint16 table_id, uint8 row, uint8 col, char *format, ...);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ±í¸ñÁĞ¿í¶È
-// ²ÎÊıËµÃ÷     table_id        ±í¸ñID
-// ²ÎÊıËµÃ÷     col             ĞèÒªµ÷ÕûµÄÁĞºÅ ÁĞºÅ´Ó1¿ªÊ¼
-// ²ÎÊıËµÃ÷     width           ÁĞ¿í¶È£¨ÒÔÏñËØÎªµ¥Î»£©
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_table_set_col_width(table_id, 1, 20);  // ½«Ñ¡ÖĞµÄ±í¸ñ µÄµÚÒ»ÁĞ£¨¼´×î×ó²àµÄÒ»ÁĞ£©¿í¶ÈÉèÖÃÎª20
+// å‡½æ•°ç®€ä»‹     è®¾ç½®è¡¨æ ¼åˆ—å®½åº¦
+// å‚æ•°è¯´æ˜     table_id        è¡¨æ ¼ID
+// å‚æ•°è¯´æ˜     col             éœ€è¦è°ƒæ•´çš„åˆ—å· åˆ—å·ä»1å¼€å§‹
+// å‚æ•°è¯´æ˜     width           åˆ—å®½åº¦ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_table_set_col_width(table_id, 1, 20);  // å°†é€‰ä¸­çš„è¡¨æ ¼ çš„ç¬¬ä¸€åˆ—ï¼ˆå³æœ€å·¦ä¾§çš„ä¸€åˆ—ï¼‰å®½åº¦è®¾ç½®ä¸º20
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_table_set_col_width   (uint16 table_id, uint8 col, uint16 width);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ±í¸ñÑ¡ÖĞ
-// ²ÎÊıËµÃ÷     table_id        ±í¸ñID
-// ²ÎÊıËµÃ÷     row             ĞèÒªÑ¡ÖĞµÄĞĞºÅ ĞĞºÅ´Ó1¿ªÊ¼
-// ²ÎÊıËµÃ÷     col             ĞèÒªÑ¡ÖĞµÄÁĞºÅ ÁĞºÅ´Ó1¿ªÊ¼
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_table_select(table_id, 1, 2);  // ½«Ñ¡ÖĞµÄ±í¸ñ µÄµÚÒ»ĞĞ¡¢µÚÒ»ÁĞ£¨¼´×î×óÉÏ½Ç£©Ñ¡ÖĞ
-// ±¸×¢ËµÃ÷     Ñ¡ÖĞÕûÁĞ£ºÖ¸¶¨col rowÉèÖÃÎª0x00  Ñ¡ÖĞÕûĞĞ£ºÖ¸¶¨row colÉèÖÃÎª0x00 È¡ÏûÑ¡ÖĞrow col¶¼ÉèÖÃÎª0x00
+// å‡½æ•°ç®€ä»‹     è¡¨æ ¼é€‰ä¸­
+// å‚æ•°è¯´æ˜     table_id        è¡¨æ ¼ID
+// å‚æ•°è¯´æ˜     row             éœ€è¦é€‰ä¸­çš„è¡Œå· è¡Œå·ä»1å¼€å§‹
+// å‚æ•°è¯´æ˜     col             éœ€è¦é€‰ä¸­çš„åˆ—å· åˆ—å·ä»1å¼€å§‹
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_table_select(table_id, 1, 2);  // å°†é€‰ä¸­çš„è¡¨æ ¼ çš„ç¬¬ä¸€è¡Œã€ç¬¬ä¸€åˆ—ï¼ˆå³æœ€å·¦ä¸Šè§’ï¼‰é€‰ä¸­
+// å¤‡æ³¨è¯´æ˜     é€‰ä¸­æ•´åˆ—ï¼šæŒ‡å®šcol rowè®¾ç½®ä¸º0x00  é€‰ä¸­æ•´è¡Œï¼šæŒ‡å®šrow colè®¾ç½®ä¸º0x00 å–æ¶ˆé€‰ä¸­row coléƒ½è®¾ç½®ä¸º0x00
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_table_select          (uint16 table_id, uint8 row, uint8 col);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨ÒÇ±íÖ¸Ê¾Æ÷
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     size            ÒÇ±íÖ±¾¶£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     style           ÒÇ±íÑùÊ½
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 table2_id = ips200pro_meter_create(0, 0, 60, 1);  // 1£º½Ç¶ÈÖ¸Ê¾Æ÷ 2£ºËÙ¶ÈÖ¸Ê¾Æ÷
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºä»ªè¡¨æŒ‡ç¤ºå™¨
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     size            ä»ªè¡¨ç›´å¾„ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     style           ä»ªè¡¨æ ·å¼
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 table2_id = ips200pro_meter_create(0, 0, 60, 1);  // 1ï¼šè§’åº¦æŒ‡ç¤ºå™¨ 2ï¼šé€Ÿåº¦æŒ‡ç¤ºå™¨
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_meter_create          (int16 x, int16 y, uint16 size, ips200pro_meter_style_enum style);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÒÇ±íÖ¸Ê¾Æ÷ÊıÖµÉèÖÃ
-// ²ÎÊıËµÃ÷     meter_id        ÒÇ±íID
-// ²ÎÊıËµÃ÷     value           ÊıÖµ  ½Ç¶ÈÀàĞÍÊıÖµ·¶Î§0-360 ËÙ¶ÈÀàĞÍÉèÖÃ·¶Î§0-100
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_meter_set_value(meter_id, 50);  // ½«Ñ¡ÖĞµÄÒÇ±íÊıÖµÉèÖÃÎª50
+// å‡½æ•°ç®€ä»‹     ä»ªè¡¨æŒ‡ç¤ºå™¨æ•°å€¼è®¾ç½®
+// å‚æ•°è¯´æ˜     meter_id        ä»ªè¡¨ID
+// å‚æ•°è¯´æ˜     value           æ•°å€¼  è§’åº¦ç±»å‹æ•°å€¼èŒƒå›´0-360 é€Ÿåº¦ç±»å‹è®¾ç½®èŒƒå›´0-100
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_meter_set_value(meter_id, 50);  // å°†é€‰ä¸­çš„ä»ªè¡¨æ•°å€¼è®¾ç½®ä¸º50
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_meter_set_value       (uint16 meter_id, int16 value);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨Ê±ÖÓ
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     clock_size      Ê±ÖÓ´óĞ¡£¬Êı×ÖÊ±ÖÓÊ±£º±íÊ¾×ÖÌå´óĞ¡£¬¿ÉÉèÖÃ·¶Î§²é¿´ips200pro_font_size_enumÃ¶¾ÙÌå
-//                             Ö¸ÕëÊ±ÖÓ£º±íÊ¾Ê±ÖÓµÄÖ±¾¶£¬×îĞ¡ÉèÖÃÎª80£¬×î´ó240
-// ²ÎÊıËµÃ÷     clock_type      Ê±ÖÓÀàĞÍ²é¿´ips200pro_clock_style_enumÃ¶¾Ù¶¨Òå
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 clock2_id = ips200pro_clock_create(0, 0, 150, CLOCK_ANALOG);  //
-// ±¸×¢ËµÃ÷     µ±¿í¶ÈÓë¸ß¶ÈÒ»ÖÂÊ±£¬Ê±ÖÓÎªÔ²ĞÎÖ¸ÕëÊ±ÖÓ£¬·ñÔòÎªÊı×ÖÊ±ÖÓ
-// ±¸×¢ËµÃ÷     Èç¹ûĞèÒªĞŞ¸ÄÊ±¼ä£¬Ê¹ÓÃips200pro_set_timeº¯ÊıĞŞ¸Ä
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºæ—¶é’Ÿ
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     clock_size      æ—¶é’Ÿå¤§å°ï¼Œæ•°å­—æ—¶é’Ÿæ—¶ï¼šè¡¨ç¤ºå­—ä½“å¤§å°ï¼Œå¯è®¾ç½®èŒƒå›´æŸ¥çœ‹ips200pro_font_size_enumæšä¸¾ä½“
+//                             æŒ‡é’ˆæ—¶é’Ÿï¼šè¡¨ç¤ºæ—¶é’Ÿçš„ç›´å¾„ï¼Œæœ€å°è®¾ç½®ä¸º80ï¼Œæœ€å¤§240
+// å‚æ•°è¯´æ˜     clock_type      æ—¶é’Ÿç±»å‹æŸ¥çœ‹ips200pro_clock_style_enumæšä¸¾å®šä¹‰
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 clock2_id = ips200pro_clock_create(0, 0, 150, CLOCK_ANALOG);  //
+// å¤‡æ³¨è¯´æ˜     å½“å®½åº¦ä¸é«˜åº¦ä¸€è‡´æ—¶ï¼Œæ—¶é’Ÿä¸ºåœ†å½¢æŒ‡é’ˆæ—¶é’Ÿï¼Œå¦åˆ™ä¸ºæ•°å­—æ—¶é’Ÿ
+// å¤‡æ³¨è¯´æ˜     å¦‚æœéœ€è¦ä¿®æ”¹æ—¶é—´ï¼Œä½¿ç”¨ips200pro_set_timeå‡½æ•°ä¿®æ”¹
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_clock_create          (int16 x, int16 y, uint16 clock_size, ips200pro_clock_style_enum clock_type);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨½ø¶ÈÌõ
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 bar2_id = ips200pro_progress_bar_create(0, 0, 60, 10);  //
-// ±¸×¢ËµÃ÷     µ±¿í¶ÈÓë¸ß¶ÈÒ»ÖÂÊ±£¬ÎªÔ²ĞÎ½ø¶ÈÌõ£¬·ñÎª³¤ÌõĞÎ½ø¶ÈÌõ
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºè¿›åº¦æ¡
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 bar2_id = ips200pro_progress_bar_create(0, 0, 60, 10);  //
+// å¤‡æ³¨è¯´æ˜     å½“å®½åº¦ä¸é«˜åº¦ä¸€è‡´æ—¶ï¼Œä¸ºåœ†å½¢è¿›åº¦æ¡ï¼Œå¦ä¸ºé•¿æ¡å½¢è¿›åº¦æ¡
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_progress_bar_create   (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ½ø¶ÈÌõÊıÖµÉèÖÃ
-// ²ÎÊıËµÃ÷     progress_bar_id ½ø¶ÈÌõID
-// ²ÎÊıËµÃ÷     start_value     ¿ªÊ¼ÊıÖµ
-// ²ÎÊıËµÃ÷     end_value       ½áÊøÊıÖµ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_progress_bar_set_value(progress_bar_id, 10, 60);  //
+// å‡½æ•°ç®€ä»‹     è¿›åº¦æ¡æ•°å€¼è®¾ç½®
+// å‚æ•°è¯´æ˜     progress_bar_id è¿›åº¦æ¡ID
+// å‚æ•°è¯´æ˜     start_value     å¼€å§‹æ•°å€¼
+// å‚æ•°è¯´æ˜     end_value       ç»“æŸæ•°å€¼
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_progress_bar_set_value(progress_bar_id, 10, 60);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_progress_bar_set_value    (uint16 progress_bar_id, uint8 start_value, uint8 end_value);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨ÈÕÀú
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 test_id = ips200pro_calendar_create(0, 0, 200, 200);  //
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºæ—¥å†
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 test_id = ips200pro_calendar_create(0, 0, 200, 200);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_calendar_create       (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÈÕÀúÏÔÊ¾ÉèÖÃ
-// ²ÎÊıËµÃ÷     year            ĞèÒªÏÔÊ¾µÄÄê·İ Èç¹ûÌîĞ´0ÔòÏÔÊ¾µ±Ç°ÈÕÆÚµÄÔÂ·İ
-// ²ÎÊıËµÃ÷     month           ĞèÒªÏÔÊ¾µÄÔÂ·İ Èç¹ûÌîĞ´0ÔòÏÔÊ¾µ±Ç°ÈÕÆÚµÄÔÂ·İ
-// ²ÎÊıËµÃ÷     mode            ÏÔÊ¾Ä£Ê½  ÖĞÎÄÏÔÊ¾£¨½ö16¡¢20¡¢24ºÅ×ÖÌåÖ§³ÖÖĞÎÄÏÔÊ¾£©
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_calendar_display(2036, 1, IPS200PRO_CALENDAR_CHINESE);  // ÈÕÀúÏÔÊ¾2036Äê1ÔÂ·İ ÖĞÎÄÏÔÊ¾
+// å‡½æ•°ç®€ä»‹     æ—¥å†æ˜¾ç¤ºè®¾ç½®
+// å‚æ•°è¯´æ˜     year            éœ€è¦æ˜¾ç¤ºçš„å¹´ä»½ å¦‚æœå¡«å†™0åˆ™æ˜¾ç¤ºå½“å‰æ—¥æœŸçš„æœˆä»½
+// å‚æ•°è¯´æ˜     month           éœ€è¦æ˜¾ç¤ºçš„æœˆä»½ å¦‚æœå¡«å†™0åˆ™æ˜¾ç¤ºå½“å‰æ—¥æœŸçš„æœˆä»½
+// å‚æ•°è¯´æ˜     mode            æ˜¾ç¤ºæ¨¡å¼  ä¸­æ–‡æ˜¾ç¤ºï¼ˆä»…16ã€20ã€24å·å­—ä½“æ”¯æŒä¸­æ–‡æ˜¾ç¤ºï¼‰
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_calendar_display(2036, 1, IPS200PRO_CALENDAR_CHINESE);  // æ—¥å†æ˜¾ç¤º2036å¹´1æœˆä»½ ä¸­æ–‡æ˜¾ç¤º
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_calendar_display      (uint16 year, uint8 month, ips200pro_calendar_mode_enum mode);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨²¨ĞÎÍ¼
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 test_id = ips200pro_waveform_create(0, 0, 200, 200);  //
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºæ³¢å½¢å›¾
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 test_id = ips200pro_waveform_create(0, 0, 200, 200);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_waveform_create       (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ²¨ĞÎÍ¼Ìí¼Óµã
-// ²ÎÊıËµÃ÷     waveform_id     ²¨ĞÎÍ¼×é¼şID
-// ²ÎÊıËµÃ÷     line_id         ÏßÌõID    ID´Ó1¿ªÊ¼
-// ²ÎÊıËµÃ÷     *data           Ôö¼ÓµÄµãÊı¾İµØÖ·
-// ²ÎÊıËµÃ÷     length          Ôö¼ÓµÄµãÊıÁ¿
-// ²ÎÊıËµÃ÷     color           µãÑÕÉ«
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_waveform_add_value(1, 1, &point[0], 10, RGB565_RED);  //
-// ±¸×¢ËµÃ÷     ²¨ĞÎÍ¼ÏÔÊ¾µÄµãÊıÁ¿ÉÏÏŞÎª×é¼ş¿í¶È£¬µ±ÊÕµ½µÄµãÊıÁ¿³¬¹ı×é¼ş¿í¶ÈÊ±ÓÅÏÈÏÔÊ¾×î½üÊÕµ½µÄµãÊı¾İ
+// å‡½æ•°ç®€ä»‹     æ³¢å½¢å›¾æ·»åŠ ç‚¹
+// å‚æ•°è¯´æ˜     waveform_id     æ³¢å½¢å›¾ç»„ä»¶ID
+// å‚æ•°è¯´æ˜     line_id         çº¿æ¡ID    IDä»1å¼€å§‹
+// å‚æ•°è¯´æ˜     *data           å¢åŠ çš„ç‚¹æ•°æ®åœ°å€
+// å‚æ•°è¯´æ˜     length          å¢åŠ çš„ç‚¹æ•°é‡
+// å‚æ•°è¯´æ˜     color           ç‚¹é¢œè‰²
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_waveform_add_value(1, 1, &point[0], 10, RGB565_RED);  //
+// å¤‡æ³¨è¯´æ˜     æ³¢å½¢å›¾æ˜¾ç¤ºçš„ç‚¹æ•°é‡ä¸Šé™ä¸ºç»„ä»¶å®½åº¦ï¼Œå½“æ”¶åˆ°çš„ç‚¹æ•°é‡è¶…è¿‡ç»„ä»¶å®½åº¦æ—¶ä¼˜å…ˆæ˜¾ç¤ºæœ€è¿‘æ”¶åˆ°çš„ç‚¹æ•°æ®
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_waveform_add_value    (uint16 waveform_id, uint8 line_id, const uint16 *data, uint16 length, uint16 color);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ²¨ĞÎÍ¼ÏßÌõ×´Ì¬
-// ²ÎÊıËµÃ÷     waveform_id     ²¨ĞÎÍ¼×é¼şID
-// ²ÎÊıËµÃ÷     line_id         ÏßÌõID    ´Ó1¿ªÊ¼ ×î¶àÖ§³Öµş¼Ó5ÌõÏßÌõ
-// ²ÎÊıËµÃ÷     line_state      0£ºÒş²ØÏßÌõ  1£ºÏÔÊ¾ÏßÌõ
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_waveform_line_state(waveform_id, 1, 0);  //
+// å‡½æ•°ç®€ä»‹     è®¾ç½®æ³¢å½¢å›¾çº¿æ¡çŠ¶æ€
+// å‚æ•°è¯´æ˜     waveform_id     æ³¢å½¢å›¾ç»„ä»¶ID
+// å‚æ•°è¯´æ˜     line_id         çº¿æ¡ID    ä»1å¼€å§‹ æœ€å¤šæ”¯æŒå åŠ 5æ¡çº¿æ¡
+// å‚æ•°è¯´æ˜     line_state      0ï¼šéšè—çº¿æ¡  1ï¼šæ˜¾ç¤ºçº¿æ¡
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_waveform_line_state(waveform_id, 1, 0);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_waveform_line_state   (uint16 waveform_id, uint16 line_id, uint16 line_state);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃ²¨ĞÎÍ¼ÏßÌõÀàĞÍ
-// ²ÎÊıËµÃ÷     waveform_id     ²¨ĞÎÍ¼×é¼şID
-// ²ÎÊıËµÃ÷     line_type       ÏßÌõÀàĞÍ 0£ºÉ¢µãÍ¼£¨µãÓëµãÖ®¼äÃ»ÓĞÁ¬Ïß£© 1£º£¨ËùÓĞµÄµãÁ¬³ÉÒ»ÌõÏß£©
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_waveform_line_type(waveform_id, 0);  //
+// å‡½æ•°ç®€ä»‹     è®¾ç½®æ³¢å½¢å›¾çº¿æ¡ç±»å‹
+// å‚æ•°è¯´æ˜     waveform_id     æ³¢å½¢å›¾ç»„ä»¶ID
+// å‚æ•°è¯´æ˜     line_type       çº¿æ¡ç±»å‹ 0ï¼šæ•£ç‚¹å›¾ï¼ˆç‚¹ä¸ç‚¹ä¹‹é—´æ²¡æœ‰è¿çº¿ï¼‰ 1ï¼šï¼ˆæ‰€æœ‰çš„ç‚¹è¿æˆä¸€æ¡çº¿ï¼‰
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_waveform_line_type(waveform_id, 0);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_waveform_line_type    (uint16 waveform_id, uint8 line_type);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ²¨ĞÎÍ¼Çå³ıÊı¾İ£¨¼´Çå¿ÕÏÔÊ¾£©
-// ²ÎÊıËµÃ÷     waveform_id     ²¨ĞÎÍ¼×é¼şID
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_waveform_clear(waveform_id);  //
+// å‡½æ•°ç®€ä»‹     æ³¢å½¢å›¾æ¸…é™¤æ•°æ®ï¼ˆå³æ¸…ç©ºæ˜¾ç¤ºï¼‰
+// å‚æ•°è¯´æ˜     waveform_id     æ³¢å½¢å›¾ç»„ä»¶ID
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_waveform_clear(waveform_id);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_waveform_clear        (uint16 waveform_id);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨Í¼Ïñ×é¼ş
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 test_id = ips200pro_image_create(0, 0, 188, 120);  //
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºå›¾åƒç»„ä»¶
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 test_id = ips200pro_image_create(0, 0, 188, 120);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_image_create          (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Í¼ÏñÏÔÊ¾
-// ²ÎÊıËµÃ÷     image_id        Í¼Ïñ×é¼şID
-// ²ÎÊıËµÃ÷     *image          Í¼ÏñµØÖ·    NULLÔò²»·¢ËÍÍ¼Ïñ£¬½öÍ¨ÖªÆÁÄ»¸üĞÂ±ßÏß»ò¾ØĞÎ
-// ²ÎÊıËµÃ÷     width           Í¼Ïñ¿í¶È    0Ôò²»·¢ËÍÍ¼ÏñÊı¾İ£¬½öÍ¨ÖªÆÁÄ»¸üĞÂ±ßÏß»ò¾ØĞÎ
-// ²ÎÊıËµÃ÷     height          Í¼Ïñ¸ß¶È    0Ôò²»·¢ËÍÍ¼ÏñÊı¾İ£¬½öÍ¨ÖªÆÁÄ»¸üĞÂ±ßÏß»ò¾ØĞÎ
-// ²ÎÊıËµÃ÷     image_type      Í¼ÏñÀàĞÍ    ×Ü×ê·ç£ºIMAGE_GRAYSCALE  ÁèÍ«£ºIMAGE_RGB565  Ğ¡×ê·ç£ºĞèÒª×ÔĞĞ½âÑ¹ºóÑ¡ÔñIMAGE_GRAYSCALE  IMAGE_NULL£º²»·¢ËÍÍ¼ÏñÊı¾İ£¬½öÍ¨ÖªÆÁÄ»¸üĞÂ±ßÏß»ò¾ØĞÎ
-// ²ÎÊıËµÃ÷     threshold       ¶şÖµ»¯ãĞÖµ   ½öÔÚIMAGE_GRAYSCALE£¨»Ò¶È£©Ä£Ê½ÏÂÓĞĞ§ 0:²»ÆôÓÃ¶şÖµ»¯ ÆäËû£ºÆôÓÃ¶şÖµ»¯
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_image_display(image_id, mt9v03x_image[0], 188, 120, IMAGE_GRAYSCALE, 0);  //
-// ±¸×¢ËµÃ÷     Èç¹ûÍ¼Ïñ¿í¶È¡¢¸ß¶ÈÓë×é¼şµÄ¿í¶È¡¢¸ß¶È²»Ò»ÖÂ£¬Ôò»á×Ô¶¯Ëõ·Å£¬µ«ÊÇËõ·Å»áµ¼ÖÂÆÁÄ»ĞÔÄÜÏÂ½µ£¬´Ó¶ø¿ÉÄÜµ¼ÖÂÏÔÊ¾Ö¡ÂÊÏÂ½µ
+// å‡½æ•°ç®€ä»‹     å›¾åƒæ˜¾ç¤º
+// å‚æ•°è¯´æ˜     image_id        å›¾åƒç»„ä»¶ID
+// å‚æ•°è¯´æ˜     *image          å›¾åƒåœ°å€    NULLåˆ™ä¸å‘é€å›¾åƒï¼Œä»…é€šçŸ¥å±å¹•æ›´æ–°è¾¹çº¿æˆ–çŸ©å½¢
+// å‚æ•°è¯´æ˜     width           å›¾åƒå®½åº¦    0åˆ™ä¸å‘é€å›¾åƒæ•°æ®ï¼Œä»…é€šçŸ¥å±å¹•æ›´æ–°è¾¹çº¿æˆ–çŸ©å½¢
+// å‚æ•°è¯´æ˜     height          å›¾åƒé«˜åº¦    0åˆ™ä¸å‘é€å›¾åƒæ•°æ®ï¼Œä»…é€šçŸ¥å±å¹•æ›´æ–°è¾¹çº¿æˆ–çŸ©å½¢
+// å‚æ•°è¯´æ˜     image_type      å›¾åƒç±»å‹    æ€»é’»é£ï¼šIMAGE_GRAYSCALE  å‡Œç³ï¼šIMAGE_RGB565  å°é’»é£ï¼šéœ€è¦è‡ªè¡Œè§£å‹åé€‰æ‹©IMAGE_GRAYSCALE  IMAGE_NULLï¼šä¸å‘é€å›¾åƒæ•°æ®ï¼Œä»…é€šçŸ¥å±å¹•æ›´æ–°è¾¹çº¿æˆ–çŸ©å½¢
+// å‚æ•°è¯´æ˜     threshold       äºŒå€¼åŒ–é˜ˆå€¼   ä»…åœ¨IMAGE_GRAYSCALEï¼ˆç°åº¦ï¼‰æ¨¡å¼ä¸‹æœ‰æ•ˆ 0:ä¸å¯ç”¨äºŒå€¼åŒ– å…¶ä»–ï¼šå¯ç”¨äºŒå€¼åŒ–
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_image_display(image_id, mt9v03x_image[0], 188, 120, IMAGE_GRAYSCALE, 0);  //
+// å¤‡æ³¨è¯´æ˜     å¦‚æœå›¾åƒå®½åº¦ã€é«˜åº¦ä¸ç»„ä»¶çš„å®½åº¦ã€é«˜åº¦ä¸ä¸€è‡´ï¼Œåˆ™ä¼šè‡ªåŠ¨ç¼©æ”¾ï¼Œä½†æ˜¯ç¼©æ”¾ä¼šå¯¼è‡´å±å¹•æ€§èƒ½ä¸‹é™ï¼Œä»è€Œå¯èƒ½å¯¼è‡´æ˜¾ç¤ºå¸§ç‡ä¸‹é™
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_image_display         (uint16 image_id, const void *image, uint16 width, uint16 height, ips200pro_image_type_enum image_type, uint8 threshold);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Í¼Ïñµş¼ÓÏßÌõ
-// ²ÎÊıËµÃ÷     image_id        Í¼Ïñ×é¼şID
-// ²ÎÊıËµÃ÷     line_id         ÏßÌõID    ´Ó1¿ªÊ¼ ×î¶àÖ§³Öµş¼Ó10ÌõÏßÌõ
-// ²ÎÊıËµÃ÷     *line_data      ÏßÌõÊı¾İµØÖ·  Ö»ÄÜÊ¹ÓÃips200pro_image_line_uint8_struct»òÕßips200pro_image_line_uint16_structÀàĞÍ
-// ²ÎÊıËµÃ÷     line_length     ÏßÌõ³¤¶È
-// ²ÎÊıËµÃ÷     data_type       ÏßÌõµÄÊı¾İÀàĞÍ 8ÎªÀàĞÍÓë16ÎªÀàĞÍ
-// ²ÎÊıËµÃ÷     color           ÏßÌõÑÕÉ«
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_image_draw_line(image_id, 1, line, 120, IMAGE_LINE_TYPE_UINT8, RGB565_RED);  //
-// ±¸×¢ËµÃ÷     Îñ±ØÔÚips200pro_image_displayµ÷ÓÃº¯ÊıÖ®Ç° µ÷ÓÃ±¾º¯Êı²ÅÄÜÊµÏÖÏßÌõµş¼ÓÏÔÊ¾
+// å‡½æ•°ç®€ä»‹     å›¾åƒå åŠ çº¿æ¡
+// å‚æ•°è¯´æ˜     image_id        å›¾åƒç»„ä»¶ID
+// å‚æ•°è¯´æ˜     line_id         çº¿æ¡ID    ä»1å¼€å§‹ æœ€å¤šæ”¯æŒå åŠ 10æ¡çº¿æ¡
+// å‚æ•°è¯´æ˜     *line_data      çº¿æ¡æ•°æ®åœ°å€  åªèƒ½ä½¿ç”¨ips200pro_image_line_uint8_structæˆ–è€…ips200pro_image_line_uint16_structç±»å‹
+// å‚æ•°è¯´æ˜     line_length     çº¿æ¡é•¿åº¦
+// å‚æ•°è¯´æ˜     data_type       çº¿æ¡çš„æ•°æ®ç±»å‹ 8ä¸ºç±»å‹ä¸16ä¸ºç±»å‹
+// å‚æ•°è¯´æ˜     color           çº¿æ¡é¢œè‰²
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_image_draw_line(image_id, 1, line, 120, IMAGE_LINE_TYPE_UINT8, RGB565_RED);  //
+// å¤‡æ³¨è¯´æ˜     åŠ¡å¿…åœ¨ips200pro_image_displayè°ƒç”¨å‡½æ•°ä¹‹å‰ è°ƒç”¨æœ¬å‡½æ•°æ‰èƒ½å®ç°çº¿æ¡å åŠ æ˜¾ç¤º
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_image_draw_line       (uint16 image_id, uint8 line_id, void *line_data, uint16 line_length, ips200pro_image_line_type_enum data_type, uint16 color);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Í¼Ïñµş¼Ó¾ØĞÎ¿ò
-// ²ÎÊıËµÃ÷     image_id        Í¼Ïñ×é¼şID
-// ²ÎÊıËµÃ÷     rectangle_id    ¾ØĞÎ¿òID    ´Ó1¿ªÊ¼ ×î¶àÖ§³Öµş¼Ó5¸ö¾ØĞÎ¿ò
-// ²ÎÊıËµÃ÷     x               ¾ØĞÎ¿ò×óÉÏ½Çºá×ø±ê
-// ²ÎÊıËµÃ÷     y               ¾ØĞÎ¿ò×óÉÏ½Ç×İ×ø±ê
-// ²ÎÊıËµÃ÷     rectangle_width ¾ØĞÎ¿í¶È
-// ²ÎÊıËµÃ÷     rectangle_height ¾ØĞÎ¸ß¶È
-// ²ÎÊıËµÃ÷     color           ÏßÌõÑÕÉ«
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º³É¹¦  1£ºÊ§°Ü
-// Ê¹ÓÃÊ¾Àı     ips200pro_image_draw_rectangle(image_id, 1, 10, 10, 20, 30, RGB565_RED);  //
-// ±¸×¢ËµÃ÷     Îñ±ØÔÚips200pro_image_displayµ÷ÓÃº¯ÊıÖ®Ç° µ÷ÓÃ±¾º¯Êı²ÅÄÜÊµÏÖ¾ØĞÎ¿òµş¼ÓÏÔÊ¾
+// å‡½æ•°ç®€ä»‹     å›¾åƒå åŠ çŸ©å½¢æ¡†
+// å‚æ•°è¯´æ˜     image_id        å›¾åƒç»„ä»¶ID
+// å‚æ•°è¯´æ˜     rectangle_id    çŸ©å½¢æ¡†ID    ä»1å¼€å§‹ æœ€å¤šæ”¯æŒå åŠ 5ä¸ªçŸ©å½¢æ¡†
+// å‚æ•°è¯´æ˜     x               çŸ©å½¢æ¡†å·¦ä¸Šè§’æ¨ªåæ ‡
+// å‚æ•°è¯´æ˜     y               çŸ©å½¢æ¡†å·¦ä¸Šè§’çºµåæ ‡
+// å‚æ•°è¯´æ˜     rectangle_width çŸ©å½¢å®½åº¦
+// å‚æ•°è¯´æ˜     rectangle_height çŸ©å½¢é«˜åº¦
+// å‚æ•°è¯´æ˜     color           çº¿æ¡é¢œè‰²
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šæˆåŠŸ  1ï¼šå¤±è´¥
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_image_draw_rectangle(image_id, 1, 10, 10, 20, 30, RGB565_RED);  //
+// å¤‡æ³¨è¯´æ˜     åŠ¡å¿…åœ¨ips200pro_image_displayè°ƒç”¨å‡½æ•°ä¹‹å‰ è°ƒç”¨æœ¬å‡½æ•°æ‰èƒ½å®ç°çŸ©å½¢æ¡†å åŠ æ˜¾ç¤º
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_image_draw_rectangle  (uint16 image_id, uint8 rectangle_id, int16 x, int16 y, uint16 rectangle_width, uint16 rectangle_height, uint16 color);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ´´½¨ÈİÆ÷×é¼ş
-// ²ÎÊıËµÃ÷     x               ×óÉÏ½ÇºáÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     y               ×óÉÏ½Ç×İÖá×ø±ê£¨ÒÔÏñËØÎªµ¥Î»£©
-// ²ÎÊıËµÃ÷     width           ×é¼şµÄ¿í¶È
-// ²ÎÊıËµÃ÷     height          ×é¼şµÄ¸ß¶È
-// ·µ»Ø²ÎÊı     uint16          ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     uint16 test_id = ips200pro_container_create(0, 0, 60, 60);  //
+// å‡½æ•°ç®€ä»‹     åˆ›å»ºå®¹å™¨ç»„ä»¶
+// å‚æ•°è¯´æ˜     x               å·¦ä¸Šè§’æ¨ªè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     y               å·¦ä¸Šè§’çºµè½´åæ ‡ï¼ˆä»¥åƒç´ ä¸ºå•ä½ï¼‰
+// å‚æ•°è¯´æ˜     width           ç»„ä»¶çš„å®½åº¦
+// å‚æ•°è¯´æ˜     height          ç»„ä»¶çš„é«˜åº¦
+// è¿”å›å‚æ•°     uint16          çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     uint16 test_id = ips200pro_container_create(0, 0, 60, 60);  //
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_container_create      (int16 x, int16 y, uint16 width, uint16 height);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÉèÖÃÈİÆ÷Ô²½Ç°ë¾¶
-// ²ÎÊıËµÃ÷     container_id    ÈİÆ÷µÄID
-// ²ÎÊıËµÃ÷     border_width    ÈİÆ÷ÖÜÎ§±ßÏß¿í¶È
-// ²ÎÊıËµÃ÷     radius          ÈİÆ÷Ô²½Ç°ë¾¶
-// ·µ»Ø²ÎÊı     uint8           ×´Ì¬ 0£º´´½¨Ê§°Ü  ÆäËû£º´´½¨³É¹¦£¬Í¬Ê±·µ»ØµÄÊıÖµ±íÊ¾´ËPAGEµÄID
-// Ê¹ÓÃÊ¾Àı     ips200pro_container_radius(container_id, 1, 10);  // ½«Ñ¡ÔñµÄÈİÆ÷ ÏßÌõ¿í¶ÈÉèÖÃÎª1£¬Ô²½Ç°ë¾¶ÉèÖÃÎª10
-// ×¢ÒâÊÂÏî     Èç¹ûÈİÆ÷Îª¿í¶È¸ß¶ÈÏàÍ¬£¬Ô²½Ç°ë¾¶ÊÇ¸ß¶ÈµÄÒ»°ë£¬Ôò×îÖÕÈİÒ×ÎªÔ²ĞÎ
+// å‡½æ•°ç®€ä»‹     è®¾ç½®å®¹å™¨åœ†è§’åŠå¾„
+// å‚æ•°è¯´æ˜     container_id    å®¹å™¨çš„ID
+// å‚æ•°è¯´æ˜     border_width    å®¹å™¨å‘¨å›´è¾¹çº¿å®½åº¦
+// å‚æ•°è¯´æ˜     radius          å®¹å™¨åœ†è§’åŠå¾„
+// è¿”å›å‚æ•°     uint8           çŠ¶æ€ 0ï¼šåˆ›å»ºå¤±è´¥  å…¶ä»–ï¼šåˆ›å»ºæˆåŠŸï¼ŒåŒæ—¶è¿”å›çš„æ•°å€¼è¡¨ç¤ºæ­¤PAGEçš„ID
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_container_radius(container_id, 1, 10);  // å°†é€‰æ‹©çš„å®¹å™¨ çº¿æ¡å®½åº¦è®¾ç½®ä¸º1ï¼Œåœ†è§’åŠå¾„è®¾ç½®ä¸º10
+// æ³¨æ„äº‹é¡¹     å¦‚æœå®¹å™¨ä¸ºå®½åº¦é«˜åº¦ç›¸åŒï¼Œåœ†è§’åŠå¾„æ˜¯é«˜åº¦çš„ä¸€åŠï¼Œåˆ™æœ€ç»ˆå®¹æ˜“ä¸ºåœ†å½¢
 //-------------------------------------------------------------------------------------------------------------------
 uint8   ips200pro_container_radius      (uint16 container_id, uint16 border_width, uint16 radius);
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     ÆÁÄ»³õÊ¼»¯
-// ²ÎÊıËµÃ÷     str             Ò³Ãæ±êÌâÃû³Æ  NULL:²»´´½¨Ò³Ãæ  ²»Îª¿Õ£ºÔò´´½¨Ò»¸öÒ³Ãæ£¬²¢½«´Ë×Ö·û´®ÉèÖÃÎªÒ³ÃæÃû³Æ
-// ²ÎÊıËµÃ÷     title_position  ±êÌâÏÔÊ¾µÄÎ»ÖÃ
-// ²ÎÊıËµÃ÷     title_size      ±êÌâ´óĞ¡ Èç¹û²»ĞèÒª±êÌâÉèÖÃÎª0¼´¿É
-// ·µ»Ø²ÎÊı     uint16          Ò³ÃæID
-// Ê¹ÓÃÊ¾Àı     ips200pro_init("²âÊÔ", IPS200PRO_TITLE_BOTTOM, 30);  // ³õÊ¼»¯ÆÁÄ»²¢´´½¨Ò»¸ö±êÌâÎª²âÊÔµÄÒ³Ãæ¡¢±êÌâÏÔÊ¾ÔÚµ×²¿¡¢±êÌâ¿í¶ÈÎª30
+// å‡½æ•°ç®€ä»‹     å±å¹•åˆå§‹åŒ–
+// å‚æ•°è¯´æ˜     str             é¡µé¢æ ‡é¢˜åç§°  NULL:ä¸åˆ›å»ºé¡µé¢  ä¸ä¸ºç©ºï¼šåˆ™åˆ›å»ºä¸€ä¸ªé¡µé¢ï¼Œå¹¶å°†æ­¤å­—ç¬¦ä¸²è®¾ç½®ä¸ºé¡µé¢åç§°
+// å‚æ•°è¯´æ˜     title_position  æ ‡é¢˜æ˜¾ç¤ºçš„ä½ç½®
+// å‚æ•°è¯´æ˜     title_size      æ ‡é¢˜å¤§å° å¦‚æœä¸éœ€è¦æ ‡é¢˜è®¾ç½®ä¸º0å³å¯
+// è¿”å›å‚æ•°     uint16          é¡µé¢ID
+// ä½¿ç”¨ç¤ºä¾‹     ips200pro_init("æµ‹è¯•", IPS200PRO_TITLE_BOTTOM, 30);  // åˆå§‹åŒ–å±å¹•å¹¶åˆ›å»ºä¸€ä¸ªæ ‡é¢˜ä¸ºæµ‹è¯•çš„é¡µé¢ã€æ ‡é¢˜æ˜¾ç¤ºåœ¨åº•éƒ¨ã€æ ‡é¢˜å®½åº¦ä¸º30
 //-------------------------------------------------------------------------------------------------------------------
 uint16  ips200pro_init                  (char *str, ips200pro_title_position_enum title_position, uint8 title_size);
 

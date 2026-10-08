@@ -1,35 +1,35 @@
 /*********************************************************************************************************************
-* RT1064DVL6A Opensourec Library ¼´£¨RT1064DVL6A ¿ªÔ´¿â£©ÊÇÒ»¸ö»ùÓÚ¹Ù·½ SDK ½Ó¿ÚµÄµÚÈı·½¿ªÔ´¿â
-* Copyright (c) 2022 SEEKFREE Öğ·É¿Æ¼¼
+* RT1064DVL6A Opensourec Library å³ï¼ˆRT1064DVL6A å¼€æºåº“ï¼‰æ˜¯ä¸€ä¸ªåŸºäºå®˜æ–¹ SDK æ¥å£çš„ç¬¬ä¸‰æ–¹å¼€æºåº“
+* Copyright (c) 2022 SEEKFREE é€é£ç§‘æŠ€
 * 
-* ±¾ÎÄ¼şÊÇ RT1064DVL6A ¿ªÔ´¿âµÄÒ»²¿·Ö
+* æœ¬æ–‡ä»¶æ˜¯ RT1064DVL6A å¼€æºåº“çš„ä¸€éƒ¨åˆ†
 * 
-* RT1064DVL6A ¿ªÔ´¿â ÊÇÃâ·ÑÈí¼ş
-* Äú¿ÉÒÔ¸ù¾İ×ÔÓÉÈí¼ş»ù½ğ»á·¢²¼µÄ GPL£¨GNU General Public License£¬¼´ GNUÍ¨ÓÃ¹«¹²Ğí¿ÉÖ¤£©µÄÌõ¿î
-* ¼´ GPL µÄµÚ3°æ£¨¼´ GPL3.0£©»ò£¨ÄúÑ¡ÔñµÄ£©ÈÎºÎºóÀ´µÄ°æ±¾£¬ÖØĞÂ·¢²¼ºÍ/»òĞŞ¸ÄËü
+* RT1064DVL6A å¼€æºåº“ æ˜¯å…è´¹è½¯ä»¶
+* æ‚¨å¯ä»¥æ ¹æ®è‡ªç”±è½¯ä»¶åŸºé‡‘ä¼šå‘å¸ƒçš„ GPLï¼ˆGNU General Public Licenseï¼Œå³ GNUé€šç”¨å…¬å…±è®¸å¯è¯ï¼‰çš„æ¡æ¬¾
+* å³ GPL çš„ç¬¬3ç‰ˆï¼ˆå³ GPL3.0ï¼‰æˆ–ï¼ˆæ‚¨é€‰æ‹©çš„ï¼‰ä»»ä½•åæ¥çš„ç‰ˆæœ¬ï¼Œé‡æ–°å‘å¸ƒå’Œ/æˆ–ä¿®æ”¹å®ƒ
 * 
-* ±¾¿ªÔ´¿âµÄ·¢²¼ÊÇÏ£ÍûËüÄÜ·¢»Ó×÷ÓÃ£¬µ«²¢Î´¶ÔÆä×÷ÈÎºÎµÄ±£Ö¤
-* ÉõÖÁÃ»ÓĞÒşº¬µÄÊÊÏúĞÔ»òÊÊºÏÌØ¶¨ÓÃÍ¾µÄ±£Ö¤
-* ¸ü¶àÏ¸½ÚÇë²Î¼û GPL
+* æœ¬å¼€æºåº“çš„å‘å¸ƒæ˜¯å¸Œæœ›å®ƒèƒ½å‘æŒ¥ä½œç”¨ï¼Œä½†å¹¶æœªå¯¹å…¶ä½œä»»ä½•çš„ä¿è¯
+* ç”šè‡³æ²¡æœ‰éšå«çš„é€‚é”€æ€§æˆ–é€‚åˆç‰¹å®šç”¨é€”çš„ä¿è¯
+* æ›´å¤šç»†èŠ‚è¯·å‚è§ GPL
 * 
-* ÄúÓ¦¸ÃÔÚÊÕµ½±¾¿ªÔ´¿âµÄÍ¬Ê±ÊÕµ½Ò»·İ GPL µÄ¸±±¾
-* Èç¹ûÃ»ÓĞ£¬Çë²ÎÔÄ<https://www.gnu.org/licenses/>
+* æ‚¨åº”è¯¥åœ¨æ”¶åˆ°æœ¬å¼€æºåº“çš„åŒæ—¶æ”¶åˆ°ä¸€ä»½ GPL çš„å‰¯æœ¬
+* å¦‚æœæ²¡æœ‰ï¼Œè¯·å‚é˜…<https://www.gnu.org/licenses/>
 * 
-* ¶îÍâ×¢Ã÷£º
-* ±¾¿ªÔ´¿âÊ¹ÓÃ GPL3.0 ¿ªÔ´Ğí¿ÉÖ¤Ğ­Òé ÒÔÉÏĞí¿ÉÉêÃ÷ÎªÒëÎÄ°æ±¾
-* Ğí¿ÉÉêÃ÷Ó¢ÎÄ°æÔÚ libraries/doc ÎÄ¼ş¼ĞÏÂµÄ GPL3_permission_statement.txt ÎÄ¼şÖĞ
-* Ğí¿ÉÖ¤¸±±¾ÔÚ libraries ÎÄ¼ş¼ĞÏÂ ¼´¸ÃÎÄ¼ş¼ĞÏÂµÄ LICENSE ÎÄ¼ş
-* »¶Ó­¸÷Î»Ê¹ÓÃ²¢´«²¥±¾³ÌĞò µ«ĞŞ¸ÄÄÚÈİÊ±±ØĞë±£ÁôÖğ·É¿Æ¼¼µÄ°æÈ¨ÉùÃ÷£¨¼´±¾ÉùÃ÷£©
+* é¢å¤–æ³¨æ˜ï¼š
+* æœ¬å¼€æºåº“ä½¿ç”¨ GPL3.0 å¼€æºè®¸å¯è¯åè®® ä»¥ä¸Šè®¸å¯ç”³æ˜ä¸ºè¯‘æ–‡ç‰ˆæœ¬
+* è®¸å¯ç”³æ˜è‹±æ–‡ç‰ˆåœ¨ libraries/doc æ–‡ä»¶å¤¹ä¸‹çš„ GPL3_permission_statement.txt æ–‡ä»¶ä¸­
+* è®¸å¯è¯å‰¯æœ¬åœ¨ libraries æ–‡ä»¶å¤¹ä¸‹ å³è¯¥æ–‡ä»¶å¤¹ä¸‹çš„ LICENSE æ–‡ä»¶
+* æ¬¢è¿å„ä½ä½¿ç”¨å¹¶ä¼ æ’­æœ¬ç¨‹åº ä½†ä¿®æ”¹å†…å®¹æ—¶å¿…é¡»ä¿ç•™é€é£ç§‘æŠ€çš„ç‰ˆæƒå£°æ˜ï¼ˆå³æœ¬å£°æ˜ï¼‰
 * 
-* ÎÄ¼şÃû³Æ          seekfree_assistant
-* ¹«Ë¾Ãû³Æ          ³É¶¼Öğ·É¿Æ¼¼ÓĞÏŞ¹«Ë¾
-* °æ±¾ĞÅÏ¢          ²é¿´ libraries/doc ÎÄ¼ş¼ĞÄÚ version ÎÄ¼ş °æ±¾ËµÃ÷
-* ¿ª·¢»·¾³          ADS v1.9.4
-* ÊÊÓÃÆ½Ì¨          TC264D
-* µêÆÌÁ´½Ó          https://seekfree.taobao.com/
+* æ–‡ä»¶åç§°          seekfree_assistant
+* å…¬å¸åç§°          æˆéƒ½é€é£ç§‘æŠ€æœ‰é™å…¬å¸
+* ç‰ˆæœ¬ä¿¡æ¯          æŸ¥çœ‹ libraries/doc æ–‡ä»¶å¤¹å†… version æ–‡ä»¶ ç‰ˆæœ¬è¯´æ˜
+* å¼€å‘ç¯å¢ƒ          ADS v1.9.4
+* é€‚ç”¨å¹³å°          TC264D
+* åº—é“ºé“¾æ¥          https://seekfree.taobao.com/
 * 
-* ĞŞ¸Ä¼ÇÂ¼
-* ÈÕÆÚ             ×÷Õß             ±¸×¢
+* ä¿®æ”¹è®°å½•
+* æ—¥æœŸ             ä½œè€…             å¤‡æ³¨
 * 2024-1-11        SeekFree         first version
 ********************************************************************************************************************/
 
@@ -37,7 +37,7 @@
 
 #include "seekfree_assistant.h"
 
-// Í¨ĞÅÃüÁîÃ¶¾Ù
+// é€šä¿¡å‘½ä»¤æšä¸¾
 typedef enum
 {
     SEEKFREE_ASSISTANT_SEND_CCD_CMD                 = 0x01  ,
@@ -50,14 +50,14 @@ typedef enum
     SEEKFREE_ASSISTANT_RECEIVE_DEBUG_PARAM_CMD      = 0x20  ,
 }seekfree_assistant_cmd_type_enum;
 
-#define SEEKFREE_ASSISTANT_SEND_HEAD                ( 0xAA  )                   // µ¥Æ¬»úÍùÉÏÎ»»ú·¢ËÍµÄÖ¡Í·
-#define SEEKFREE_ASSISTANT_RECEIVE_HEAD             ( 0x55  )                   // ÉÏÎ»»úÍùµ¥Æ¬»ú·¢ËÍµÄÖ¡Í·
+#define SEEKFREE_ASSISTANT_SEND_HEAD                ( 0xAA  )                   // å•ç‰‡æœºå¾€ä¸Šä½æœºå‘é€çš„å¸§å¤´
+#define SEEKFREE_ASSISTANT_RECEIVE_HEAD             ( 0x55  )                   // ä¸Šä½æœºå¾€å•ç‰‡æœºå‘é€çš„å¸§å¤´
 
-// Êı¾İ·¢ËÍº¯ÊıÖ¸Õë°ó¶¨
+// æ•°æ®å‘é€å‡½æ•°æŒ‡é’ˆç»‘å®š
 extern uint32 seekfree_assistant_transfer (const uint8 *buff, uint32 length);
 seekfree_assistant_transfer_callback_function seekfree_assistant_transfer_callback = seekfree_assistant_transfer;
 
-// Êı¾İ½ÓÊÕº¯ÊıÖ¸Õë°ó¶¨
+// æ•°æ®æ¥æ”¶å‡½æ•°æŒ‡é’ˆç»‘å®š
 extern uint32 seekfree_assistant_receive (uint8 *buff, uint32 length);
 seekfree_assistant_receive_callback_function seekfree_assistant_receive_callback  = seekfree_assistant_receive;
 
@@ -77,11 +77,11 @@ static fifo_struct  seekfree_assistant_debug_param_fifo =
 #endif
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖÇóºÍº¯Êı
-// ²ÎÊıËµÃ÷     *buffer                 ĞèÒªĞ£ÑéµÄÊı¾İµØÖ·
-// ²ÎÊıËµÃ÷     length                  Ğ£Ñé³¤¶È
-// ·µ»Ø²ÎÊı     uint8                   ºÍÖµ
-// Ê¹ÓÃÊ¾Àı
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹æ±‚å’Œå‡½æ•°
+// å‚æ•°è¯´æ˜     *buffer                 éœ€è¦æ ¡éªŒçš„æ•°æ®åœ°å€
+// å‚æ•°è¯´æ˜     length                  æ ¡éªŒé•¿åº¦
+// è¿”å›å‚æ•°     uint8                   å’Œå€¼
+// ä½¿ç”¨ç¤ºä¾‹
 //-------------------------------------------------------------------------------------------------------------------
 static uint8 seekfree_assistant_sum (void *buffer, uint32 length)
 {
@@ -97,15 +97,15 @@ static uint8 seekfree_assistant_sum (void *buffer, uint32 length)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CCD Í¼Ïñ ÅäÖÃ
-// ²ÎÊıËµÃ÷     *ccd_obj                CCD Êı¾İ½á¹¹Ìå
-// ²ÎÊıËµÃ÷     data_type               Êı¾İÀàĞÍ Ïê¼û seekfree_assistant_data_type_enum
-// ²ÎÊıËµÃ÷     channel_index           CCD Í¨µÀ
-// ²ÎÊıËµÃ÷     channel_color           Í¨µÀÒªÊ¹ÓÃµÄÑÕÉ«
-// ²ÎÊıËµÃ÷     data_lenght             CCD Êı¾İ³¤¶È
-// ²ÎÊıËµÃ÷     *data_buffer            CCD Êı¾İ»º³åÇø
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_ccd_config(ccd_obj, data_type, channel_index, channel_color, data_lenght, data_buffer);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CCD å›¾åƒ é…ç½®
+// å‚æ•°è¯´æ˜     *ccd_obj                CCD æ•°æ®ç»“æ„ä½“
+// å‚æ•°è¯´æ˜     data_type               æ•°æ®ç±»å‹ è¯¦è§ seekfree_assistant_data_type_enum
+// å‚æ•°è¯´æ˜     channel_index           CCD é€šé“
+// å‚æ•°è¯´æ˜     channel_color           é€šé“è¦ä½¿ç”¨çš„é¢œè‰²
+// å‚æ•°è¯´æ˜     data_lenght             CCD æ•°æ®é•¿åº¦
+// å‚æ•°è¯´æ˜     *data_buffer            CCD æ•°æ®ç¼“å†²åŒº
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_ccd_config(ccd_obj, data_type, channel_index, channel_color, data_lenght, data_buffer);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_ccd_config (
     seekfree_assistant_ccd_struct *ccd_obj,
@@ -132,7 +132,7 @@ void seekfree_assistant_ccd_config (
     }
 
     #if (SEEKFREE_ASSISTANT_STC_DATA_ENABLE)
-    // Èç¹ûÊÇ STC ÄÇÃ´´óĞ¡¶Ë·´Ò»ÏÂ
+    // å¦‚æœæ˜¯ STC é‚£ä¹ˆå¤§å°ç«¯åä¸€ä¸‹
     ccd_obj->config.data_lenght_buffer[0]   = (uint8)((data_lenght      >> 8) & 0x00FF);
     ccd_obj->config.data_lenght_buffer[1]   = (uint8)((data_lenght      >> 0) & 0x00FF);
     ccd_obj->config.channel_color_buffer[0] = (uint8)((channel_color    >> 8) & 0x00FF);
@@ -150,20 +150,20 @@ void seekfree_assistant_ccd_config (
 
     if(     SEEKFREE_ASSISTANT_STC_DATA_ENABLE
         &&  SEEKFREE_ASSISTANT_DATA_TYPE_UINT16 == data_type)
-    {   // Èç¹ûÊÇ uint16 ÀàĞÍÊı¾İ ÇÒÊÇ STC µ¥Æ¬»ú ÄÇÃ´Êı¾İÀàĞÍĞŞ¸ÄÎª 0x02
+    {   // å¦‚æœæ˜¯ uint16 ç±»å‹æ•°æ® ä¸”æ˜¯ STC å•ç‰‡æœº é‚£ä¹ˆæ•°æ®ç±»å‹ä¿®æ”¹ä¸º 0x02
         ccd_obj->config.data_type           = data_type + 1;
     }
     else
-    {   // ·ñÔòµÄ»°¾ÍÕı³£ uint8 Êı¾İ»òÕß uint16 Êı¾İ
+    {   // å¦åˆ™çš„è¯å°±æ­£å¸¸ uint8 æ•°æ®æˆ–è€… uint16 æ•°æ®
         ccd_obj->config.data_type           = data_type;
     }
 
-    // ¼ÇÂ¼Êµ¼ÊÊı¾İ×Ö½ÚÊı Èç¹ûÊÇ uint16 ÔòĞèÒª·­±¶Êı¾İ³¤¶È
+    // è®°å½•å®é™…æ•°æ®å­—èŠ‚æ•° å¦‚æœæ˜¯ uint16 åˆ™éœ€è¦ç¿»å€æ•°æ®é•¿åº¦
     ccd_obj->buffer_byte_size               = data_lenght * ((data_type) ? (2) : (1));
-    // È»ºó¼ÇÂ¼¶ÔÓ¦Êı¾İ»º³åÇø
+    // ç„¶åè®°å½•å¯¹åº”æ•°æ®ç¼“å†²åŒº
     ccd_obj->data_buffer                    = data_buffer;
 
-    // ºÍĞ£Ñé¼ÆËã
+    // å’Œæ ¡éªŒè®¡ç®—
     ccd_obj->config.check_sum  = SEEKFREE_ASSISTANT_SEND_HEAD;
     ccd_obj->config.check_sum += seekfree_assistant_sum(
         &(ccd_obj->config.cmd),
@@ -171,10 +171,10 @@ void seekfree_assistant_ccd_config (
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CCD Í¼Ïñ ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     *ccd_obj                CCD Êı¾İ½á¹¹Ìå
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_ccd_send(ccd_obj);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CCD å›¾åƒ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     *ccd_obj                CCD æ•°æ®ç»“æ„ä½“
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_ccd_send(ccd_obj);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_ccd_send (seekfree_assistant_ccd_struct *ccd_obj)
 {
@@ -187,14 +187,14 @@ void seekfree_assistant_ccd_send (seekfree_assistant_ccd_struct *ccd_obj)
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CAMERA Í¼Ïñ ÅäÖÃ
-// ²ÎÊıËµÃ÷     *camera_obj             CAMERA Êı¾İ½á¹¹Ìå
-// ²ÎÊıËµÃ÷     camera_type             CAMERA ÀàĞÍ Ïê¼û seekfree_assistant_camera_type_enum
-// ²ÎÊıËµÃ÷     image_width             CAMERA Í¼Ïñ¿í¶È
-// ²ÎÊıËµÃ÷     image_height            CAMERA Í¼Ïñ¸ß¶È
-// ²ÎÊıËµÃ÷     *data_buffer            CAMERA Í¼Ïñ»º³åÇø
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_camera_config(camera_obj, camera_type, image_width, image_height, data_buffer);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CAMERA å›¾åƒ é…ç½®
+// å‚æ•°è¯´æ˜     *camera_obj             CAMERA æ•°æ®ç»“æ„ä½“
+// å‚æ•°è¯´æ˜     camera_type             CAMERA ç±»å‹ è¯¦è§ seekfree_assistant_camera_type_enum
+// å‚æ•°è¯´æ˜     image_width             CAMERA å›¾åƒå®½åº¦
+// å‚æ•°è¯´æ˜     image_height            CAMERA å›¾åƒé«˜åº¦
+// å‚æ•°è¯´æ˜     *data_buffer            CAMERA å›¾åƒç¼“å†²åŒº
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_camera_config(camera_obj, camera_type, image_width, image_height, data_buffer);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_camera_config (
     seekfree_assistant_camera_struct *camera_obj,
@@ -211,7 +211,7 @@ void seekfree_assistant_camera_config (
     camera_obj->config.camera_type              = camera_type;
 
     #if (SEEKFREE_ASSISTANT_STC_DATA_ENABLE)
-    // Èç¹ûÊÇ STC ÄÇÃ´´óĞ¡¶Ë·´Ò»ÏÂ
+    // å¦‚æœæ˜¯ STC é‚£ä¹ˆå¤§å°ç«¯åä¸€ä¸‹
     camera_obj->config.image_width_buffer[0]    = (uint8)((image_width  >> 8) & 0x00FF);
     camera_obj->config.image_width_buffer[1]    = (uint8)((image_width  >> 0) & 0x00FF);
     camera_obj->config.image_height_buffer[0]   = (uint8)((image_height >> 8) & 0x00FF);
@@ -234,7 +234,7 @@ void seekfree_assistant_camera_config (
         camera_obj->config.data_type            = (NULL == data_buffer) ? (0x00) : (0x01);
     }
 
-    // Èç¹ûÊÇ RGB565 Í¼Ïñ ÄÇÃ´Êı¾İ×Ö½ÚÊı·­±¶
+    // å¦‚æœæ˜¯ RGB565 å›¾åƒ é‚£ä¹ˆæ•°æ®å­—èŠ‚æ•°ç¿»å€
     camera_obj->buffer_byte_size                = 
             image_width * image_height
         *   ((SEEKFREE_ASSISTANT_CAMERA_TYPE_RGB565 == camera_type) ? (2) : (1));
@@ -244,7 +244,7 @@ void seekfree_assistant_camera_config (
         :   (camera_obj->buffer_byte_size);
     camera_obj->data_buffer                     = data_buffer;
 
-    // ºÍĞ£Ñé¼ÆËã
+    // å’Œæ ¡éªŒè®¡ç®—
     camera_obj->config.check_sum  = SEEKFREE_ASSISTANT_SEND_HEAD;
     camera_obj->config.check_sum += seekfree_assistant_sum(
         &(camera_obj->config.cmd),
@@ -252,10 +252,10 @@ void seekfree_assistant_camera_config (
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CAMERA Í¼Ïñ ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     *camera_obj             CAMERA Êı¾İ½á¹¹Ìå
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_camera_send(camera_obj);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CAMERA å›¾åƒ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     *camera_obj             CAMERA æ•°æ®ç»“æ„ä½“
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_camera_send(camera_obj);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_camera_send (seekfree_assistant_camera_struct *camera_obj)
 {
@@ -271,14 +271,14 @@ void seekfree_assistant_camera_send (seekfree_assistant_camera_struct *camera_ob
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CAMERA ±ßÏß ÅäÖÃ
-// ²ÎÊıËµÃ÷     *camera_boundary_obj    CAMERA ±ßÏß Êı¾İ½á¹¹Ìå
-// ²ÎÊıËµÃ÷     data_type               Êı¾İÀàĞÍ Ïê¼û seekfree_assistant_data_type_enum
-// ²ÎÊıËµÃ÷     color                   ÒªÊ¹ÓÃµÄÑÕÉ«
-// ²ÎÊıËµÃ÷     boundary_lenght         CAMERA ±ßÏß ³¤¶È
-// ²ÎÊıËµÃ÷     *data_buffer            CAMERA ±ßÏß Í¼Ïñ»º³åÇø
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_camera_boundary_config(camera_boundary_obj, data_type, color, boundary_lenght, data_buffer);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CAMERA è¾¹çº¿ é…ç½®
+// å‚æ•°è¯´æ˜     *camera_boundary_obj    CAMERA è¾¹çº¿ æ•°æ®ç»“æ„ä½“
+// å‚æ•°è¯´æ˜     data_type               æ•°æ®ç±»å‹ è¯¦è§ seekfree_assistant_data_type_enum
+// å‚æ•°è¯´æ˜     color                   è¦ä½¿ç”¨çš„é¢œè‰²
+// å‚æ•°è¯´æ˜     boundary_lenght         CAMERA è¾¹çº¿ é•¿åº¦
+// å‚æ•°è¯´æ˜     *data_buffer            CAMERA è¾¹çº¿ å›¾åƒç¼“å†²åŒº
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_camera_boundary_config(camera_boundary_obj, data_type, color, boundary_lenght, data_buffer);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_camera_boundary_config (
     seekfree_assistant_camera_boundary_struct *camera_boundary_obj,
@@ -296,16 +296,16 @@ void seekfree_assistant_camera_boundary_config (
 
     if(     SEEKFREE_ASSISTANT_STC_DATA_ENABLE
         &&  SEEKFREE_ASSISTANT_DATA_TYPE_UINT16 == data_type)
-    {   // Èç¹ûÊÇ uint16 ÀàĞÍÊı¾İ ÇÒÊÇ STC µ¥Æ¬»ú ÄÇÃ´Êı¾İÀàĞÍĞŞ¸ÄÎª 0x02
+    {   // å¦‚æœæ˜¯ uint16 ç±»å‹æ•°æ® ä¸”æ˜¯ STC å•ç‰‡æœº é‚£ä¹ˆæ•°æ®ç±»å‹ä¿®æ”¹ä¸º 0x02
         camera_boundary_obj->config.data_type       = data_type + 1;
     }
     else
-    {   // ·ñÔòµÄ»°¾ÍÕı³£ uint8 Êı¾İ»òÕß uint16 Êı¾İ
+    {   // å¦åˆ™çš„è¯å°±æ­£å¸¸ uint8 æ•°æ®æˆ–è€… uint16 æ•°æ®
         camera_boundary_obj->config.data_type       = data_type;
     }
 
     #if (SEEKFREE_ASSISTANT_STC_DATA_ENABLE)
-    // Èç¹ûÊÇ STC ÄÇÃ´´óĞ¡¶Ë·´Ò»ÏÂ
+    // å¦‚æœæ˜¯ STC é‚£ä¹ˆå¤§å°ç«¯åä¸€ä¸‹
     camera_boundary_obj->config.boundary_lenght_buffer[0]   = (uint8)((boundary_lenght  >> 8) & 0x00FF);
     camera_boundary_obj->config.boundary_lenght_buffer[1]   = (uint8)((boundary_lenght  >> 0) & 0x00FF);
     camera_boundary_obj->config.color_buffer[0]             = (uint8)((color            >> 8) & 0x00FF);
@@ -322,7 +322,7 @@ void seekfree_assistant_camera_boundary_config (
         *   ((SEEKFREE_ASSISTANT_DATA_TYPE_UINT8 == data_type) ? (1) : (2));
     camera_boundary_obj->data_buffer        = data_buffer;
 
-    // ºÍĞ£Ñé¼ÆËã
+    // å’Œæ ¡éªŒè®¡ç®—
     camera_boundary_obj->config.check_sum  = SEEKFREE_ASSISTANT_SEND_HEAD;
     camera_boundary_obj->config.check_sum += seekfree_assistant_sum(
         &(camera_boundary_obj->config.cmd),
@@ -330,10 +330,10 @@ void seekfree_assistant_camera_boundary_config (
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CAMERA ±ßÏß ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     *camera_boundary_obj    CAMERA ±ßÏß Êı¾İ½á¹¹Ìå
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_camera_boundary_send(camera_boundary_obj);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CAMERA è¾¹çº¿ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     *camera_boundary_obj    CAMERA è¾¹çº¿ æ•°æ®ç»“æ„ä½“
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_camera_boundary_send(camera_boundary_obj);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_camera_boundary_send (seekfree_assistant_camera_boundary_struct *camera_boundary_obj)
 {
@@ -346,14 +346,14 @@ void seekfree_assistant_camera_boundary_send (seekfree_assistant_camera_boundary
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ CAMERA ¾ØĞÎ¿òÏß ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     x                       X Öá×ø±ê
-// ²ÎÊıËµÃ÷     y                       Y Öá×ø±ê »º³å
-// ²ÎÊıËµÃ÷     width                   ¾ØĞÎ¿í¶È
-// ²ÎÊıËµÃ÷     height                  ¾ØĞÎ¸ß¶È
-// ²ÎÊıËµÃ÷     color                   ¾ØĞÎÑÕÉ«
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_camera_rectangular_send(x, y, width, height, color);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ CAMERA çŸ©å½¢æ¡†çº¿ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     x                       X è½´åæ ‡
+// å‚æ•°è¯´æ˜     y                       Y è½´åæ ‡ ç¼“å†²
+// å‚æ•°è¯´æ˜     width                   çŸ©å½¢å®½åº¦
+// å‚æ•°è¯´æ˜     height                  çŸ©å½¢é«˜åº¦
+// å‚æ•°è¯´æ˜     color                   çŸ©å½¢é¢œè‰²
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_camera_rectangular_send(x, y, width, height, color);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_camera_rectangular_send (uint16 x, uint16 y, uint16 width, uint16 height, uint16 color)
 {
@@ -363,7 +363,7 @@ void seekfree_assistant_camera_rectangular_send (uint16 x, uint16 y, uint16 widt
     camera_rectangular_obj.cmd      = SEEKFREE_ASSISTANT_SEND_CAMERA_RECTANGULAR_CMD;
 
     #if (SEEKFREE_ASSISTANT_STC_DATA_ENABLE)
-    // Èç¹ûÊÇ STC ÄÇÃ´´óĞ¡¶Ë·´Ò»ÏÂ
+    // å¦‚æœæ˜¯ STC é‚£ä¹ˆå¤§å°ç«¯åä¸€ä¸‹
     camera_rectangular_obj.x_axis_buffer[0]     = (uint8)((x        >> 8) & 0x00FF);
     camera_rectangular_obj.x_axis_buffer[1]     = (uint8)((x        >> 0) & 0x00FF);
     camera_rectangular_obj.y_axis_buffer[0]     = (uint8)((y        >> 8) & 0x00FF);
@@ -387,7 +387,7 @@ void seekfree_assistant_camera_rectangular_send (uint16 x, uint16 y, uint16 widt
     camera_rectangular_obj.color_buffer[1]      = (uint8)((color    >> 8) & 0x00FF);
     #endif
 
-    // ºÍĞ£Ñé¼ÆËã
+    // å’Œæ ¡éªŒè®¡ç®—
     camera_rectangular_obj.check_sum            = SEEKFREE_ASSISTANT_SEND_HEAD;
     camera_rectangular_obj.check_sum           += seekfree_assistant_sum(
         &(camera_rectangular_obj.cmd),
@@ -399,11 +399,11 @@ void seekfree_assistant_camera_rectangular_send (uint16 x, uint16 y, uint16 widt
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ ĞéÄâÊ¾²¨Æ÷ ÅäÖÃ
-// ²ÎÊıËµÃ÷     *oscilloscope_obj       Ê¾²¨Æ÷Êı¾İ½á¹¹Ìå
-// ²ÎÊıËµÃ÷     channel_max             ×î´óÍ¨µÀÊıÁ¿ ·¶Î§ÊÇ [1, SEEKFREE_ASSISTANT_OSCILLOSCOPE_MAX] ³¬¹ı·¶Î§»áËõÏŞµ½Õâ¸ö·¶Î§
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_oscilloscope_config(oscilloscope_obj, SEEKFREE_ASSISTANT_OSCILLOSCOPE_MAX);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ è™šæ‹Ÿç¤ºæ³¢å™¨ é…ç½®
+// å‚æ•°è¯´æ˜     *oscilloscope_obj       ç¤ºæ³¢å™¨æ•°æ®ç»“æ„ä½“
+// å‚æ•°è¯´æ˜     channel_max             æœ€å¤§é€šé“æ•°é‡ èŒƒå›´æ˜¯ [1, SEEKFREE_ASSISTANT_OSCILLOSCOPE_MAX] è¶…è¿‡èŒƒå›´ä¼šç¼©é™åˆ°è¿™ä¸ªèŒƒå›´
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_oscilloscope_config(oscilloscope_obj, SEEKFREE_ASSISTANT_OSCILLOSCOPE_MAX);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_oscilloscope_config (
     seekfree_assistant_oscilloscope_struct *oscilloscope_obj,
@@ -426,14 +426,14 @@ void seekfree_assistant_oscilloscope_config (
 }
 
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ ĞéÄâÊ¾²¨Æ÷ ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     *seekfree_assistant_oscilloscope  Ê¾²¨Æ÷Êı¾İ½á¹¹Ìå
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_oscilloscope_send(&seekfree_assistant_oscilloscope_data);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ è™šæ‹Ÿç¤ºæ³¢å™¨ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     *seekfree_assistant_oscilloscope  ç¤ºæ³¢å™¨æ•°æ®ç»“æ„ä½“
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_oscilloscope_send(&seekfree_assistant_oscilloscope_data);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_oscilloscope_send (seekfree_assistant_oscilloscope_struct *oscilloscope_obj)
 {
-    // ºÍĞ£Ñé¼ÆËã
+    // å’Œæ ¡éªŒè®¡ç®—
     oscilloscope_obj->config.check_sum  = SEEKFREE_ASSISTANT_SEND_HEAD;
     oscilloscope_obj->config.check_sum += seekfree_assistant_sum(
         &(oscilloscope_obj->config.cmd),
@@ -452,27 +452,27 @@ void seekfree_assistant_oscilloscope_send (seekfree_assistant_oscilloscope_struc
 
 #if (SEEKFREE_ASSISTANT_DEBUG_PARAM_ENABLE)
 //-------------------------------------------------------------------------------------------------------------------
-// º¯Êı¼ò½é     Öğ·ÉÖúÊÖ ĞéÄâÊ¾²¨Æ÷ ·¢ËÍº¯Êı
-// ²ÎÊıËµÃ÷     *debug_param_obj        Ê¾²¨Æ÷Êı¾İ½á¹¹Ìå
-// ·µ»Ø²ÎÊı     void
-// Ê¹ÓÃÊ¾Àı     seekfree_assistant_oscilloscope_send(&seekfree_assistant_oscilloscope_data);
+// å‡½æ•°ç®€ä»‹     é€é£åŠ©æ‰‹ è™šæ‹Ÿç¤ºæ³¢å™¨ å‘é€å‡½æ•°
+// å‚æ•°è¯´æ˜     *debug_param_obj        ç¤ºæ³¢å™¨æ•°æ®ç»“æ„ä½“
+// è¿”å›å‚æ•°     void
+// ä½¿ç”¨ç¤ºä¾‹     seekfree_assistant_oscilloscope_send(&seekfree_assistant_oscilloscope_data);
 //-------------------------------------------------------------------------------------------------------------------
 void seekfree_assistant_debug_param_analysis (seekfree_assistant_debug_param_struct *debug_param_obj)
 {
     zf_assert(NULL != debug_param_obj);
 
-    seekfree_assistant_debug_param_cmd_struct debug_param_cmd_obj;              // ĞÂ½¨Ò»¸öÊı¾İ°ü
-    uint8   *debug_param_cmd_pointer = (uint8 *)&debug_param_cmd_obj;           // ÓÃÒ»¸öÖ¸ÕëÖ¸ÏòÊı¾İ°ü·½±ã²Ù×÷
-    uint8   temp_sum = 0xFF;                                                    // Ğ£ÑéºÍÁÙÊ±±äÁ¿
-    uint32  read_length = 0;                                                    // ¶ÁÈ¡³¤¶ÈÓÃÁÙÊ±±äÁ¿
+    seekfree_assistant_debug_param_cmd_struct debug_param_cmd_obj;              // æ–°å»ºä¸€ä¸ªæ•°æ®åŒ…
+    uint8   *debug_param_cmd_pointer = (uint8 *)&debug_param_cmd_obj;           // ç”¨ä¸€ä¸ªæŒ‡é’ˆæŒ‡å‘æ•°æ®åŒ…æ–¹ä¾¿æ“ä½œ
+    uint8   temp_sum = 0xFF;                                                    // æ ¡éªŒå’Œä¸´æ—¶å˜é‡
+    uint32  read_length = 0;                                                    // è¯»å–é•¿åº¦ç”¨ä¸´æ—¶å˜é‡
 
-    // ³¢ÊÔ¶ÁÈ¡Ò»¸öÊı¾İ°ü
-    // Èç¹û²»ÊÇ×Ô¶¨ÒåµÄ´«Êä·½Ê½Ôò´Ó½ÓÊÕ»Øµ÷ÖĞ¶ÁÈ¡Êı¾İ
+    // å°è¯•è¯»å–ä¸€ä¸ªæ•°æ®åŒ…
+    // å¦‚æœä¸æ˜¯è‡ªå®šä¹‰çš„ä¼ è¾“æ–¹å¼åˆ™ä»æ¥æ”¶å›è°ƒä¸­è¯»å–æ•°æ®
     read_length = seekfree_assistant_receive_callback(
         debug_param_cmd_pointer,
         sizeof(seekfree_assistant_debug_param_cmd_struct));
     if(read_length)
-    {   // Èç¹ûÓĞÊı¾İ ½«¶ÁÈ¡µ½µÄÊı¾İĞ´ÈëFIFO
+    {   // å¦‚æœæœ‰æ•°æ® å°†è¯»å–åˆ°çš„æ•°æ®å†™å…¥FIFO
         fifo_write_buffer(
             &seekfree_assistant_debug_param_fifo,
             debug_param_cmd_pointer,
@@ -481,8 +481,8 @@ void seekfree_assistant_debug_param_analysis (seekfree_assistant_debug_param_str
 
     while(  sizeof(seekfree_assistant_debug_param_cmd_struct)
         <=  fifo_used(&seekfree_assistant_debug_param_fifo))
-    {   // Èç¹û FIFO ÖĞÊı¾İÁ¿´óÓÚÒ»¸öÊı¾İ°ü ÄÇÃ´¾Í½øĞĞ½âÎö
-        // Ö±½Ó¶ÁÒ»¸öÊı¾İ°ü³¤¶È
+    {   // å¦‚æœ FIFO ä¸­æ•°æ®é‡å¤§äºä¸€ä¸ªæ•°æ®åŒ… é‚£ä¹ˆå°±è¿›è¡Œè§£æ
+        // ç›´æ¥è¯»ä¸€ä¸ªæ•°æ®åŒ…é•¿åº¦
         read_length = sizeof(seekfree_assistant_debug_param_cmd_struct);
         fifo_read_buffer(
             &seekfree_assistant_debug_param_fifo,
@@ -492,14 +492,14 @@ void seekfree_assistant_debug_param_analysis (seekfree_assistant_debug_param_str
 
         if(     SEEKFREE_ASSISTANT_RECEIVE_HEAD == debug_param_cmd_pointer[0]
             &&  SEEKFREE_ASSISTANT_RECEIVE_DEBUG_PARAM_CMD == debug_param_cmd_pointer[2])
-        {   // Ö±½ÓÆ¥ÅäÉÏÖ¡Í· ²¢ÇÒ¹¦ÄÜ×ÖÒ²Æ¥Åä
-            temp_sum = debug_param_cmd_obj.check_sum;                           // ¶ÁÈ¡Êı¾İ°üµÄĞ£ÑéºÍ
-            debug_param_cmd_obj.check_sum = 0;                                  // Çå¿Õ°üÄÚĞ£ÑéºÍÖµ ·½±ã¼ÆËãÕû°üĞ£ÑéºÍ
+        {   // ç›´æ¥åŒ¹é…ä¸Šå¸§å¤´ å¹¶ä¸”åŠŸèƒ½å­—ä¹ŸåŒ¹é…
+            temp_sum = debug_param_cmd_obj.check_sum;                           // è¯»å–æ•°æ®åŒ…çš„æ ¡éªŒå’Œ
+            debug_param_cmd_obj.check_sum = 0;                                  // æ¸…ç©ºåŒ…å†…æ ¡éªŒå’Œå€¼ æ–¹ä¾¿è®¡ç®—æ•´åŒ…æ ¡éªŒå’Œ
             if( temp_sum ==  seekfree_assistant_sum(debug_param_cmd_pointer, sizeof(seekfree_assistant_debug_param_cmd_struct)))
-            {   // ºÍĞ£Ñé³É¹¦±£´æÊı¾İ
+            {   // å’Œæ ¡éªŒæˆåŠŸä¿å­˜æ•°æ®
                 debug_param_obj->data[debug_param_cmd_obj.channel_index - 1] = debug_param_cmd_obj.dat.data_float;
                 #if (SEEKFREE_ASSISTANT_STC_DATA_ENABLE)
-                // Èç¹ûÊÇ STC ÄÇÃ´´óĞ¡¶Ë·´Ò»ÏÂ
+                // å¦‚æœæ˜¯ STC é‚£ä¹ˆå¤§å°ç«¯åä¸€ä¸‹
                 debug_param_obj->dat.data_buffer[0] ^= debug_param_obj->dat.data_buffer[3];
                 debug_param_obj->dat.data_buffer[3] ^= debug_param_obj->dat.data_buffer[0];
                 debug_param_obj->dat.data_buffer[0] ^= debug_param_obj->dat.data_buffer[3];
@@ -511,27 +511,27 @@ void seekfree_assistant_debug_param_analysis (seekfree_assistant_debug_param_str
                 temp_sum = 0x00;
             }
             else
-            {   // Èç¹ûĞ£ÑéºÍÆ¥Åä´íÎó ÖÃÎ»ÁÙÊ±Ğ£ÑéºÍÎª 0xFF ±íÊ¾½âÎö´íÎó
+            {   // å¦‚æœæ ¡éªŒå’ŒåŒ¹é…é”™è¯¯ ç½®ä½ä¸´æ—¶æ ¡éªŒå’Œä¸º 0xFF è¡¨ç¤ºè§£æé”™è¯¯
                 temp_sum = 0xFF;
             }
         }
         else
-        {   // Èç¹ûÆ¥Åä²»ÉÏÖ¡Í·ºÍ¹¦ÄÜ×Ö ÖÃÎ»ÁÙÊ±Ğ£ÑéºÍÎª 0xFF ±íÊ¾½âÎö´íÎó
+        {   // å¦‚æœåŒ¹é…ä¸ä¸Šå¸§å¤´å’ŒåŠŸèƒ½å­— ç½®ä½ä¸´æ—¶æ ¡éªŒå’Œä¸º 0xFF è¡¨ç¤ºè§£æé”™è¯¯
             temp_sum = 0xFF;
         }
 
         if(0xFF == temp_sum)
-        {   // Èç¹ûÅÜÍêÒ»±é°ü½âÎöºóÁÙÊ±Ğ£ÑéºÍÎª 0xFF ÄÇÃ´¾ÍÊÇ½âÎö´íÎó ´ÓÊı¾İÖĞÑ°ÕÒÏÂÒ»¸öÖ¡Í·
+        {   // å¦‚æœè·‘å®Œä¸€éåŒ…è§£æåä¸´æ—¶æ ¡éªŒå’Œä¸º 0xFF é‚£ä¹ˆå°±æ˜¯è§£æé”™è¯¯ ä»æ•°æ®ä¸­å¯»æ‰¾ä¸‹ä¸€ä¸ªå¸§å¤´
             for(read_length = 1; sizeof(seekfree_assistant_debug_param_cmd_struct) > read_length; read_length ++)
-            {   // ÒòÎª¶ÁÈ¡µÄÒ»Õû°ü ËùÒÔ×î´ó±éÀúÒ»Õû°ü
+            {   // å› ä¸ºè¯»å–çš„ä¸€æ•´åŒ… æ‰€ä»¥æœ€å¤§éå†ä¸€æ•´åŒ…
                 if(SEEKFREE_ASSISTANT_RECEIVE_HEAD == debug_param_cmd_pointer[read_length])
-                {   // ÕÒµ½ÏÂ¸öÖ¡Í·¾ÍÍË³ö
+                {   // æ‰¾åˆ°ä¸‹ä¸ªå¸§å¤´å°±é€€å‡º
                     break;
                 }
             }
         }
 
-        // ¶ªÆúÎŞĞèÊ¹ÓÃµÄÊı¾İ
+        // ä¸¢å¼ƒæ— éœ€ä½¿ç”¨çš„æ•°æ®
         fifo_read_buffer(
             &seekfree_assistant_debug_param_fifo,
             debug_param_cmd_pointer,

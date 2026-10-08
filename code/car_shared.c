@@ -38,6 +38,7 @@ volatile uint32_t car_camera_capture_time_ms;
 volatile uint32_t car_camera_completed_generation;
 volatile uint32_t car_camera_completed_time_ms;
 volatile uint8_t car_center_stop_request;
+volatile uint8_t car_vision_reset_request;
 volatile car_control_snapshot_t car_control_snapshots[2];
 volatile uint8_t car_control_snapshot_index;
 
@@ -71,6 +72,7 @@ void car_shared_clear(void)
     car_camera_completed_generation = 0;
     car_camera_completed_time_ms = 0;
     car_center_stop_request = 0;
+    car_vision_reset_request = 0;
     for (slot = 0; slot < CAR_FRAME_SLOT_COUNT; slot++) {
         car_frame_state[slot] = CAR_FRAME_FREE;
         car_frame_slot_sequence[slot] = 0;

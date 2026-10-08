@@ -15,6 +15,7 @@ extern int16 Road_Wide[MT9V03X_H];
 extern int16 Left_Lost_Time;
 extern int16 Right_Lost_Time;
 extern int16 Both_Lost_Time;
+void Longest_White_Column_Reset(void);
 void Longest_White_Column(void);
 
 #endif

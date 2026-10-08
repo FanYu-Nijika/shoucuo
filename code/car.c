@@ -4,6 +4,7 @@
 #include "balance_control.h"
 #include "balance_runtime.h"
 #include "board_pins.h"
+#include "car_shared.h"
 #include "math_utils.h"
 
 volatile uint8 car_running;
@@ -99,8 +100,13 @@ void car_follow_stop(void)
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
     follow_stage_started_ms = 0;
+    car_lost_count = 0;
+    last_control_capture_ms = 0;
     car_reset_turn();
     balance_cancel_follow_command();
+    /* CPU1 owns the image history; request its reset before processing another frame. */
+    car_vision_reset_request = 1;
+    __dsync();
 }
 
 void car_track_update(float error, float curvature, uint8 valid, uint8 new_result, uint32 capture_ms, uint32 now_ms)
