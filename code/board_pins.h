@@ -44,11 +44,11 @@
 #define BOARD_MOTOR4_PWM_PIN               (ATOM2_CH4_P33_8)
 #define BOARD_SERVO_AUX_GPIO_PIN           (P33_4)
 #define BOARD_SERVO_PWM_PIN                (ATOM3_CH0_P33_4)
-// 左右名称沿用既有轮通道，保留标定对应关系；当前镜头朝向由循迹差速符号适配。
-#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)
-#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)
-#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)
-#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR2_PWM_PIN)
+// 实车 LEFT/RIGHT 控制反轮，只交换两组电机通道，保留组内正反转极性。
+#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR1_PWM_PIN)
+#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR2_PWM_PIN)
+#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR3_PWM_PIN)
+#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR4_PWM_PIN)
 
 // 轴编号固定为 0=X、1=Y、2=Z；符号用于上车后快速校正安装方向。
 #define BOARD_BALANCE_AXIS_X               (0)
@@ -62,13 +62,13 @@
 #define BOARD_BALANCE_GYRO_SIGN            (1)
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
 #define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)
-// 硬件左右对调后，新前进方向的原始计数符号也对调，故两个符号宏数值不变。
-#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)
-#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
-// 新车头朝原车尾，正 PWM 才是新前进方向；IMU 与直立 PD 的物理负反馈保持不变。
-#define BOARD_FOLLOW_FORWARD_PWM_SIGN      (1)
-// 根据实车反馈校正循迹方向，保持既有轮通道和已验证的直立共模方向。
-#define BOARD_FOLLOW_TURN_PWM_SIGN         (1)
+// 镜头相对当前朝向转 180°，两轮计数同时反号，使新的前进方向仍为正速度。
+#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)
+#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)
+// 反向行驶使用负 PWM；只改变速度环的目标倾角方向，保留 IMU 与直立 PD 的物理负反馈。
+#define BOARD_FOLLOW_FORWARD_PWM_SIGN      (-1)
+// 轮通道不交换，右转的物理偏航方向不随车头反转，因此保留已校正的差速符号。
+#define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
 // H7=P20.3/P20.0、H4=P02.6/P02.7；控制左右沿用原映射，不改变各轮 Flash 标定归属。

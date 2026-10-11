@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define BALANCE_VOFA_PERIOD_MS 100u
+#define BALANCE_VOFA_PERIOD_MS 20u
 #define BALANCE_VOFA_COMMAND_LEN 32u
 
 static char command[BALANCE_VOFA_COMMAND_LEN];
@@ -67,7 +67,7 @@ static void balance_vofa_apply_command(char *line)
         // printf("ERR\n");
         return;
     }
-    if (!balance_vofa_parse_number(number, &value) || (field != 2 && value < 0)) {
+    if (!balance_vofa_parse_number(number, &value)) {
         // printf("ERR\n");
         return;
     }
@@ -108,26 +108,23 @@ static void balance_vofa_receive(void)
     }
 }
 
-static void balance_vofa_send(void)
+static void balance_vofa_send(uint32 now_ms)
 {
-    int32_t left_count;
-    int32_t right_count;
-    float raw_speed;
-    float filtered_speed;
+    balance_state_t state;
     uint32 interrupt_state;
 
-    /* The PIT updates these fields separately; a short snapshot keeps one frame coherent. */
+    /* Snapshot the ISR state together, but keep serial formatting outside the critical section. */
     interrupt_state = interrupt_global_disable();
-    /* Schematic wheel labels use the old front; control names use the camera-facing front. */
-    left_count = balance_state.right_count;
-    right_count = balance_state.left_count;
-    raw_speed = balance_state.speed_raw_mps;
-    filtered_speed = balance_state.speed_filtered_mps;
+    state = balance_state;
     interrupt_global_enable(interrupt_state);
-
-    // Count fields are the latest 20 ms window; printing stays outside the control interrupt.
-    printf("%ld,%ld,%ld,%ld\n", (long)left_count, (long)right_count,
-           (long)(raw_speed * 100.0f), (long)(filtered_speed * 100.0f));
+    /* Keep the original six channels first so existing scope plots keep their meaning. */
+    printf("speed:%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.0f,%.0f,%ld,%ld,%d,%d,%u,%u,%u\n",
+           state.speed_target_applied_mps, state.speed_filtered_mps, state.speed_angle_applied,
+           state.target_angle, state.angle, state.balance_output, (unsigned long)now_ms,
+           state.speed_raw_mps, state.speed_feedback_mps, state.speed_error_mps, state.speed_p_angle,
+           state.speed_integral_angle, state.gyro_rate, state.turn_pwm_command, state.turn_output,
+           (long)state.left_count, (long)state.right_count, state.left_pwm, state.right_pwm,
+           (unsigned)state.speed_pid_active, (unsigned)state.running, (unsigned)state.fault);
 }
 
 void balance_vofa_task(void)
@@ -153,5 +150,5 @@ void balance_vofa_task(void)
     balance_vofa_receive();
     if (now_ms - last_send_ms < BALANCE_VOFA_PERIOD_MS) return;
     last_send_ms = now_ms;
-    balance_vofa_send();
+    balance_vofa_send(now_ms);
 }

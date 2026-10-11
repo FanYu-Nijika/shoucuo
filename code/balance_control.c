@@ -13,9 +13,8 @@ static const float balance_dt_s = BALANCE_CONTROL_PERIOD_MS * 0.001f;
 static const float balance_motor_pwm_max = 10000.0f;
 static const float speed_dt_s = 0.02f;
 static const float wheel_circumference_m = 0.065f * 3.14159265f;
-static const float speed_filter_weight = 0.25f;
-static const float speed_target_step_mps = 0.02f;
-static const float speed_angle_step_deg = 0.04f;
+/* Favor the current 2 ms measurement so speed feedback responds promptly. */
+static const float speed_filter_weight = 0.9f;
 
 #define BALANCE_PARAMS_FLASH_SECTOR        (0)
 #define BALANCE_PARAMS_FLASH_PAGE          (9)
@@ -146,6 +145,7 @@ static uint32_t left_count_total;
 static uint32_t right_count_total;
 static uint32_t encoder_calibration_start_count;
 static uint8_t encoder_sample_phase;
+static volatile uint8_t speed_control_active;
 static float requested_speed_mps;
 static float requested_turn_pwm;
 static float requested_lean_angle;
@@ -199,13 +199,11 @@ uint8_t balance_params_are_valid(const balance_params_t *params)
         !balance_is_finite(params->middle_angle) || !balance_is_finite(params->accel_weight) ||
         !balance_is_finite(params->target_speed_mps) || !balance_is_finite(params->speed_kp) ||
         !balance_is_finite(params->speed_ki) || !balance_is_finite(params->speed_angle_limit)) return 0;
-    /* Kp/Kd deliberately have no tuning ceiling. Numeric and PWM checks contain unsafe values later. */
-    if (params->balance_kp < 0.0f || params->balance_kd < 0.0f || fabsf(params->middle_angle) > 180.0f ||
+    /* Signed gains allow direction tuning; finite values and output limits are checked separately. */
+    if (fabsf(params->middle_angle) > 180.0f ||
         params->accel_weight < 0.0f || params->accel_weight > 1.0f ||
         params->target_speed_mps < 0.0f || params->target_speed_mps > 3.0f ||
-        params->speed_kp < 0.0f || params->speed_kp > 20.0f ||
-        params->speed_ki < 0.0f || params->speed_ki > 10.0f ||
-        params->speed_angle_limit < 0.0f || params->speed_angle_limit > 10.0f || params->speed_enabled > 1u ||
+        params->speed_angle_limit < 0.0f || params->speed_angle_limit > 20.0f || params->speed_enabled > 1u ||
         params->pwm_limit < 1 || params->pwm_limit > 10000 ||
         params->turn_pwm_limit < 0 || params->turn_pwm_limit > 3000 ||
         (params->turn_direction != -1 && params->turn_direction != 1) ||
@@ -220,8 +218,8 @@ static balance_params_t balance_params_from_v7(const balance_params_v7_t *old, u
     float old_kd = old->rate_kp;
 
     if (version == 6u && balance_is_finite(old_kp) && balance_is_finite(old_kd)) old_kp *= old_kd;
-    if (balance_is_finite(old_kp) && old_kp >= 0.0f) migrated.balance_kp = old_kp;
-    if (balance_is_finite(old_kd) && old_kd >= 0.0f) migrated.balance_kd = old_kd;
+    if (balance_is_finite(old_kp)) migrated.balance_kp = old_kp;
+    if (balance_is_finite(old_kd)) migrated.balance_kd = old_kd;
     if (balance_is_finite(old->middle_angle) && fabsf(old->middle_angle) <= 180.0f) migrated.middle_angle = old->middle_angle;
     if (old->pwm_limit >= 1 && old->pwm_limit <= 10000) migrated.pwm_limit = old->pwm_limit;
     if (old->turn_direction == -1 || old->turn_direction == 1) migrated.turn_direction = old->turn_direction;
@@ -234,8 +232,8 @@ static balance_params_t balance_params_from_v9(const balance_params_v9_t *old)
 {
     balance_params_t migrated = balance_default_params;
 
-    if (balance_is_finite(old->balance_kp) && old->balance_kp >= 0.0f) migrated.balance_kp = old->balance_kp;
-    if (balance_is_finite(old->balance_kd) && old->balance_kd >= 0.0f) migrated.balance_kd = old->balance_kd;
+    if (balance_is_finite(old->balance_kp)) migrated.balance_kp = old->balance_kp;
+    if (balance_is_finite(old->balance_kd)) migrated.balance_kd = old->balance_kd;
     if (balance_is_finite(old->middle_angle) && fabsf(old->middle_angle) <= 180.0f) migrated.middle_angle = old->middle_angle;
     if (balance_is_finite(old->accel_weight) && old->accel_weight >= 0.0f && old->accel_weight <= 1.0f)
         migrated.accel_weight = old->accel_weight;
@@ -300,13 +298,16 @@ static void balance_params_flash_prepare(void)
 
 static void balance_reset_speed_controller(void)
 {
+    speed_control_active = 0;
     requested_speed_mps = 0.0f;
     balance_state.speed_target_mps = 0.0f;
     balance_state.speed_target_applied_mps = 0.0f;
+    balance_state.speed_feedback_mps = 0.0f;
     balance_state.speed_error_mps = 0.0f;
+    balance_state.speed_p_angle = 0.0f;
     balance_state.speed_integral_angle = 0.0f;
+    balance_state.speed_pid_active = 0;
     balance_state.speed_angle_applied = 0.0f;
-    balance_state.speed_filtered_mps = 0.0f;
     balance_state.target_angle = applied_params.middle_angle;
 }
 
@@ -319,13 +320,12 @@ void balance_cancel_follow_command(void)
     balance_state.speed_target_mps = 0.0f;
     balance_state.turn_pwm_command = 0.0f;
     balance_state.turn_output = 0.0f;
-    if (!balance_state.running || balance_state.fault != BALANCE_FAULT_NONE) balance_reset_speed_controller();
+    balance_reset_speed_controller();
 }
 
 static void balance_clear_outputs(void)
 {
     balance_cancel_follow_command();
-    balance_reset_speed_controller();
     balance_state.angle_error = 0.0f;
     balance_state.p_output = 0.0f;
     balance_state.d_output = 0.0f;
@@ -531,6 +531,8 @@ uint8_t balance_encoder_calibrate_toggle(uint8_t wheel)
         if (balance_state.encoder_calibration_state != wheel) return 0;
         total = wheel == BALANCE_ENCODER_CAL_LEFT ? left_count_total : right_count_total;
         count = total - encoder_calibration_start_count;
+        /* One revolution calibrates magnitude; either rotation direction is valid. */
+        if (count > 0x7fffffffu) count = 0u - count;
         if (count == 0 || count > BALANCE_ENCODER_MAX_COUNTS) {
             balance_state.encoder_calibration_state = BALANCE_ENCODER_CAL_ERROR;
             return 0;
@@ -552,6 +554,19 @@ uint8_t balance_encoder_calibrate_toggle(uint8_t wheel)
     encoder_calibration_start_count = wheel == BALANCE_ENCODER_CAL_LEFT ? left_count_total : right_count_total;
     balance_state.encoder_calibration_state = wheel;
     return 1;
+}
+
+void balance_set_speed_control_active(uint8_t active)
+{
+    uint32 interrupt_state = interrupt_global_disable();
+
+    active = active && balance_state.running;
+    /* Phase changes start with a clean PI; keep the measured speed for the next FOLLOW update. */
+    if (speed_control_active != active) {
+        balance_reset_speed_controller();
+        speed_control_active = active;
+    }
+    interrupt_global_enable(interrupt_state);
 }
 
 void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight)
@@ -578,69 +593,66 @@ void balance_set_follow_command(float target_speed_mps, float turn_pwm, float le
 static void balance_update_speed_20ms(void)
 {
     float error;
-    float integral_candidate;
-    float pi_candidate;
-    float angle_target;
-    float step;
+    float pi_output;
     float angle_limit = applied_params.speed_angle_limit;
 
     if (balance_state.fault != BALANCE_FAULT_NONE) {
         balance_reset_speed_controller();
         return;
     }
-    if (!balance_state.running || !applied_params.speed_enabled || !balance_state.encoder_calibration_valid) {
+    if (!balance_state.running || !speed_control_active || !applied_params.speed_enabled || !balance_state.encoder_calibration_valid) {
         balance_state.speed_target_applied_mps = 0.0f;
+        balance_state.speed_feedback_mps = 0.0f;
         balance_state.speed_error_mps = 0.0f;
+        balance_state.speed_p_angle = 0.0f;
         balance_state.speed_integral_angle = 0.0f;
         balance_state.speed_angle_applied = 0.0f;
+        balance_state.speed_pid_active = 0;
         return;
     }
 
-    step = balance_clamp(requested_speed_mps - balance_state.speed_target_applied_mps, speed_target_step_mps);
-    balance_state.speed_target_applied_mps += step;
-    error = balance_state.speed_target_applied_mps - balance_state.speed_filtered_mps;
+    balance_state.speed_target_applied_mps = requested_speed_mps;
+    balance_state.speed_pid_active = 1;
+    balance_state.speed_feedback_mps = balance_state.speed_filtered_mps;
+    error = balance_state.speed_target_applied_mps - balance_state.speed_feedback_mps;
     balance_state.speed_error_mps = error;
-    step = applied_params.speed_ki * error * speed_dt_s;
-    integral_candidate = balance_clamp(balance_state.speed_integral_angle + step, angle_limit);
-    pi_candidate = applied_params.speed_kp * error + integral_candidate;
-    /* Only integrate when the saturated PWM is not already driving farther in the requested direction. */
-    if ((pi_candidate > angle_limit && error > 0.0f) || (pi_candidate < -angle_limit && error < 0.0f) ||
-        (fabsf(balance_state.balance_output) >= balance_motor_pwm_max &&
-         error * balance_state.common_pwm * BOARD_FOLLOW_FORWARD_PWM_SIGN > 0.0f)) {
-        integral_candidate = balance_state.speed_integral_angle;
-    }
-    balance_state.speed_integral_angle = integral_candidate;
-    /* Positive speed error must produce positive PWM in the new camera-forward direction. */
-    pi_candidate = applied_params.speed_kp * error + integral_candidate;
-    angle_target = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit);
-    step = balance_clamp(angle_target - balance_state.speed_angle_applied, speed_angle_step_deg);
-    balance_state.speed_angle_applied += step;
+    balance_state.speed_p_angle = applied_params.speed_kp * error;
+    balance_state.speed_integral_angle += applied_params.speed_ki * error * speed_dt_s;
+    balance_state.speed_integral_angle = balance_clamp(balance_state.speed_integral_angle, angle_limit);
+    pi_output = balance_state.speed_p_angle + balance_state.speed_integral_angle;
+    /* PI goes straight to the angle reference; the configured angle limit still bounds its magnitude. */
+    balance_state.speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit);
 }
 
 void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
 {
+    balance_state.left_count = left_count;
+    balance_state.right_count = right_count;
     left_count_sum += left_count;
     right_count_sum += right_count;
     left_count_total += (uint32_t)(int32_t)left_count;
     right_count_total += (uint32_t)(int32_t)right_count;
-    if (++encoder_sample_phase < 10) return;
-    encoder_sample_phase = 0;
-    balance_state.left_count = left_count_sum;
-    balance_state.right_count = right_count_sum;
-    /* Keep the same 20 ms units as serial counts; publish together so CPU1 cannot mix two windows. */
-    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
-    left_count_sum = 0;
-    right_count_sum = 0;
-    if (balance_state.encoder_calibration_valid) {
+    if (balance_state.encoder_calibration_valid && balance_state.left_counts_per_rev > 0 &&
+        balance_state.left_counts_per_rev <= BALANCE_ENCODER_MAX_COUNTS && balance_state.right_counts_per_rev > 0 &&
+        balance_state.right_counts_per_rev <= BALANCE_ENCODER_MAX_COUNTS) {
         balance_state.speed_raw_mps = wheel_circumference_m *
             ((float)balance_state.left_count / balance_state.left_counts_per_rev +
-             (float)balance_state.right_count / balance_state.right_counts_per_rev) / (2.0f * speed_dt_s);
+             (float)balance_state.right_count / balance_state.right_counts_per_rev) / (2.0f * balance_dt_s);
+        if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f;
         balance_state.speed_filtered_mps += speed_filter_weight *
             (balance_state.speed_raw_mps - balance_state.speed_filtered_mps);
     } else {
-        balance_state.speed_raw_mps = 0.0f;
-        balance_state.speed_filtered_mps = 0.0f;
+        /* Missing distance calibration means unknown m/s, not a stationary wheel. */
+        balance_state.encoder_calibration_valid = 0;
+        balance_state.speed_raw_mps = NAN;
+        balance_state.speed_filtered_mps = NAN;
     }
+    if (++encoder_sample_phase < 10) return;
+    encoder_sample_phase = 0;
+    /* Vision still uses a 20 ms window so its existing 250/20 preview thresholds keep their units. */
+    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
+    left_count_sum = 0;
+    right_count_sum = 0;
     balance_update_speed_20ms();
 }
 
@@ -650,6 +662,8 @@ void balance_init(void)
     applied_params = balance_default_params;
     applied_params.accel_weight = balance_accel_weight_2ms(balance_default_params.accel_weight);
     memset((void *)&balance_state, 0, sizeof(balance_state));
+    balance_state.speed_raw_mps = NAN;
+    balance_state.speed_filtered_mps = NAN;
     balance_state.fault = BALANCE_FAULT_NONE;
     balance_state.control_period_ms = BALANCE_CONTROL_PERIOD_MS;
     complementary_initialized = 0;
@@ -708,6 +722,8 @@ uint8_t balance_apply_params(void)
     applied_params = balance_params;
     applied_params.accel_weight = balance_accel_weight_2ms(balance_params.accel_weight);
     balance_clear_outputs();
+    /* Release rejected tuning once valid parameters and an initialized attitude are available. */
+    if (balance_state.fault == BALANCE_FAULT_NUMERIC && balance_state.imu_ready) balance_state.fault = BALANCE_FAULT_NONE;
     return 1;
 }
 

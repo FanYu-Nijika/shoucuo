@@ -12,6 +12,7 @@ const runtime = read('code/balance_runtime.c');
 const runtimeHeader = read('code/balance_runtime.h');
 const car = read('code/car.c');
 const menu = read('code/car_menu.c');
+const menuPort = read('code/car_menu_port.c');
 const board = read('code/board_pins.h');
 const motorPwmLimit = Number(control.match(/static const float balance_motor_pwm_max = ([\d.]+)f;/)[1]);
 const configuredRightTrim = Number(board.match(/#define BOARD_BALANCE_RIGHT_PWM_TRIM\s+\((\d+)\)/)[1]);
@@ -32,19 +33,6 @@ function complementary(last, accel, gyro, ka) {
 
 function clamp(value, limit) {
     return Math.max(-limit, Math.min(limit, value));
-}
-
-function speedFilter(previous, raw) {
-    return previous + 0.25 * (raw - previous);
-}
-
-function speedAngle(previous, target, measured, integral) {
-    const error = target - measured;
-    const nextIntegral = integral + error * 0.02;
-    let output = forwardPwmSign * clamp(2.0 * error + 0.3 * nextIntegral, 5);
-    if (output > previous + 0.04) output = previous + 0.04;
-    if (output < previous - 0.04) output = previous - 0.04;
-    return {angle: output, integral: nextIntegral};
 }
 
 function allocate(balanceRaw, turnCommand, pwmLimit) {
@@ -93,26 +81,58 @@ test('upright output stays inverted and both motor paths restore full hardware d
     assert.equal(allocate(-25000, 300, motorPwmLimit).right, -10000);
 });
 
-test('upright gains have no artificial tuning ceiling', () => {
-    assert(!control.match(/balance_kp\s*>(?!=)/));
-    assert(!control.match(/balance_kd\s*>(?!=)/));
-    assert(menu.includes('&balance_params.balance_kp, 0, FLT_MAX'));
-    assert(menu.includes('&balance_params.balance_kd, 0, FLT_MAX'));
+test('all active control gains allow signed values without artificial limits', () => {
+    assert(!control.match(/balance_kp\s*[<>]=?\s*[-\d]/));
+    assert(!control.match(/balance_kd\s*[<>]=?\s*[-\d]/));
+    assert(!control.match(/speed_kp\s*[<>]=?\s*[-\d]/));
+    assert(!control.match(/speed_ki\s*[<>]=?\s*[-\d]/));
+    assert(menu.includes('&balance_params.balance_kp, -FLT_MAX, FLT_MAX'));
+    assert(menu.includes('&balance_params.balance_kd, -FLT_MAX, FLT_MAX'));
+    assert(menu.includes('&balance_params.speed_kp, -FLT_MAX, FLT_MAX'));
+    assert(menu.includes('&balance_params.speed_ki, -FLT_MAX, FLT_MAX'));
+    for (const field of ['steering_kp', 'steering_kd', 'curve_steering_kp', 'curve_steering_kd']) {
+        assert(menu.includes(`&car_params.${field}, -FLT_MAX, FLT_MAX`));
+    }
+    assert(!read('code/car_params.c').match(/curve_steering_k[pd]\s*<=?\s*0/));
     assert(control.includes('params->pwm_limit > 10000'));
 });
 
-test('20 ms encoder speed loop filters physical velocity and cascades to target angle', () => {
-    near(speedFilter(0, 1), 0.25);
-    near(speedFilter(0.25, 1), 0.4375);
-    let output = speedAngle(0, 1.5, 0.25, 0);
-    assert(output.angle > 0);
-    output = speedAngle(0, 0, 1.0, 0);
-    assert(output.angle < 0);
-    output = speedAngle(0, 10, 0, 0);
-    near(output.angle, 0.04);
-    output = speedAngle(0, -10, 0, 0);
-    near(output.angle, -0.04);
-    assert(control.includes('if (++encoder_sample_phase < 10) return'));
+test('encoder speed updates every 2 ms while the speed PI runs every 20 ms', () => {
+    const sampleStart = control.indexOf('void balance_sample_encoders_2ms(');
+    const sampleBody = control.slice(sampleStart, control.indexOf('\nvoid balance_init', sampleStart));
+    const piStart = control.indexOf('static void balance_update_speed_20ms(');
+    const piBody = control.slice(piStart, control.indexOf('\nvoid balance_sample_encoders_2ms', piStart));
+    const validation = sampleBody.indexOf('balance_state.left_counts_per_rev > 0');
+    const conversion = sampleBody.indexOf('balance_state.speed_raw_mps = wheel_circumference_m');
+    const filter = sampleBody.indexOf('balance_state.speed_filtered_mps += speed_filter_weight');
+    const phase = sampleBody.indexOf('if (++encoder_sample_phase < 10) return');
+    assert(sampleStart >= 0 && validation >= 0 && conversion > validation && filter > conversion);
+    assert(phase > filter && sampleBody.indexOf('balance_update_speed_20ms()') > phase);
+    assert(sampleBody.includes('balance_state.left_count = left_count'));
+    assert(sampleBody.includes('balance_state.right_count = right_count'));
+    assert(sampleBody.includes('balance_state.left_counts_per_rev > 0'));
+    assert(sampleBody.includes('balance_state.right_counts_per_rev > 0'));
+    assert(sampleBody.includes('2.0f * balance_dt_s'));
+    assert(sampleBody.includes('balance_state.speed_raw_mps = NAN'));
+    assert(sampleBody.includes('balance_state.speed_filtered_mps = NAN'));
+    assert(sampleBody.includes('if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f'));
+    assert(control.includes('static const float speed_filter_weight = 0.9f'));
+    assert(control.includes('static const float speed_dt_s = 0.02f'));
+    assert(control.includes('applied_params.speed_ki * error * speed_dt_s'));
+    assert(piBody.includes('speed_target_applied_mps = requested_speed_mps'));
+    assert(piBody.includes('balance_state.speed_feedback_mps = balance_state.speed_filtered_mps'));
+    assert(piBody.includes('error = balance_state.speed_target_applied_mps - balance_state.speed_feedback_mps'));
+    assert(piBody.includes('speed_integral_angle += applied_params.speed_ki * error * speed_dt_s'));
+    assert(piBody.includes('speed_integral_angle = balance_clamp(balance_state.speed_integral_angle, angle_limit)'));
+    assert(piBody.includes('balance_state.speed_p_angle = applied_params.speed_kp * error'));
+    assert(piBody.includes('pi_output = balance_state.speed_p_angle + balance_state.speed_integral_angle'));
+    assert(piBody.includes('speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit)'));
+    assert(!piBody.includes('balance_motor_pwm_max'));
+    assert(!piBody.includes('speed_target_step_mps'));
+    assert(!piBody.includes('speed_angle_step_deg'));
+    assert(!control.includes('speed_target_step_mps'));
+    assert(!control.includes('speed_angle_step_deg'));
+    assert(controlHeader.includes('Measure velocity every 2 ms'));
     assert(control.includes('speed_kp'));
     assert(control.includes('speed_ki'));
     assert(control.includes('speed_angle_limit'));
@@ -120,19 +140,13 @@ test('20 ms encoder speed loop filters physical velocity and cascades to target 
     assert(control.includes('speed_filtered_mps'));
     assert(control.includes('speed_error_mps'));
     assert(control.includes('speed_integral_angle'));
-    assert(control.includes('angle_target = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_candidate, angle_limit)'));
+    assert(control.includes('speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit)'));
     assert(control.includes('0.065f'));
-    assert(control.includes('0.25f'));
-    assert(control.includes('0.02f'));
-    assert(control.includes('2.0f'));
-    assert(control.includes('0.3f'));
-    assert(control.includes('5.0f'));
     assert(controlHeader.includes('target_speed_mps'));
     assert(controlHeader.includes('left_counts_per_rev'));
     assert(controlHeader.includes('right_counts_per_rev'));
-    assert(menu.includes('TARGET SPEED M/S'));
-    assert(menu.includes('SPEED ENABLE'));
-    assert(menu.includes('SPEED ANGLE'));
+    assert(menu.includes('"ENCODER CAL REQUIRED"'));
+    assert(menu.includes('"UNCAL"'));
     assert(!menu.includes('FOLLOW SPEED'));
     assert(!control.includes('follow_angle_per_speed'));
     assert(!control.includes('follow_p_pwm_fraction'));
@@ -158,30 +172,42 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('corrected steering direction retains the current motor wiring and encoder calibration ownership', () => {
-    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR3_PWM_PIN)'));
-    assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR4_PWM_PIN)'));
-    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR1_PWM_PIN)'));
-    assert(board.includes('#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR2_PWM_PIN)'));
+test('left and right motor wiring matches PWM tests while preserving encoder calibration ownership', () => {
+    assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR1_PWM_PIN)'));
+    assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR2_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR3_PWM_PIN)'));
+    assert(board.includes('#define BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN  (BOARD_MOTOR4_PWM_PIN)'));
+    assert(board.includes('#define BOARD_MOTOR1_PWM_PIN               (ATOM2_CH1_P33_5)'));
+    assert(board.includes('#define BOARD_MOTOR2_PWM_PIN               (ATOM2_CH2_P33_6)'));
+    assert(board.includes('#define BOARD_MOTOR3_PWM_PIN               (ATOM2_CH3_P33_7)'));
+    assert(board.includes('#define BOARD_MOTOR4_PWM_PIN               (ATOM2_CH4_P33_8)'));
+    assert(board.includes('#define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)'));
+    assert(board.includes('#define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)'));
+    const motorWrite = menuPort.slice(menuPort.indexOf('void cc_tc264_menu_motor_write('),
+        menuPort.indexOf('void cc_tc264_menu_motor_stop('));
+    assert(motorWrite.includes('write_motor_pair(BOARD_LEFT_MOTOR_FORWARD_PWM_PIN, BOARD_LEFT_MOTOR_REVERSE_PWM_PIN, left * BOARD_BALANCE_LEFT_MOTOR_SIGN'));
+    assert(motorWrite.includes('write_motor_pair(BOARD_RIGHT_MOTOR_FORWARD_PWM_PIN, BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN, right * BOARD_BALANCE_RIGHT_MOTOR_SIGN'));
     assert(board.includes('#define BOARD_LEFT_ENCODER_INDEX           (BOARD_ENCODER_H7_INDEX)'));
     assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H4_INDEX)'));
-    assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)'));
-    assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)'));
-    near(120 * 1, 120);  // Software LEFT still reads H7 with its existing count sign.
-    near(-120 * -1, 120);  // Software RIGHT still reads H4 with its existing count sign.
-    assert.equal(forwardPwmSign, 1);
-    assert.equal(turnPwmSign, 1);
+    assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)'));
+    assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)'));
+    near(-10 * -1, 10);  // Camera-forward travel reverses both raw encoder directions.
+    near(180 * 1, 180);
+    near(10 * -1, -10);
+    near(-180 * 1, -180);
+    assert.equal(forwardPwmSign, -1);
+    assert.equal(turnPwmSign, -1);
     assert(control.includes('record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev'));
     assert(control.includes('record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev'));
     assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (2u)'));
     assert(image.includes('average_count = balance_state.encoder_average_count'));
-    const rightOfTrackTurn = 10 * 2 * turnPwmSign;
-    const output = allocate(1000, rightOfTrackTurn, 5000);
-    assert(output.left > output.right);
-    near((output.left + output.right) / 2, 1000);
-    const opposite = allocate(1000, -rightOfTrackTurn, 5000);
-    assert(opposite.left < opposite.right);
-    near((opposite.left + opposite.right) / 2, 1000);
+    const positiveErrorTurn = 10 * 2 * turnPwmSign;
+    const output = allocate(-1000, positiveErrorTurn, 5000);
+    assert(output.left < output.right);
+    near((output.left + output.right) / 2, -1000);
+    const opposite = allocate(-1000, -positiveErrorTurn, 5000);
+    assert(opposite.left > opposite.right);
+    near((opposite.left + opposite.right) / 2, -1000);
 });
 
 test('encoder preview uses 20 ms count steps, restores on deceleration and freezes current-frame curves', () => {
@@ -307,6 +333,7 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         const env = {
             car_follow_status: enumValues[status], car_running: running ? 1 : 0,
             car_follow_enabled: ['IDLE', 'WAIT_DELAY', 'WAIT_RUN'].includes(status) ? 0 : 1,
+            speedControlActive: false,
             follow_stage_started_ms: started >>> 0, car_lost_count: 0, car_curve_mode: 0, car_turn_request: 0,
             derivative_ready: 0, last_control_capture_ms: 0, last_error: 0, curve_blend: 0,
             steering_kp: 10, steering_kd: 0, curve_steering_kp: 10, curve_steering_kd: 0,
@@ -319,7 +346,8 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         };
         for (const [name, value] of Object.entries(enumValues)) env[`CAR_FOLLOW_${name}`] = value;
         env.car_reset_turn = () => resetFn(env);
-        env.balance_cancel_follow_command = () => { env.cancelled = true; };
+        env.balance_set_speed_control_active = active => { env.speedControlActive = Boolean(active); };
+        env.balance_cancel_follow_command = () => { env.cancelled = true; env.speedControlActive = false; };
         env.car_follow_stop = () => stopFn(env);
         env.balance_runtime_request_start = () => { env.requestStart = true; };
         // C float comparisons treat both zero signs equally; normalize the JS snapshot before deep comparison.
@@ -337,24 +365,30 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
     let phase = makeEnv('WAIT_DELAY', false, started);
     invokeTrack(phase, (started + stageMs - 1) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'WAIT_DELAY');
+    assert.equal(phase.speedControlActive, false);
     assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
     invokeTrack(phase, (started + stageMs) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'WAIT_RUN');
+    assert.equal(phase.speedControlActive, false);
     assert.equal(phase.requestStart, true);
     invokeTrack(phase, (started + stageMs + 5000) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'WAIT_RUN');
+    assert.equal(phase.speedControlActive, false);
     const runNow = (started + stageMs + 5001) >>> 0;
     phase.car_running = 1;
     invokeTrack(phase, runNow);
     assert.equal(enumName(phase.car_follow_status), 'RUN_UPRIGHT');
     assert.equal(phase.follow_stage_started_ms, runNow);
     assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    assert.equal(phase.speedControlActive, false);
     phase.car_running = 1;
     invokeTrack(phase, (runNow + stageMs - 1) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'RUN_UPRIGHT');
     assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    assert.equal(phase.speedControlActive, false);
     invokeTrack(phase, (runNow + stageMs) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'LEAN_IN');
+    assert.equal(phase.speedControlActive, true);
     assert.equal(phase.command.weight, 0);
     assert.equal(phase.command.lean, 0);
     invokeTrack(phase, (runNow + stageMs + rampMs / 2) >>> 0);
@@ -381,37 +415,64 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
     assert.equal(phase.command.lean, 0);
     invokeTrack(phase, (outStart + rampMs) >>> 0);
     assert.equal(enumName(phase.car_follow_status), 'ACTIVE');
+    assert.equal(phase.speedControlActive, true);
     assert.deepEqual(phase.command, {speed: 1, turn: 0, lean: 0, weight: 0});
     const upright = makeEnv('RUN_UPRIGHT', true, runNow);
     invokeTrack(upright, runNow + 1);
     assert.deepEqual(upright.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    assert.equal(upright.speedControlActive, false);
     for (const status of ['RUN_UPRIGHT', 'LEAN_IN', 'LEAN_HOLD', 'LEAN_OUT']) {
         const tracking = makeEnv(status, true, runNow);
         invokeTrack(tracking, runNow + 100, 2);
         assert.equal(tracking.command.turn, 20 * turnPwmSign);
         assert.equal(tracking.command.speed, status === 'RUN_UPRIGHT' ? 0 : 1);
+        assert.equal(tracking.speedControlActive, status !== 'RUN_UPRIGHT');
         assert.equal(tracking.command.weight, 0);
         tracking.valid = 0;
         trackFn(tracking);
         assert.equal(tracking.command.turn, 0);
+        assert.equal(tracking.command.speed, status === 'RUN_UPRIGHT' ? 0 : 1);
+        assert.equal(tracking.speedControlActive, status !== 'RUN_UPRIGHT');
+    }
+    for (const invalidKind of ['line', 'stale', 'missing', 'numeric']) {
+        const tracking = makeEnv('ACTIVE', true, runNow);
+        invokeTrack(tracking, runNow + 100, 2);
+        if (invalidKind === 'line') tracking.valid = 0;
+        else if (invalidKind === 'stale') tracking.capture_ms = tracking.now_ms - 121;
+        else if (invalidKind === 'missing') tracking.capture_ms = 0;
+        else tracking.error = NaN;
+        for (let sample = 0; sample < 10; sample++) {
+            trackFn(tracking);
+            assert.equal(tracking.command.speed, 1);
+            assert.equal(tracking.command.turn, 0);
+            assert.equal(tracking.speedControlActive, true);
+            assert.equal(enumName(tracking.car_follow_status), 'ACTIVE');
+            tracking.now_ms += 200;
+        }
+        invokeTrack(tracking, tracking.now_ms, 2);
+        assert.equal(tracking.command.speed, 1);
+        assert.equal(tracking.command.turn, 20 * turnPwmSign);
     }
     for (const status of ['RUN_UPRIGHT', 'LEAN_IN', 'LEAN_HOLD', 'LEAN_OUT', 'ACTIVE']) {
         const lost = makeEnv(status, false, runNow);
         invokeTrack(lost, runNow + 10);
         assert.equal(enumName(lost.car_follow_status), 'WAIT_RUN');
         assert.equal(lost.car_follow_enabled, 0);
+        assert.equal(lost.speedControlActive, false);
         assert.equal(lost.follow_stage_started_ms, 0);
         lost.car_running = 1;
         invokeTrack(lost, runNow + 11);
         assert.equal(enumName(lost.car_follow_status), 'RUN_UPRIGHT');
         assert.equal(lost.follow_stage_started_ms, runNow + 11);
         assert.deepEqual(lost.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+        assert.equal(lost.speedControlActive, false);
         const faulted = makeEnv(status, true, runNow, 1);
         invokeTrack(faulted, runNow + 12);
         assert.equal(enumName(faulted.car_follow_status), 'IDLE');
         assert.equal(faulted.car_follow_enabled, 0);
         assert.equal(faulted.follow_stage_started_ms, 0);
         assert.equal(faulted.cancelled, true);
+        assert.equal(faulted.speedControlActive, false);
     }
     const stopped = makeEnv('LEAN_HOLD', true, runNow);
     stopFn(stopped);
@@ -419,6 +480,11 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
     assert.equal(stopped.car_follow_enabled, 0);
     assert.equal(stopped.follow_stage_started_ms, 0);
     assert.equal(stopped.cancelled, true);
+    assert.equal(stopped.speedControlActive, false);
+    const noFollow = makeEnv('IDLE', true, runNow);
+    invokeTrack(noFollow, runNow + 20);
+    assert.equal(noFollow.car_follow_enabled, 0);
+    assert.equal(noFollow.speedControlActive, false);
     assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_RAMP_MS)'));
     assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_STAGE_MS)'));
     assert(trackBody.includes('lean_weight = 1.0f'));
@@ -482,8 +548,9 @@ test('runtime STOP and image CENTER request clear FOLLOW while status prioritize
 });
 
 test('FOLLOW supplies staged lean, speed, and steering without changing the normal ACTIVE command', () => {
-    const commandBody = car.slice(car.indexOf('target_speed_mps = visual_valid ? balance_params.target_speed_mps'));
-    assert(commandBody.includes('target_speed_mps = visual_valid ? balance_params.target_speed_mps : 0.0f'));
+    const commandBody = car.slice(car.indexOf('target_speed_mps = balance_params.target_speed_mps'));
+    assert(commandBody.includes('target_speed_mps = balance_params.target_speed_mps'));
+    assert(!car.includes('target_speed_mps = visual_valid ?'));
     assert(commandBody.includes('lean_angle = 0.0f'));
     assert(commandBody.includes('if (lean_angle == 0.0f) lean_weight = 0.0f'));
     assert(commandBody.includes('balance_set_follow_command(target_speed_mps, car_turn_request, lean_angle, lean_weight)'));
@@ -548,13 +615,17 @@ test('FOLLOW fault handling cancels every stage and a fault-free RUN loss restar
     assert(stopBody.includes('balance_cancel_follow_command()'));
 });
 
-test('encoder counts are accumulated at 2 ms and consumed by speed control every 20 ms', () => {
-    const left = Array(10).fill(3).reduce((sum, value) => sum + value, 0);
-    const right = Array(10).fill(7).reduce((sum, value) => sum + value, 0);
-    assert.equal(left, 30); assert.equal(right, 70);
-    assert(control.includes('if (++encoder_sample_phase < 10) return'));
+test('2 ms encoder diagnostics preserve a signed 20 ms vision average', () => {
+    const sampleStart = control.indexOf('void balance_sample_encoders_2ms(');
+    const sampleBody = control.slice(sampleStart, control.indexOf('\nvoid balance_init', sampleStart));
+    assert(sampleBody.includes('left_count_sum += left_count'));
+    assert(sampleBody.includes('right_count_sum += right_count'));
+    assert(sampleBody.includes('if (++encoder_sample_phase < 10) return'));
+    assert(sampleBody.includes('encoder_average_count = (left_count_sum + right_count_sum) / 2'));
     assert(control.includes('left_count_sum'));
     assert(control.includes('right_count_sum'));
+    assert(menu.includes('"LEFT COUNT 2MS"'));
+    assert(menu.includes('"RIGHT COUNT 2MS"'));
     assert(controlHeader.match(/speed_(?:kp|ki|filter|integral|angle|enabled)/));
     assert(controlHeader.includes('speed_raw_mps'));
     assert(controlHeader.includes('speed_target_applied_mps'));
@@ -571,6 +642,7 @@ test('one-wheel-revolution calibration gives a physical 1.5 m/s target and persi
     assert(control.includes('BALANCE_ENCODER_FLASH_PAGE         (11u)'));
     assert(control.includes('record.checksum = balance_encoder_checksum(&record)'));
     assert(control.includes('count = total - encoder_calibration_start_count'));
+    assert(control.includes('if (count > 0x7fffffffu) count = 0u - count'));
     assert(control.includes('count == 0 || count > BALANCE_ENCODER_MAX_COUNTS'));
     assert(control.includes('balance_encoder_flash_save()'));
     assert(menu.includes('CAL LEFT 1 REV'));
@@ -578,10 +650,9 @@ test('one-wheel-revolution calibration gives a physical 1.5 m/s target and persi
     assert(menu.includes('ENCODER CAL VALID'));
     assert(control.includes('(float)balance_state.left_count / balance_state.left_counts_per_rev'));
     assert(control.includes('(float)balance_state.right_count / balance_state.right_counts_per_rev'));
-    const underTargetAngle = speedAngle(0, 1.5, 0, 0).angle;
-    const overTargetAngle = speedAngle(0, 0, 1.5, 0).angle;
-    assert(1000 * underTargetAngle > 0);
-    assert(1000 * overTargetAngle < 0);
+    assert(control.includes('speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit)'));
+    assert(forwardPwmSign === -1);
+    assert(forwardPwmSign * 1.0 < 0 && forwardPwmSign * -1.0 > 0);
 });
 
 test('manual calibration timing resets on movement and collects five clean seconds', () => {
@@ -655,6 +726,18 @@ test('car parameter V5 migration preserves layout but resets all old base PWM va
 });
 
 test('speed loop is default-enabled and no legacy open-loop FOLLOW speed remains', () => {
+    const speedRoot = menu.indexOf('{CAR_MENU_PAGE_SPEED, CAR_MENU_ROOT, "SPEED"');
+    const steeringRoot = menu.indexOf('{CAR_MENU_PAGE_STEERING, CAR_MENU_ROOT, "STEERING"');
+    assert(menu.includes('CAR_MENU_PAGE_SPEED = 10'));
+    assert(speedRoot >= 0 && speedRoot < steeringRoot);
+    for (const label of ['SPEED KP', 'SPEED KI', 'SPEED ANGLE LIMIT']) {
+        assert(menu.includes(`{0, CAR_MENU_PAGE_SPEED, "${label}"`));
+        assert(!menu.includes(`{0, CAR_MENU_PAGE_BALANCE, "${label}"`));
+    }
+    const speedRefreshStart = menu.indexOf('if (car_menu_page == CAR_MENU_PAGE_RUN || car_menu_page == CAR_MENU_PAGE_TELEMETRY');
+    const speedRefresh = menu.slice(speedRefreshStart, menu.indexOf('\n        return;', speedRefreshStart));
+    assert(speedRefresh.includes('CAR_MENU_PAGE_SPEED'));
+    assert(speedRefresh.includes('CAR_MENU_TELEMETRY_REFRESH_MS'));
     assert(menu.includes('SPEED ENABLE'));
     assert(menu.includes('TARGET SPEED M/S'));
     assert(menu.includes('SPEED ANGLE'));
@@ -672,6 +755,9 @@ test('speed loop is default-enabled and no legacy open-loop FOLLOW speed remains
     assert(!control.includes('follow_p_pwm_fraction'));
     assert(control.includes('balance_state.speed_integral_angle = 0.0f'));
     assert(control.includes('balance_state.speed_angle_applied = 0.0f'));
+    const speedDisplay = menu.slice(menu.indexOf('static void car_menu_draw_value('), menu.indexOf('static void car_menu_draw_footer('));
+    assert(speedDisplay.includes('&balance_state.speed_raw_mps'));
+    assert(speedDisplay.includes('"UNCAL"'));
 });
 
 console.log(`${groups} groups passed; source-level numerical checks only, no firmware compilation.`);

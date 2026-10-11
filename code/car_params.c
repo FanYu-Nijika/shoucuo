@@ -30,10 +30,9 @@ static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_
     if (params->stop_time == 0 || params->stop_time > CAR_STOP_TIME_MAX)
         params->stop_time = car_default_params.stop_time;
     if (params->curvature_scale <= 0.0) params->curvature_scale = car_default_params.curvature_scale;
-    if (fill_zero != 0 && params->curve_steering_kp <= 0.0) params->curve_steering_kp = car_default_params.curve_steering_kp;
-    if (fill_zero != 0 && params->curve_steering_kd <= 0.0) params->curve_steering_kd = car_default_params.curve_steering_kd;
-    if (params->curve_steering_kp < 0.0) params->curve_steering_kp = 0.0;
-    if (params->curve_steering_kd < 0.0) params->curve_steering_kd = 0.0;
+    /* Only legacy missing values need defaults; signed gains must survive saving and loading. */
+    if (fill_zero != 0 && params->curve_steering_kp == 0.0) params->curve_steering_kp = car_default_params.curve_steering_kp;
+    if (fill_zero != 0 && params->curve_steering_kd == 0.0) params->curve_steering_kd = car_default_params.curve_steering_kd;
     if (fill_zero != 0 && params->curve_exit_threshold <= 0.0) params->curve_exit_threshold = car_default_params.curve_exit_threshold;
     if (fill_zero != 0 && params->curve_enter_threshold <= 0.0) params->curve_enter_threshold = car_default_params.curve_enter_threshold;
     if (params->curve_exit_threshold < 0.0) params->curve_exit_threshold = 0.0;

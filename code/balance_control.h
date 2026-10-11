@@ -47,12 +47,14 @@ typedef struct {
     float speed_target_applied_mps;
     float speed_raw_mps;
     float speed_filtered_mps;
+    float speed_feedback_mps; /* Feedback held from the latest 20 ms PI calculation. */
     float speed_error_mps;
+    float speed_p_angle;
     float speed_integral_angle;
     float speed_angle_applied;
     float turn_pwm_command;
     float turn_output;
-    int32_t left_count;
+    int32_t left_count; /* Latest signed 2 ms count, also used for physical velocity. */
     int32_t right_count;
     int32_t encoder_average_count; /* One coherent signed 20 ms mean for CPU1; no wheel calibration required. */
     uint32_t left_counts_per_rev;
@@ -63,6 +65,7 @@ typedef struct {
     int16_t left_pwm;
     int16_t right_pwm;
     uint8_t running;
+    uint8_t speed_pid_active;
     uint8_t fault;
     uint8_t imu_ready;
     uint8_t output_updated;
@@ -95,8 +98,10 @@ uint8_t balance_apply_params(void);
 uint8_t balance_apply_live_params(const balance_params_t *params);
 uint8_t balance_params_are_valid(const balance_params_t *params);
 
-/* Ten 2 ms samples form one signed 20 ms speed measurement. */
+/* Measure velocity every 2 ms; update speed PI and the vision count window every ten samples. */
 void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count);
+/* RUN and the FOLLOW upright hold leave speed PI off; tracking enables it separately from SPEED ENABLE. */
+void balance_set_speed_control_active(uint8_t active);
 /* Blend the launch target with the normal speed-loop target without a reference-angle step. */
 void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight);
 void balance_cancel_follow_command(void);

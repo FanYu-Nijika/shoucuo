@@ -123,6 +123,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     if (car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
         if (now_ms - follow_stage_started_ms < CAR_FOLLOW_STAGE_MS) {
             car_reset_turn();
+            balance_set_speed_control_active(0);
             balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
             return;
         }
@@ -141,6 +142,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     }
     if (car_follow_status == CAR_FOLLOW_WAIT_RUN) {
         car_reset_turn();
+        balance_set_speed_control_active(0);
         balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
         return;
     }
@@ -177,11 +179,13 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
 
     if (!car_follow_enabled) {
         car_follow_status = CAR_FOLLOW_IDLE;
+        balance_set_speed_control_active(0);
         balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
         return;
     }
-    target_speed_mps = visual_valid ? balance_params.target_speed_mps : 0.0f;
-    /* Upright settling keeps the RUN speed target while camera differential remains active. */
+    /* Camera validity controls steering only; it must not inject speed-target steps into the PI. */
+    target_speed_mps = balance_params.target_speed_mps;
+    /* The upright hold runs PD alone; speed PI starts with the first tracking stage. */
     if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f;
     lean_angle = 0.0f;
     elapsed_ms = now_ms - follow_stage_started_ms;
@@ -206,5 +210,6 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     }
     /* A disabled launch offset must also leave the normal speed-loop angle correction active. */
     if (lean_angle == 0.0f) lean_weight = 0.0f;
+    balance_set_speed_control_active(car_follow_status != CAR_FOLLOW_RUN_UPRIGHT);
     balance_set_follow_command(target_speed_mps, car_turn_request, lean_angle, lean_weight);
 }
