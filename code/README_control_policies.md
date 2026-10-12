@@ -13,8 +13,8 @@
 | 直道／弯道转向变参 | 曲率超过进入阈值切到弯道，低于退出阈值切回直道。切换时重置 D，每个新视觉结果改变 0.5 的混合权重，两帧完成 Kp/Kd 过渡。 | `car.c:car_track_update` |
 | 转向微分的时间条件 | 使用误差差分乘以 `20 / 帧间隔ms`。首次结果、D 历史重置后、帧间隔为 0 或超过 100 ms 时 D 为 0。两次有效新帧之间保持上次差速请求。 | `car.c:car_track_update` |
 | 动态前瞻 | 20 ms 编码器平均计数超过 250 后，每增加 20 计数把前瞻行减 1；进入弯道时冻结前瞻，退出后恢复按速度调整。改变的是视觉误差采样位置。 | `image.c:Update_Dynamic_Preview_Row` |
-| FOLLOW 直立阶段也会转向 | START 先停机等 2 秒，实际 RUN 启动后直立保持 2 秒。速度 PI 此时关闭，但视觉转向计算和差速输出已经启用。 | `car.c:car_track_update` |
-| 保留旧启动状态计时 | 直立之后仍经过 LEAN_IN 300 ms、LEAN_HOLD 2 秒、LEAN_OUT 300 ms。当前倾角请求恒为 0，混合权重最终为 0，这些计时不改变倾角或速度目标；速度 PI 在离开直立阶段后已开启。 | `car.c:car_track_update` |
+| FOLLOW 直立阶段也会转向 | START 先停机等 2 秒，实际 RUN 启动后直立保持 0.5 秒。速度 PI 此时关闭，但视觉转向计算和差速输出已经启用。 | `car.c:car_track_update` |
+| FOLLOW 启动速度渐增 | 直立之后进入 SPEED_RAMP，开启速度 PI，目标在 2 秒内从 0 线性增加到菜单速度，再进入 ACTIVE。没有额外启动倾角，渐增结束保留积分；这是用户在 2026-10-12 指定的启动流程。 | `car.c:car_track_update` |
 | 异常丢失 RUN 后自动重启 | FOLLOW 未退出且 `car_running` 意外变成 0、没有故障时进入 WAIT_RUN，再次请求 RUN，启动后重新直立等待。明确 STOP 会清 FOLLOW 状态，不走此路径。 | `car.c:car_track_update`、`balance_runtime.c:balance_runtime_update_2ms` |
 | 故障退出 FOLLOW | FOLLOW 时检测到非零故障会取消循迹和速度 PI，并清积分；此调用本身保留直立运行，不等同于完整 STOP。 | `car.c:car_track_update`、`car_follow_stop` |
 | IMU 读数失败保持旧 PWM | 坏样本时不执行新的直立输出。连续 8 个坏样本报 IMU 故障；若已运行，失败处理仍保留上次电机命令，不进入停机状态的 IMU 重试路径。 | `balance_runtime.c:balance_runtime_imu_failed` |
@@ -26,8 +26,8 @@
 
 ## 已核对的兼容字段与边界
 
-- 速度 PI 没有 0.04° 输出步长、目标速度斜坡或电机饱和时冻结积分的条件。
-- 测速每 2 ms 更新，滤波为当前 raw 占 90%、上次滤波值占 10%；速度 PI 每 20 ms 取最近一次滤波速度。
+- 速度 PI 没有 0.04° 输出步长或电机饱和时冻结积分的条件；FOLLOW 启动阶段有用户指定的 2 秒目标速度渐增。
+- 测速每 2 ms 更新，滤波为当前 raw 占 90%、上次滤波值占 10%；速度 PI 每 20 ms 取完整周期内十笔滤波速度的平均值。
 - 普通 RUN、FOLLOW 直立阶段、STOP、FOLLOW STOP 的速度环开关及积分清理遵循用户已指定的行为。
 - 当前活动控制不使用旧 `base_speed`、`curve_slowdown`、`lost_search_steering`、`lost_stop_frames`、`stop_time` 实施开环速度、搜索、弯道降速或定时停车。
 - `pwm_limit` 是旧 Flash 布局字段，已不限制直立输出；实际电机 PWM 范围为 ±10000。右轮补偿函数仍在，但当前板级补偿为 0。

@@ -20,9 +20,10 @@ volatile uint8 car_follow_status;
 volatile uint8 car_follow_enabled;
 volatile float car_turn_request;
 
-/* Each stage starts its own timer so a delayed RUN cannot consume the upright or lean hold. */
-#define CAR_FOLLOW_STAGE_MS (2000)
-#define CAR_FOLLOW_RAMP_MS (300)
+/* Time each stage from its actual entry so a delayed RUN cannot shorten upright hold or acceleration. */
+#define CAR_FOLLOW_WAIT_DELAY_MS (2000)
+#define CAR_FOLLOW_UPRIGHT_MS (500)
+#define CAR_FOLLOW_SPEED_RAMP_MS (2000)
 
 static uint8 derivative_ready;
 static uint32 follow_stage_started_ms;
@@ -110,8 +111,6 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     float d_error = 0;
     float turn;
     float target_speed_mps;
-    float lean_angle;
-    float lean_weight = 0.0f;
     uint32 elapsed_ms;
     uint8 visual_fresh = capture_ms != 0 && now_ms - capture_ms <= visual_timeout_ms;
     uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature);
@@ -121,7 +120,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         return;
     }
     if (car_follow_status == CAR_FOLLOW_WAIT_DELAY) {
-        if (now_ms - follow_stage_started_ms < CAR_FOLLOW_STAGE_MS) {
+        if (now_ms - follow_stage_started_ms < CAR_FOLLOW_WAIT_DELAY_MS) {
             car_reset_turn();
             balance_set_speed_control_active(0);
             balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
@@ -146,9 +145,9 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
         return;
     }
-    if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT && now_ms - follow_stage_started_ms >= CAR_FOLLOW_STAGE_MS) {
+    if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT && now_ms - follow_stage_started_ms >= CAR_FOLLOW_UPRIGHT_MS) {
         follow_stage_started_ms = now_ms;
-        car_follow_status = CAR_FOLLOW_LEAN_IN;
+        car_follow_status = CAR_FOLLOW_SPEED_RAMP;
     }
 
     if (!visual_valid) {
@@ -185,31 +184,15 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
     }
     /* Camera validity controls steering only; it must not inject speed-target steps into the PI. */
     target_speed_mps = balance_params.target_speed_mps;
-    /* The upright hold runs PD alone; speed PI starts with the first tracking stage. */
+    /* Start PI at zero target after upright hold; ramp its reference, not its output or gains. */
     if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f;
-    lean_angle = 0.0f;
     elapsed_ms = now_ms - follow_stage_started_ms;
-    if (car_follow_status == CAR_FOLLOW_LEAN_IN) {
-        if (elapsed_ms >= CAR_FOLLOW_RAMP_MS) {
-            follow_stage_started_ms = now_ms;
-            car_follow_status = CAR_FOLLOW_LEAN_HOLD;
-            lean_weight = 1.0f;
-        } else lean_weight = elapsed_ms / (float)CAR_FOLLOW_RAMP_MS;
-    } else if (car_follow_status == CAR_FOLLOW_LEAN_HOLD) {
-        lean_weight = 1.0f;
-        if (elapsed_ms >= CAR_FOLLOW_STAGE_MS) {
-            follow_stage_started_ms = now_ms;
-            car_follow_status = CAR_FOLLOW_LEAN_OUT;
-        }
-    } else if (car_follow_status == CAR_FOLLOW_LEAN_OUT) {
-        if (elapsed_ms >= CAR_FOLLOW_RAMP_MS) {
+    if (car_follow_status == CAR_FOLLOW_SPEED_RAMP) {
+        if (elapsed_ms >= CAR_FOLLOW_SPEED_RAMP_MS) {
             follow_stage_started_ms = 0;
             car_follow_status = CAR_FOLLOW_ACTIVE;
-            lean_angle = 0.0f;
-        } else lean_weight = 1.0f - elapsed_ms / (float)CAR_FOLLOW_RAMP_MS;
+        } else target_speed_mps *= elapsed_ms / (float)CAR_FOLLOW_SPEED_RAMP_MS;
     }
-    /* A disabled launch offset must also leave the normal speed-loop angle correction active. */
-    if (lean_angle == 0.0f) lean_weight = 0.0f;
     balance_set_speed_control_active(car_follow_status != CAR_FOLLOW_RUN_UPRIGHT);
-    balance_set_follow_command(target_speed_mps, car_turn_request, lean_angle, lean_weight);
+    balance_set_follow_command(target_speed_mps, car_turn_request, 0.0f, 0.0f);
 }

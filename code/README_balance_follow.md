@@ -9,7 +9,7 @@
 - 直立控制每 2 ms 使用直接 PD：`PWM = -(BALANCE KP * (COMP ANGLE - TARGET ANGLE) + BALANCE KD * CONTROL RATE)`。当前 IMU 安装方向需要将 PD 总输出反号；D 项使用陀螺仪 °/s，现有 Kp/Kd、机械中值和 Flash 存档继续使用。
 - 电机固定通道 LEFT 使用 PWM1/2，RIGHT 使用 PWM3/4。每组偶数路输出正 PWM、奇数路输出负 PWM，左右电机方向符号均为 +1；菜单测试和平衡控制共用此映射。编码器仍为 LEFT=H7、RIGHT=H4，各轮 Flash 标定归属保持原样。`BOARD_FOLLOW_TURN_PWM_SIGN` 保留已实车校正的 -1；镜头水平转向 180°且轮通道不换时，右转对应的物理偏航方向不变。
 - 编码器每 2 ms 读取并立即发布左右增量，以 `速度 = 轮周长 × (左增量/左每转计数 + 右增量/右每转计数) / (2 × 0.002)` 换算 m/s。LEFT/H7 采样符号为 -1，RIGHT/H4 为 +1，使新的前进方向两轮计数为正；计数幅值不缩放。按各轮的一圈标定计数和 6.5 cm 轮径换算车速，左右轮速度取平均值，每 2 ms 按 `filtered = 0.9 * raw + 0.1 * last_filtered` 低通，让当前速度占 90%；视觉前瞻的平均计数单独保留 20 ms 累计窗口；旧编码器 V1 存档仍按原迁移规则加载，V2 标定不交换。速度环周期和原有增益继续使用。
-- 速度 PI 每 20 ms 更新：使用直接 PI：`error = target - speed`，`I = clamp(I + Ki * error * 0.02, ANGLE LIMIT)`，`angle = FORWARD SIGN * clamp(Kp * error + I, ANGLE LIMIT)`；误差为当前请求车速减滤波车速，正误差降低目标倾角，经反号后的直立 PD 产生新前进方向的负 PWM，负误差反向修正。普通 RUN 关闭速度环，只使用直立 PD。`FOLLOW START` 立即停机，保持 STOP 2 秒，等待 RUN 实际启动后再直立保持 2 秒，此阶段速度环关闭，循迹差速沿用原行为。直立结束进入 LEAN_IN（第一循迹阶段）时才启用速度 PI，按菜单速度目标运行，不附加启动前倾；原阶段计时、机械中值及 Flash 存档不变。STOP 和 FOLLOW STOP 清除整个启动流程及速度积分、倾角修正。速度目标直接使用当前请求值（FOLLOW 默认 1.5 m/s），取消目标速度斜坡、倾角输出变化速率限制和按电机饱和拒绝积分的额外条件。
+- 速度 PI 每 20 ms 更新：使用直接 PI：`error = target - speed`，`I = clamp(I + Ki * error * 0.02, ANGLE LIMIT)`，`angle = FORWARD SIGN * clamp(Kp * error + I, ANGLE LIMIT)`；误差为当前请求车速减滤波车速，正误差降低目标倾角，经反号后的直立 PD 产生新前进方向的负 PWM，负误差反向修正。普通 RUN 关闭速度环，只使用直立 PD。`FOLLOW START` 立即停机，保持 STOP 2 秒，等待 RUN 实际启动后再直立保持 0.5 秒，此阶段速度环关闭，循迹差速沿用原行为。直立结束进入 SPEED_RAMP 时启用速度 PI，目标从 0 开始，在 2 秒内线性增加到菜单 TARGET SPEED M/S，之后进入 ACTIVE 保持该目标；不附加启动前倾，机械中值及 Flash 存档不变。STOP 和 FOLLOW STOP 清除整个启动流程及速度积分、倾角修正。FOLLOW 默认目标 1.5 m/s；仅启动时对目标速度施加上述 2 秒渐增，速度 PI 每 20 ms 直接计算，不限制倾角输出变化速率，也不按电机饱和拒绝积分。
 - 摄像头直弯 PD 直接产生左右 PWM 差速。转向差速按校正后的方向分配，直立共模输出保持原样；按硬件 ±10000 PWM 的剩余空间分配差速，最终占空比允许 0～100%，电机测试恢复同一硬件范围。原有 Flash 参数和 `TURN PWM LIMIT` 继续使用。
 - 速度 PI 的目标倾角修正默认限于 ±5°，可调到 ±20°，每次 PI 更新直接应用限幅后的输出。新有效图像更新差速；丢线或图像超过 120 ms 时只清零差速，循迹速度目标继续使用菜单设定值，不产生零速制动跳变。`FOLLOW STOP` 关闭速度环，保留 RUN 的直立 PD；`STOP` 关闭电机并清空积分。
 - 新右轮按 `BOARD_BALANCE_RIGHT_PWM_TRIM` 减少 PWM，补偿机械差异；电机测试保持原始 PWM。
@@ -39,7 +39,7 @@ IMU 零偏记录独立保存在 DFlash 第 10 页，不随四档直立参数切�
 - STEERING：直线/弯道 `KP/KD`、方差切换阈值、`TURN PWM LIMIT`、`TURN DIRECTION` 和实际差速。`TURN PWM LIMIT` 默认值为 `1400 PWM`。
 - IMU：手动标定、Flash 有效状态、标定来源、静止/微调状态、原始三轴数据和零偏。
 
-四档直立参数存档版本为 V10。V1～V9 加载时保留原有直立、机械中值、输出限幅和方向参数；旧 `FOLLOW SPEED` 是开环角度指令，不转换为 m/s。新速度目标默认 1.5 m/s，FOLLOW 进入 LEAN_IN 后速度环直接参与目标角。`SPEED ENABLE` 是循迹速度环总开关；即使为 ON，普通 RUN 和 FOLLOW 直立阶段仍关闭速度环。旧左右死区以及循迹参数中的 `BASE SPEED/CURVE SLOW` 仅保留 Flash 布局兼容，不参与活动控制。
+四档直立参数存档版本为 V10。V1～V9 加载时保留原有直立、机械中值、输出限幅和方向参数；旧 `FOLLOW SPEED` 是开环角度指令，不转换为 m/s。新速度目标默认 1.5 m/s，FOLLOW 进入 SPEED_RAMP 后速度环直接参与目标角。`SPEED ENABLE` 是循迹速度环总开关；即使为 ON，普通 RUN 和 FOLLOW 直立阶段仍关闭速度环。旧左右死区以及循迹参数中的 `BASE SPEED/CURVE SLOW` 仅保留 Flash 布局兼容，不参与活动控制。
 
 直立、速度、直道和弯道转向的控制增益均不设置人为调参上限，菜单使用浮点类型的可表示范围；速度 Kp/Ki 不再受旧的 20/10 校验限制。增益允许正数、零和负数，仅要求数值有限，停止状态下重新应用有效参数且姿态已初始化时，会清除之前的 NUMERR；无效姿态和其他故障继续保留。直立环不再使用可调 PWM LIMIT，旧字段仅保留 Flash 布局兼容；目标倾角限幅和硬件 ±10000（100% 占空比）边界继续有效。
 

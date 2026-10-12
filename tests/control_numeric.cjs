@@ -11,6 +11,7 @@ const controlHeader = read('code/balance_control.h');
 const runtime = read('code/balance_runtime.c');
 const runtimeHeader = read('code/balance_runtime.h');
 const car = read('code/car.c');
+const carHeader = read('code/car.h');
 const menu = read('code/car_menu.c');
 const menuPort = read('code/car_menu_port.c');
 const board = read('code/board_pins.h');
@@ -263,48 +264,39 @@ test('encoder preview uses 20 ms count steps, restores on deceleration and freez
     assert(menu.includes('car_menu_fill(4, marker_y, 148, 1, RGB565_BLACK)'));
 });
 
-test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, and all phase boundaries', () => {
-    const stageMs = Number(car.match(/#define CAR_FOLLOW_STAGE_MS\s+\((\d+)\)/)[1]);
-    const rampMs = Number(car.match(/#define CAR_FOLLOW_RAMP_MS\s+\((\d+)\)/)[1]);
+test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
+    const waitDelayMs = Number(car.match(/#define CAR_FOLLOW_WAIT_DELAY_MS\s+\((\d+)\)/)[1]);
+    const uprightMs = Number(car.match(/#define CAR_FOLLOW_UPRIGHT_MS\s+\((\d+)\)/)[1]);
+    const speedRampMs = Number(car.match(/#define CAR_FOLLOW_SPEED_RAMP_MS\s+\((\d+)\)/)[1]);
     const trackBody = car.slice(car.indexOf('void car_track_update('));
-    assert.equal(stageMs, 2000);
-    assert.equal(rampMs, 300);
-    for (const stage of ['CAR_FOLLOW_WAIT_DELAY', 'CAR_FOLLOW_WAIT_RUN', 'CAR_FOLLOW_RUN_UPRIGHT',
-        'CAR_FOLLOW_LEAN_IN', 'CAR_FOLLOW_LEAN_HOLD', 'CAR_FOLLOW_LEAN_OUT', 'CAR_FOLLOW_ACTIVE'])
-        assert(car.includes(stage), stage);
+    const enumBody = carHeader.match(/enum\s*\{([\s\S]*?)\};/)[1];
+    const enumValues = {};
+    let nextEnumValue = 0;
+    for (const match of enumBody.matchAll(/CAR_FOLLOW_(\w+)(?:\s*=\s*(\d+))?\s*,?/g)) {
+        const value = match[2] === undefined ? nextEnumValue : Number(match[2]);
+        enumValues[match[1]] = value;
+        nextEnumValue = value + 1;
+    }
+    assert.deepEqual(enumValues, {IDLE: 0, WAIT_RUN: 1, WAIT_DELAY: 2, ACTIVE: 3, RUN_UPRIGHT: 4, SPEED_RAMP: 5});
+    assert.equal(waitDelayMs, 2000);
+    assert.equal(uprightMs, 500);
+    assert.equal(speedRampMs, 2000);
+    assert(!/CAR_FOLLOW_(?:STAGE|RAMP)_MS/.test(car));
+    assert(!/CAR_FOLLOW_LEAN_(?:IN|HOLD|OUT)/.test(car + carHeader));
+    assert(trackBody.includes('now_ms - follow_stage_started_ms < CAR_FOLLOW_WAIT_DELAY_MS'));
+    assert(trackBody.includes('now_ms - follow_stage_started_ms >= CAR_FOLLOW_UPRIGHT_MS'));
+    assert(trackBody.includes('target_speed_mps *= elapsed_ms / (float)CAR_FOLLOW_SPEED_RAMP_MS'));
+    assert(trackBody.includes('elapsed_ms >= CAR_FOLLOW_SPEED_RAMP_MS'));
+    assert(trackBody.includes('elapsed_ms = now_ms - follow_stage_started_ms'));
 
     const elapsed = (now, started) => ((now - started) >>> 0);
     const started = 0xfffffff0;
-    assert(elapsed((started + stageMs - 1) >>> 0, started) < stageMs);
-    assert(elapsed((started + stageMs) >>> 0, started) >= stageMs);
-    assert(elapsed((started + rampMs - 1) >>> 0, started) < rampMs);
-    assert(elapsed((started + rampMs) >>> 0, started) >= rampMs);
-    assert(trackBody.includes('now_ms - follow_stage_started_ms < CAR_FOLLOW_STAGE_MS'));
-    assert(trackBody.includes('elapsed_ms = now_ms - follow_stage_started_ms'));
-
-    const runStart = trackBody.indexOf('if (car_follow_status == CAR_FOLLOW_WAIT_RUN && car_running != 0)');
-    const runStartBlock = trackBody.slice(runStart, trackBody.indexOf('if (car_follow_status == CAR_FOLLOW_WAIT_RUN)', runStart));
-    assert(runStart >= 0);
-    assert(runStartBlock.includes('follow_stage_started_ms = now_ms'));
-    assert(runStartBlock.includes('car_follow_status = CAR_FOLLOW_RUN_UPRIGHT'));
-    assert(runStartBlock.includes('car_follow_enabled = 1'));
-    assert(trackBody.indexOf('CAR_FOLLOW_RUN_UPRIGHT', runStart) < trackBody.indexOf('CAR_FOLLOW_LEAN_IN', runStart));
-    assert(trackBody.indexOf('CAR_FOLLOW_LEAN_IN', runStart) < trackBody.indexOf('CAR_FOLLOW_LEAN_HOLD', runStart));
-    assert(trackBody.indexOf('CAR_FOLLOW_LEAN_HOLD', runStart) < trackBody.indexOf('CAR_FOLLOW_LEAN_OUT', runStart));
-    assert(trackBody.indexOf('CAR_FOLLOW_LEAN_OUT', runStart) < trackBody.indexOf('car_follow_status = CAR_FOLLOW_ACTIVE', runStart));
-
-    const rampExpressions = [...trackBody.matchAll(/else lean_weight = ([^;]+);/g)].map(match => match[1]);
-    assert.equal(rampExpressions.length, 2);
-    const cArithmetic = expression => new Function('elapsed_ms', 'CAR_FOLLOW_RAMP_MS',
-        `return ${expression.replace(/\(float\)/g, '').replace(/(\d+\.\d+)f/g, '$1')};`);
-    const leanInWeight = cArithmetic(rampExpressions[0]);
-    const leanOutWeight = cArithmetic(rampExpressions[1]);
-    assert.equal(leanInWeight(0, rampMs), 0);
-    assert(Math.abs(leanInWeight(rampMs / 2, rampMs) - 0.5) < 1e-9);
-    assert(leanInWeight(rampMs - 1, rampMs) > 0 && leanInWeight(rampMs - 1, rampMs) < 1);
-    assert.equal(leanOutWeight(0, rampMs), 1);
-    assert(Math.abs(leanOutWeight(rampMs / 2, rampMs) - 0.5) < 1e-9);
-    assert(leanOutWeight(rampMs - 1, rampMs) > 0 && leanOutWeight(rampMs - 1, rampMs) < 1);
+    assert.equal(elapsed((started + waitDelayMs - 1) >>> 0, started), waitDelayMs - 1);
+    assert.equal(elapsed((started + waitDelayMs) >>> 0, started), waitDelayMs);
+    assert.equal(elapsed((started + uprightMs - 1) >>> 0, started), uprightMs - 1);
+    assert.equal(elapsed((started + uprightMs) >>> 0, started), uprightMs);
+    assert.equal(elapsed((started + speedRampMs - 1) >>> 0, started), speedRampMs - 1);
+    assert.equal(elapsed((started + speedRampMs) >>> 0, started), speedRampMs);
 
     const toJsBody = (source, signature) => {
         const start = source.indexOf(signature);
@@ -317,32 +309,31 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
             else if (source[index] === '}' && --depth === 0) { close = index; break; }
         }
         assert(close > open, signature);
-        let body = source.slice(open + 1, close);
-        body = body.replace(/\b(?:float|uint32|uint8)\s+([A-Za-z_]\w*(?:\s*=\s*[^;]+)?);/g, 'let $1;')
-            .replace(/\((?:float|uint32|uint8)\)/g, '')
-            .replace(/(\d+\.\d+)f/g, '$1')
+        return source.slice(open + 1, close).replace(/\b(?:float|uint32|uint8)\s+([A-Za-z_]\w*(?:\s*=\s*[^;]+)?);/g, 'let $1;')
+            .replace(/\((?:float|uint32|uint8)\)/g, '').replace(/(\d+\.\d+)f/g, '$1')
             .replace(/(now_ms|capture_ms|follow_stage_started_ms|last_control_capture_ms)\s*-\s*(now_ms|capture_ms|follow_stage_started_ms|last_control_capture_ms)/g,
                 'u32Sub($1, $2)');
-        return body;
     };
     const runCBody = body => new Function('env', `with (env) { ${body} }`);
     const trackFn = runCBody(toJsBody(car, 'void car_track_update('));
     const stopFn = runCBody(toJsBody(car, 'void car_follow_stop(void)'));
     const resetFn = runCBody(toJsBody(car, 'static void car_reset_turn(void)'));
-    const enumValues = {IDLE: 0, WAIT_RUN: 1, WAIT_DELAY: 2, ACTIVE: 3, RUN_UPRIGHT: 4, LEAN_IN: 5, LEAN_HOLD: 6, LEAN_OUT: 7};
     const enumName = value => Object.keys(enumValues).find(name => enumValues[name] === value);
-    const makeEnv = (status, running, started, fault = 0) => {
+    const menuTarget = 1.75;
+    const makeEnv = (status, running, stageStarted, fault = 0) => {
         const env = {
             car_follow_status: enumValues[status], car_running: running ? 1 : 0,
             car_follow_enabled: ['IDLE', 'WAIT_DELAY', 'WAIT_RUN'].includes(status) ? 0 : 1,
-            speedControlActive: false,
-            follow_stage_started_ms: started >>> 0, car_lost_count: 0, car_curve_mode: 0, car_turn_request: 0,
+            speedControlActive: false, follow_stage_started_ms: stageStarted >>> 0,
+            car_lost_count: 0, car_curve_mode: 0, car_turn_request: 0,
             derivative_ready: 0, last_control_capture_ms: 0, last_error: 0, curve_blend: 0,
             steering_kp: 10, steering_kd: 0, curve_steering_kp: 10, curve_steering_kd: 0,
             curve_enter_threshold: 1, curve_exit_threshold: 0, visual_timeout_ms: 120,
-            balance_state: {fault, running: 1}, balance_params: {target_speed_mps: 1, turn_direction: 1, turn_pwm_limit: 1000},
-            BALANCE_FAULT_NONE: 0, BOARD_FOLLOW_TURN_PWM_SIGN: turnPwmSign, BOARD_FOLLOW_FORWARD_PWM_SIGN: forwardPwmSign,
-            CAR_FOLLOW_STAGE_MS: stageMs, CAR_FOLLOW_RAMP_MS: rampMs, requestStart: false, cancelled: false, command: null,
+            balance_state: {fault, running: 1},
+            balance_params: {target_speed_mps: menuTarget, turn_direction: 1, turn_pwm_limit: 1000},
+            BALANCE_FAULT_NONE: 0, BOARD_FOLLOW_TURN_PWM_SIGN: turnPwmSign,
+            CAR_FOLLOW_WAIT_DELAY_MS: waitDelayMs, CAR_FOLLOW_UPRIGHT_MS: uprightMs,
+            CAR_FOLLOW_SPEED_RAMP_MS: speedRampMs, requestStart: false, cancelled: false, command: null,
             u32Sub: (a, b) => ((a - b) >>> 0), car_value_finite: Number.isFinite,
             cc_math_clamp_f32: (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value))
         };
@@ -352,8 +343,9 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         env.balance_cancel_follow_command = () => { env.cancelled = true; env.speedControlActive = false; };
         env.car_follow_stop = () => stopFn(env);
         env.balance_runtime_request_start = () => { env.requestStart = true; };
-        // C float comparisons treat both zero signs equally; normalize the JS snapshot before deep comparison.
-        env.balance_set_follow_command = (speed, turn, lean, weight) => { env.command = {speed, turn: turn === 0 ? 0 : turn, lean, weight}; };
+        env.balance_set_follow_command = (speed, turn, lean, weight) => {
+            env.command = {speed, turn: turn === 0 ? 0 : turn, lean, weight};
+        };
         return env;
     };
     const invokeTrack = (env, now, error = 0) => {
@@ -364,133 +356,129 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
         trackFn(env);
         return env;
     };
-    let phase = makeEnv('WAIT_DELAY', false, started);
-    invokeTrack(phase, (started + stageMs - 1) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'WAIT_DELAY');
-    assert.equal(phase.speedControlActive, false);
-    assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
-    invokeTrack(phase, (started + stageMs) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'WAIT_RUN');
-    assert.equal(phase.speedControlActive, false);
-    assert.equal(phase.requestStart, true);
-    invokeTrack(phase, (started + stageMs + 5000) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'WAIT_RUN');
-    assert.equal(phase.speedControlActive, false);
-    const runNow = (started + stageMs + 5001) >>> 0;
-    phase.car_running = 1;
-    invokeTrack(phase, runNow);
-    assert.equal(enumName(phase.car_follow_status), 'RUN_UPRIGHT');
-    assert.equal(phase.follow_stage_started_ms, runNow);
-    assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
-    assert.equal(phase.speedControlActive, false);
-    phase.car_running = 1;
-    invokeTrack(phase, (runNow + stageMs - 1) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'RUN_UPRIGHT');
-    assert.deepEqual(phase.command, {speed: 0, turn: 0, lean: 0, weight: 0});
-    assert.equal(phase.speedControlActive, false);
-    invokeTrack(phase, (runNow + stageMs) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_IN');
-    assert.equal(phase.speedControlActive, true);
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    invokeTrack(phase, (runNow + stageMs + rampMs / 2) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_IN');
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    invokeTrack(phase, (runNow + stageMs + rampMs) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_HOLD');
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    const holdStart = phase.follow_stage_started_ms;
-    invokeTrack(phase, (holdStart + stageMs - 1) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_HOLD');
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    invokeTrack(phase, (holdStart + stageMs) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_OUT');
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    const outStart = phase.follow_stage_started_ms;
-    invokeTrack(phase, (outStart + rampMs / 2) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'LEAN_OUT');
-    assert.equal(phase.command.weight, 0);
-    assert.equal(phase.command.lean, 0);
-    invokeTrack(phase, (outStart + rampMs) >>> 0);
-    assert.equal(enumName(phase.car_follow_status), 'ACTIVE');
-    assert.equal(phase.speedControlActive, true);
-    assert.deepEqual(phase.command, {speed: 1, turn: 0, lean: 0, weight: 0});
-    const upright = makeEnv('RUN_UPRIGHT', true, runNow);
-    invokeTrack(upright, runNow + 1);
-    assert.deepEqual(upright.command, {speed: 0, turn: 0, lean: 0, weight: 0});
-    assert.equal(upright.speedControlActive, false);
-    for (const status of ['RUN_UPRIGHT', 'LEAN_IN', 'LEAN_HOLD', 'LEAN_OUT']) {
-        const tracking = makeEnv(status, true, runNow);
-        invokeTrack(tracking, runNow + 100, 2);
-        assert.equal(tracking.command.turn, 20 * turnPwmSign);
-        assert.equal(tracking.command.speed, status === 'RUN_UPRIGHT' ? 0 : 1);
-        assert.equal(tracking.speedControlActive, status !== 'RUN_UPRIGHT');
-        assert.equal(tracking.command.weight, 0);
-        tracking.valid = 0;
-        trackFn(tracking);
-        assert.equal(tracking.command.turn, 0);
-        assert.equal(tracking.command.speed, status === 'RUN_UPRIGHT' ? 0 : 1);
-        assert.equal(tracking.speedControlActive, status !== 'RUN_UPRIGHT');
+    const assertUprightCommand = env => {
+        assert.equal(enumName(env.car_follow_status), 'RUN_UPRIGHT');
+        assert.equal(env.command.speed, 0);
+        assert.equal(env.speedControlActive, false);
+        assert.equal(env.command.lean, 0);
+        assert.equal(env.command.weight, 0);
+    };
+
+    const delay = makeEnv('WAIT_DELAY', false, started);
+    invokeTrack(delay, (started + waitDelayMs - 1) >>> 0);
+    assert.equal(enumName(delay.car_follow_status), 'WAIT_DELAY');
+    assert.equal(delay.speedControlActive, false);
+    assert.deepEqual(delay.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    const delayEnd = (started + waitDelayMs) >>> 0;
+    invokeTrack(delay, delayEnd);
+    assert.equal(enumName(delay.car_follow_status), 'WAIT_RUN');
+    assert.equal(delay.speedControlActive, false);
+    assert.equal(delay.requestStart, true);
+    assert.deepEqual(delay.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    invokeTrack(delay, (delayEnd + 6000) >>> 0);
+    assert.equal(enumName(delay.car_follow_status), 'WAIT_RUN');
+    assert.equal(delay.speedControlActive, false);
+    const runNow = (delayEnd + 9000) >>> 0;
+    delay.car_running = 1;
+    invokeTrack(delay, runNow, 2);
+    assertUprightCommand(delay);
+    assert.equal(delay.follow_stage_started_ms, runNow);
+    assert.equal(delay.command.turn, 20 * turnPwmSign);
+    invokeTrack(delay, (runNow + uprightMs - 1) >>> 0, 2);
+    assertUprightCommand(delay);
+    assert.equal(delay.command.turn, 20 * turnPwmSign);
+    const rampStart = (runNow + uprightMs) >>> 0;
+    invokeTrack(delay, rampStart, 2);
+    assert.equal(enumName(delay.car_follow_status), 'SPEED_RAMP');
+    assert.equal(delay.follow_stage_started_ms, rampStart);
+    assert.equal(delay.speedControlActive, true);
+    assert.equal(delay.command.speed, 0);
+    assert.equal(delay.command.turn, 20 * turnPwmSign);
+
+    for (const offset of [0, 499, 500, 1000, 1999, 2000]) {
+        invokeTrack(delay, (rampStart + offset) >>> 0, 2);
+        assert.equal(enumName(delay.car_follow_status), offset < speedRampMs ? 'SPEED_RAMP' : 'ACTIVE');
+        assert.equal(delay.speedControlActive, true);
+        near(delay.command.speed, offset < speedRampMs ? menuTarget * offset / speedRampMs : menuTarget);
+        assert.equal(delay.command.turn, 20 * turnPwmSign);
+        assert.equal(delay.command.lean, 0);
+        assert.equal(delay.command.weight, 0);
+        if (offset === speedRampMs) assert.equal(delay.follow_stage_started_ms, 0);
     }
+
+    const wrapRampStart = 0xffffff00;
+    const wrapRamp = makeEnv('SPEED_RAMP', true, wrapRampStart);
+    invokeTrack(wrapRamp, (wrapRampStart + speedRampMs - 1) >>> 0, 2);
+    assert.equal(enumName(wrapRamp.car_follow_status), 'SPEED_RAMP');
+    near(wrapRamp.command.speed, menuTarget * (speedRampMs - 1) / speedRampMs);
+    invokeTrack(wrapRamp, (wrapRampStart + speedRampMs) >>> 0, 2);
+    assert.equal(enumName(wrapRamp.car_follow_status), 'ACTIVE');
+    near(wrapRamp.command.speed, menuTarget);
+
+    const zeroTarget = makeEnv('SPEED_RAMP', true, rampStart);
+    zeroTarget.balance_params.target_speed_mps = 0;
+    invokeTrack(zeroTarget, (rampStart + speedRampMs / 2) >>> 0);
+    assert.equal(zeroTarget.command.speed, 0);
+    assert(Number.isFinite(zeroTarget.command.speed));
+    assert.equal(enumName(zeroTarget.car_follow_status), 'SPEED_RAMP');
+
     for (const invalidKind of ['line', 'stale', 'missing', 'numeric']) {
-        const tracking = makeEnv('ACTIVE', true, runNow);
-        invokeTrack(tracking, runNow + 100, 2);
+        const tracking = makeEnv('SPEED_RAMP', true, rampStart);
+        invokeTrack(tracking, (rampStart + 400) >>> 0, 2);
         if (invalidKind === 'line') tracking.valid = 0;
-        else if (invalidKind === 'stale') tracking.capture_ms = tracking.now_ms - 121;
+        else if (invalidKind === 'stale') tracking.capture_ms = (tracking.now_ms - 121) >>> 0;
         else if (invalidKind === 'missing') tracking.capture_ms = 0;
         else tracking.error = NaN;
-        for (let sample = 0; sample < 10; sample++) {
-            trackFn(tracking);
-            assert.equal(tracking.command.speed, 1);
-            assert.equal(tracking.command.turn, 0);
-            assert.equal(tracking.speedControlActive, true);
-            assert.equal(enumName(tracking.car_follow_status), 'ACTIVE');
-            tracking.now_ms += 200;
-        }
-        invokeTrack(tracking, tracking.now_ms, 2);
-        assert.equal(tracking.command.speed, 1);
+        tracking.now_ms = (rampStart + 1000) >>> 0;
+        if (invalidKind === 'stale') tracking.capture_ms = (tracking.now_ms - 121) >>> 0;
+        else if (invalidKind === 'missing') tracking.capture_ms = 0;
+        else if (invalidKind !== 'numeric') tracking.capture_ms = tracking.now_ms;
+        trackFn(tracking);
+        assert.equal(enumName(tracking.car_follow_status), 'SPEED_RAMP');
+        near(tracking.command.speed, menuTarget / 2);
+        assert.equal(tracking.command.turn, 0);
+        assert.equal(tracking.speedControlActive, true);
+        tracking.now_ms = (rampStart + 1001) >>> 0;
+        tracking.capture_ms = tracking.now_ms;
+        tracking.error = 2;
+        tracking.valid = 1;
+        trackFn(tracking);
+        near(tracking.command.speed, menuTarget * 1001 / speedRampMs);
         assert.equal(tracking.command.turn, 20 * turnPwmSign);
     }
-    for (const status of ['RUN_UPRIGHT', 'LEAN_IN', 'LEAN_HOLD', 'LEAN_OUT', 'ACTIVE']) {
-        const lost = makeEnv(status, false, runNow);
-        invokeTrack(lost, runNow + 10);
-        assert.equal(enumName(lost.car_follow_status), 'WAIT_RUN');
-        assert.equal(lost.car_follow_enabled, 0);
-        assert.equal(lost.speedControlActive, false);
-        assert.equal(lost.follow_stage_started_ms, 0);
-        lost.car_running = 1;
-        invokeTrack(lost, runNow + 11);
-        assert.equal(enumName(lost.car_follow_status), 'RUN_UPRIGHT');
-        assert.equal(lost.follow_stage_started_ms, runNow + 11);
-        assert.deepEqual(lost.command, {speed: 0, turn: 0, lean: 0, weight: 0});
-        assert.equal(lost.speedControlActive, false);
-        const faulted = makeEnv(status, true, runNow, 1);
-        invokeTrack(faulted, runNow + 12);
-        assert.equal(enumName(faulted.car_follow_status), 'IDLE');
-        assert.equal(faulted.car_follow_enabled, 0);
-        assert.equal(faulted.follow_stage_started_ms, 0);
-        assert.equal(faulted.cancelled, true);
-        assert.equal(faulted.speedControlActive, false);
-    }
-    const stopped = makeEnv('LEAN_HOLD', true, runNow);
+
+    const lost = makeEnv('SPEED_RAMP', false, rampStart + 1000);
+    invokeTrack(lost, rampStart + 1001);
+    assert.equal(enumName(lost.car_follow_status), 'WAIT_RUN');
+    assert.equal(lost.car_follow_enabled, 0);
+    assert.equal(lost.speedControlActive, false);
+    assert.equal(lost.follow_stage_started_ms, 0);
+    lost.car_running = 1;
+    const restartedAt = (rampStart + 5000) >>> 0;
+    invokeTrack(lost, restartedAt, 2);
+    assertUprightCommand(lost);
+    assert.equal(lost.follow_stage_started_ms, restartedAt);
+    assert.equal(lost.command.turn, 20 * turnPwmSign);
+
+    const faulted = makeEnv('SPEED_RAMP', true, rampStart + 1000, 1);
+    invokeTrack(faulted, rampStart + 1001);
+    assert.equal(enumName(faulted.car_follow_status), 'IDLE');
+    assert.equal(faulted.car_follow_enabled, 0);
+    assert.equal(faulted.follow_stage_started_ms, 0);
+    assert.equal(faulted.cancelled, true);
+    assert.equal(faulted.speedControlActive, false);
+    const stopped = makeEnv('SPEED_RAMP', true, rampStart + 1000);
     stopFn(stopped);
     assert.equal(enumName(stopped.car_follow_status), 'IDLE');
     assert.equal(stopped.car_follow_enabled, 0);
     assert.equal(stopped.follow_stage_started_ms, 0);
     assert.equal(stopped.cancelled, true);
     assert.equal(stopped.speedControlActive, false);
+
     const noFollow = makeEnv('IDLE', true, runNow);
     invokeTrack(noFollow, runNow + 20);
     assert.equal(noFollow.car_follow_enabled, 0);
     assert.equal(noFollow.speedControlActive, false);
-    assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_RAMP_MS)'));
-    assert(trackBody.includes('if (elapsed_ms >= CAR_FOLLOW_STAGE_MS)'));
-    assert(trackBody.includes('lean_weight = 1.0f'));
-    assert(trackBody.includes('follow_stage_started_ms = 0'));
     assert(car.includes('now_ms - capture_ms <= visual_timeout_ms'));
     assert(car.includes('uint8 visual_valid = visual_fresh && valid && car_value_finite(error) && car_value_finite(curvature)'));
     assert(car.includes('if (!visual_valid)'));
@@ -499,7 +487,7 @@ test('FOLLOW staged launch uses unsigned elapsed time, actual RUN start time, an
     assert(!menu.includes('FOLLOW STATUS'));
 });
 
-test('FOLLOW START stops immediately, then RUN_UPRIGHT keeps zero speed and lean while tracking', () => {
+test('FOLLOW START stops immediately and ordinary RUN remains outside the upright hold', () => {
     const startBody = car.slice(car.indexOf('uint8 car_follow_start(void)'), car.indexOf('void car_follow_stop(void)'));
     assert(startBody.includes('balance_runtime_stop()'));
     assert(startBody.includes('car_follow_status = CAR_FOLLOW_WAIT_DELAY'));
@@ -507,7 +495,8 @@ test('FOLLOW START stops immediately, then RUN_UPRIGHT keeps zero speed and lean
     assert(!startBody.includes('balance_runtime_request_start()'));
     assert(runtime.includes('car_follow_status == CAR_FOLLOW_WAIT_RUN && !balance_state.running'));
     assert(car.includes('if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f'));
-    assert(car.includes('if (lean_angle == 0.0f) lean_weight = 0.0f'));
+    assert(car.includes('balance_set_speed_control_active(car_follow_status != CAR_FOLLOW_RUN_UPRIGHT)'));
+    assert(car.includes('balance_set_follow_command(target_speed_mps, car_turn_request, 0.0f, 0.0f)'));
     const stopBody = car.slice(car.indexOf('void car_follow_stop(void)'), car.indexOf('void car_track_update('));
     assert(stopBody.includes('car_follow_status = CAR_FOLLOW_IDLE'));
     assert(stopBody.includes('follow_stage_started_ms = 0'));
@@ -549,14 +538,15 @@ test('runtime STOP and image CENTER request clear FOLLOW while status prioritize
     assert(statusBody.includes('return "FOLLOW"'));
 });
 
-test('FOLLOW supplies staged lean, speed, and steering without changing the normal ACTIVE command', () => {
+test('FOLLOW ramps only the menu speed target and leaves camera steering active', () => {
     const commandBody = car.slice(car.indexOf('target_speed_mps = balance_params.target_speed_mps'));
     assert(commandBody.includes('target_speed_mps = balance_params.target_speed_mps'));
     assert(!car.includes('target_speed_mps = visual_valid ?'));
-    assert(commandBody.includes('lean_angle = 0.0f'));
-    assert(commandBody.includes('if (lean_angle == 0.0f) lean_weight = 0.0f'));
-    assert(commandBody.includes('balance_set_follow_command(target_speed_mps, car_turn_request, lean_angle, lean_weight)'));
-    assert(commandBody.includes('lean_weight = 1.0f - elapsed_ms / (float)CAR_FOLLOW_RAMP_MS'));
+    assert(commandBody.includes('target_speed_mps *= elapsed_ms / (float)CAR_FOLLOW_SPEED_RAMP_MS'));
+    assert(commandBody.includes('balance_set_follow_command(target_speed_mps, car_turn_request, 0.0f, 0.0f)'));
+    assert(!commandBody.includes('lean_angle'));
+    assert(!commandBody.includes('lean_weight'));
+    assert(!commandBody.includes('CAR_FOLLOW_LEAN_'));
     assert(!commandBody.includes('follow_speed'));
     assert(car.includes('balance_params.target_speed_mps'));
     assert(car.includes('balance_cancel_follow_command()'));

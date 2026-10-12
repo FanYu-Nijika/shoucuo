@@ -4,9 +4,9 @@
 #include "zf_common_headfile.h"
 #include "car_params.h"
 
-/* START waits stopped for 2 s, waits for RUN, then holds upright for 2 s with speed PI off.
- * Camera differential remains active; speed PI starts when the upright hold ends and tracking begins.
- * The remaining 300 ms / 2 s / 300 ms stage timers are retained; the launch offset is disabled (0 degrees).
+/* START waits stopped for 2 s, waits for RUN, then holds upright for 0.5 s with speed PI off.
+ * SPEED_RAMP enables PI and raises its target from zero to the menu speed over 2 s, then enters ACTIVE.
+ * Camera differential remains active after RUN starts; no extra launch lean is applied.
  * STOP cancels every stage; a lost RUN without a fault restarts from WAIT_RUN and the full upright hold. */
 enum {
     CAR_FOLLOW_IDLE = 0,
@@ -14,9 +14,7 @@ enum {
     CAR_FOLLOW_WAIT_DELAY,
     CAR_FOLLOW_ACTIVE,
     CAR_FOLLOW_RUN_UPRIGHT,
-    CAR_FOLLOW_LEAN_IN,
-    CAR_FOLLOW_LEAN_HOLD,
-    CAR_FOLLOW_LEAN_OUT
+    CAR_FOLLOW_SPEED_RAMP
 };
 
 extern volatile uint8 car_running;
