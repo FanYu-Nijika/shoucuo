@@ -107,7 +107,7 @@ test('encoder speed updates every 2 ms while the speed PI runs every 20 ms', () 
     const filter = sampleBody.indexOf('balance_state.speed_filtered_mps += speed_filter_weight');
     const phase = sampleBody.indexOf('if (++encoder_sample_phase < 10) return');
     assert(sampleStart >= 0 && validation >= 0 && conversion > validation && filter > conversion);
-    assert(phase > filter && sampleBody.indexOf('balance_update_speed_20ms()') > phase);
+    assert(phase > filter && sampleBody.indexOf('balance_update_speed_20ms(speed_feedback_sum / 10.0f)') > phase);
     assert(sampleBody.includes('balance_state.left_count = left_count'));
     assert(sampleBody.includes('balance_state.right_count = right_count'));
     assert(sampleBody.includes('balance_state.left_counts_per_rev > 0'));
@@ -120,7 +120,9 @@ test('encoder speed updates every 2 ms while the speed PI runs every 20 ms', () 
     assert(control.includes('static const float speed_dt_s = 0.02f'));
     assert(control.includes('applied_params.speed_ki * error * speed_dt_s'));
     assert(piBody.includes('speed_target_applied_mps = requested_speed_mps'));
-    assert(piBody.includes('balance_state.speed_feedback_mps = balance_state.speed_filtered_mps'));
+    assert(piBody.includes('balance_state.speed_feedback_mps = feedback_mps'));
+    assert(sampleBody.includes('speed_feedback_sum += balance_state.speed_filtered_mps'));
+    assert(sampleBody.includes('balance_update_speed_20ms(speed_feedback_sum / 10.0f)'));
     assert(piBody.includes('error = balance_state.speed_target_applied_mps - balance_state.speed_feedback_mps'));
     assert(piBody.includes('speed_integral_angle += applied_params.speed_ki * error * speed_dt_s'));
     assert(piBody.includes('speed_integral_angle = balance_clamp(balance_state.speed_integral_angle, angle_limit)'));

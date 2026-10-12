@@ -34,10 +34,13 @@
 ********************************************************************************************************************/
 
 #include "IfxStm.h"
+#include "Cpu/Std/IfxCpu.h"
 #include "IFXSTM_CFG.h"
 #include "zf_driver_timer.h"
 
 static uint32 systick_count[2];
+// Millisecond time uses full STM ticks because the 32-bit 10ns counter wraps after about 43 seconds.
+static uint64 systick_start[2];
 
 //-------------------------------------------------------------------------------------------------------------------
 //  函数简介      systick定时器启动
@@ -46,7 +49,15 @@ static uint32 systick_count[2];
 //-------------------------------------------------------------------------------------------------------------------
 void system_start (void)
 {
-    systick_count[(IfxCpu_getCoreId())] = IfxStm_getLower(IfxStm_getAddress((IfxStm_Index)(IfxCpu_getCoreId())));
+    uint32 core = IfxCpu_getCoreId();
+    Ifx_STM *stm = IfxStm_getAddress((IfxStm_Index)core);
+    // IfxStm_get reads TIM0 then CAP; keep this snapshot atomic and restore the caller interrupt state.
+    boolean interrupts_enabled = IfxCpu_disableInterrupts();
+    uint64 now = IfxStm_get(stm);
+
+    systick_count[core] = (uint32)now;
+    systick_start[core] = now;
+    IfxCpu_restoreInterrupts(interrupts_enabled);
 }
 
 //-------------------------------------------------------------------------------------------------------------------
@@ -69,6 +80,25 @@ uint32 system_getval (void)
     return time;
 }
 
+uint32 system_getval_ms(void)
+{
+    uint32 core = IfxCpu_getCoreId();
+    Ifx_STM *stm = IfxStm_getAddress((IfxStm_Index)core);
+    uint32 stm_clk = IfxStm_getFrequency(stm);
+    uint64 now;
+    uint64 start;
+    uint64 elapsed;
+    // IfxStm_get reads TIM0 then CAP; keep this snapshot atomic and restore the caller interrupt state.
+    boolean interrupts_enabled = IfxCpu_disableInterrupts();
 
+    now = IfxStm_get(stm);
+    start = systick_start[core];
+    IfxCpu_restoreInterrupts(interrupts_enabled);
 
+    if (stm_clk == 0) {
+        return 0;
+    }
 
+    elapsed = now - start;
+    return (uint32)(elapsed / stm_clk * 1000 + elapsed % stm_clk * 1000 / stm_clk);
+}

@@ -25,6 +25,8 @@ minimum, maximum, step, decimals, apply, action
 
 主菜单顺序为 `RUN CONTROL → SPEED → STEERING`。SPEED 页前五项为 `SPEED KP`、`SPEED KI`、`SPEED ANGLE LIMIT`、`TARGET SPEED M/S`、`SPEED ENABLE`，之后为速度输出和标定数据。左右计数显示最近一次 2 ms 增量，测速每 2 ms 更新，速度 PI 每 20 ms 更新；未标定时速度显示 UNCAL，新芯片需先完成左右一圈标定。
 
+`SPEED KI` 调整步长为 0.01。浮点参数显示按小数位数四舍五入，避免把实际的 0.02 显示成 0.01；超出值栏宽度的大增益用科学记数法显示。该显示处理不修改控制参数。
+
 当前显示的可调项包括 `TARGET SPEED M/S`、`SPEED ENABLE/KP/KI/ANGLE LIMIT`、PWM 限制、直道/弯道两套转向 `KP/KD`、视觉阈值和曝光/增益。目标速度范围为 0～3 m/s，默认 1.5 m/s，步长 0.1 m/s；它通过编码器闭环调整小幅目标倾角，不直接加到电机 PWM。`MOTORS` 页仍提供独立的左右电机 PWM 测试值。
 
 ## 2. 五个主按键

@@ -145,6 +145,7 @@ static uint32_t left_count_total;
 static uint32_t right_count_total;
 static uint32_t encoder_calibration_start_count;
 static uint8_t encoder_sample_phase;
+static float speed_feedback_sum;
 static volatile uint8_t speed_control_active;
 static float requested_speed_mps;
 static float requested_turn_pwm;
@@ -590,7 +591,7 @@ void balance_set_follow_command(float target_speed_mps, float turn_pwm, float le
     requested_lean_weight = lean_weight;
 }
 
-static void balance_update_speed_20ms(void)
+static void balance_update_speed_20ms(float feedback_mps)
 {
     float error;
     float pi_output;
@@ -613,7 +614,7 @@ static void balance_update_speed_20ms(void)
 
     balance_state.speed_target_applied_mps = requested_speed_mps;
     balance_state.speed_pid_active = 1;
-    balance_state.speed_feedback_mps = balance_state.speed_filtered_mps;
+    balance_state.speed_feedback_mps = feedback_mps;
     error = balance_state.speed_target_applied_mps - balance_state.speed_feedback_mps;
     balance_state.speed_error_mps = error;
     balance_state.speed_p_angle = applied_params.speed_kp * error;
@@ -647,13 +648,17 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
         balance_state.speed_raw_mps = NAN;
         balance_state.speed_filtered_mps = NAN;
     }
+    /* Use the full PI interval, rather than aliasing one 2 ms encoder sample every 20 ms. */
+    if (balance_state.encoder_calibration_valid) speed_feedback_sum += balance_state.speed_filtered_mps;
+    else speed_feedback_sum = 0.0f;
     if (++encoder_sample_phase < 10) return;
     encoder_sample_phase = 0;
     /* Vision still uses a 20 ms window so its existing 250/20 preview thresholds keep their units. */
     balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
     left_count_sum = 0;
     right_count_sum = 0;
-    balance_update_speed_20ms();
+    balance_update_speed_20ms(speed_feedback_sum / 10.0f);
+    speed_feedback_sum = 0.0f;
 }
 
 void balance_init(void)
@@ -673,6 +678,7 @@ void balance_init(void)
     right_count_total = 0;
     encoder_calibration_start_count = 0;
     encoder_sample_phase = 0;
+    speed_feedback_sum = 0.0f;
     balance_clear_outputs();
     balance_encoder_flash_load();
 }

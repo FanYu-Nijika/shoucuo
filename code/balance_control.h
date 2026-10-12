@@ -27,8 +27,8 @@ typedef struct {
     /* Keep these slots for V8 Flash profiles; motor dead zones are not used by the balance loop. */
     uint16_t left_motor_deadzone;
     uint16_t right_motor_deadzone;
-    float speed_kp;
-    float speed_ki;
+    float speed_kp; /* Degrees per (m/s). */
+    float speed_ki; /* Degrees per (m/s) per second, not a gain per PI update. */
     float speed_angle_limit;
     uint8_t speed_enabled;
 } balance_params_t;
@@ -47,7 +47,7 @@ typedef struct {
     float speed_target_applied_mps;
     float speed_raw_mps;
     float speed_filtered_mps;
-    float speed_feedback_mps; /* Feedback held from the latest 20 ms PI calculation. */
+    float speed_feedback_mps; /* Mean of ten 2 ms speeds, held from the latest PI calculation. */
     float speed_error_mps;
     float speed_p_angle;
     float speed_integral_angle;

@@ -2,6 +2,7 @@
 
 #include <float.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "balance_control.h"
@@ -156,7 +157,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_state, 0, BALANCE_IMU_FAILED, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_SPEED, "SPEED KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_kp, -FLT_MAX, FLT_MAX, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
-    {0, CAR_MENU_PAGE_SPEED, "SPEED KI", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_ki, -FLT_MAX, FLT_MAX, 0.05, 2, CAR_MENU_APPLY_BALANCE, 0},
+    {0, CAR_MENU_PAGE_SPEED, "SPEED KI", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_ki, -FLT_MAX, FLT_MAX, 0.01, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_SPEED, "SPEED ANGLE LIMIT", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.speed_angle_limit, 0, 20, 0.1, 1, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_SPEED, "TARGET SPEED M/S", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.target_speed_mps, 0, 3, 0.1, 2, CAR_MENU_APPLY_BALANCE, 0},
     {0, CAR_MENU_PAGE_SPEED, "SPEED ENABLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_BOOL, &balance_params.speed_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_BALANCE, 0},
@@ -883,7 +884,7 @@ static void car_menu_draw_header(void)
 
 static void car_menu_draw_value(const car_menu_item_t *item, float value, uint16_t x, uint16_t y, uint16_t foreground, uint16_t background)
 {
-    uint8_t integer_digits;
+    char value_text[12];
 
     if (item == 0) return;
     ips200_set_color(foreground, background);
@@ -897,12 +898,12 @@ static void car_menu_draw_value(const car_menu_item_t *item, float value, uint16
     } else if (item->value_type == CAR_MENU_VALUE_DIRECTION) {
         ips200_show_string(x, y, value < 0.0 ? "REV" : "FWD");
     } else if (item->value_type == CAR_MENU_VALUE_FLOAT) {
-        if (item->decimals == 0) ips200_show_int(x, y, (int32_t)value, 7);
-        else {
-            /* Values start at x=228, leaving room for at most 11 characters in the 8x16 font. */
-            integer_digits = item->decimals < 9 ? 9 - item->decimals : 1;
-            ips200_show_float(x, y, value, integer_digits, item->decimals);
+        /* Truncating the LCD conversion can display 0.02f as 0.01; round the displayed value instead. */
+        if (snprintf(value_text, sizeof(value_text), "%.*f", item->decimals, value) >= 12) {
+            /* The value column has room for eleven characters, including the sign and decimal point. */
+            snprintf(value_text, sizeof(value_text), "%.3g", value);
         }
+        ips200_show_string(x, y, value_text);
     } else if (item->value_type == CAR_MENU_VALUE_I32) {
         /* The signed 2 ms encoder increment fits in seven display characters. */
         ips200_show_int(x, y, (int32_t)value, 7);
