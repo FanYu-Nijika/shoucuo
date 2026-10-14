@@ -1,5 +1,6 @@
 #include "car_uart_stream.h"
 
+#include "board_pins.h"
 #include "car_shared.h"
 #include "zf_common_headfile.h"
 
@@ -22,7 +23,8 @@ static const uint8 seekfree_assistant_camera_header[] = {
 
 void car_uart_stream_init(void)
 {
-    seekfree_assistant_interface_init(SEEKFREE_ASSISTANT_DEBUG_UART);
+    /* The download connector is on UART0; debug/printf keep their independent UART2 connection. */
+    uart_init(BOARD_HOST_UART, 115200, BOARD_HOST_UART_TX_PIN, BOARD_HOST_UART_RX_PIN);
     stream_enabled = 0;
 }
 void car_uart_stream_start(void)
@@ -44,12 +46,12 @@ void car_uart_stream_send_frame(uint8 *image_frame)
     uint16 column;
 
     if (stream_enabled == 0 || image_frame == 0) return;
-    debug_send_buffer(seekfree_assistant_camera_header, sizeof(seekfree_assistant_camera_header));
+    uart_write_buffer(BOARD_HOST_UART, seekfree_assistant_camera_header, sizeof(seekfree_assistant_camera_header));
     for (row = 0; row < CAR_IMAGE_HEIGHT; row++) {
         for (column = 0; column < CAR_IMAGE_WIDTH; column++) {
             stream_line[column] = 0;
             if (image_frame[row * CAR_IMAGE_WIDTH + column] != 0) stream_line[column] = 255;
         }
-        debug_send_buffer(stream_line, CAR_IMAGE_WIDTH);
+        uart_write_buffer(BOARD_HOST_UART, stream_line, CAR_IMAGE_WIDTH);
     }
 }
