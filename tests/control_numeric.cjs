@@ -160,6 +160,14 @@ test('camera PWM differential never steals common balance headroom', () => {
     near(out.left, 10000); near(out.right, 9000); near(out.turn, 500);
     out = allocate(-9800, -1000, motorPwmLimit);
     near(out.left, -10000); near(out.right, -9600); near(out.turn, -200);
+    out = allocate(9800, 200, motorPwmLimit);
+    near(out.left, 10000); near(out.right, 9600); near(out.turn, 200);
+    out = allocate(9800, -200, motorPwmLimit);
+    near(out.left, 9600); near(out.right, 10000); near(out.turn, -200);
+    out = allocate(-9800, 200, motorPwmLimit);
+    near(out.left, -9600); near(out.right, -10000); near(out.turn, 200);
+    out = allocate(-9800, -200, motorPwmLimit);
+    near(out.left, -10000); near(out.right, -9600); near(out.turn, -200);
     out = allocate(12000, 500, motorPwmLimit);
     near(out.left, 10000); near(out.right, 10000); near(out.turn, 0);
 });
@@ -194,15 +202,22 @@ test('left and right motor wiring matches PWM tests while preserving encoder cal
     assert(board.includes('#define BOARD_RIGHT_ENCODER_INDEX          (BOARD_ENCODER_H4_INDEX)'));
     assert(board.includes('#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)'));
     assert(board.includes('#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)'));
-    near(-10 * -1, 10);  // Camera-forward travel reverses both raw encoder directions.
-    near(180 * 1, 180);
+    assert(menuPort.includes('encoder_get_count(BOARD_LEFT_ENCODER_INDEX)'));
+    assert(menuPort.includes('encoder_get_count(BOARD_RIGHT_ENCODER_INDEX)'));
+    assert(menuPort.includes('delta_left *= BOARD_BALANCE_LEFT_ENCODER_SIGN'));
+    assert(menuPort.includes('delta_right *= BOARD_BALANCE_RIGHT_ENCODER_SIGN'));
+    near(-10 * -1, 10);  // Forward H7 raw counts -10 become positive left-wheel counts.
+    near(180 * 1, 180);  // Forward H4 raw counts +180 stay positive right-wheel counts.
     near(10 * -1, -10);
     near(-180 * 1, -180);
     assert.equal(forwardPwmSign, -1);
     assert.equal(turnPwmSign, -1);
-    assert(control.includes('record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev'));
-    assert(control.includes('record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev'));
-    assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (2u)'));
+    assert(control.includes('if (record.version == 1u || record.version == 3u)'));
+    assert(control.includes('balance_state.left_counts_per_rev = record.right_counts_per_rev'));
+    assert(control.includes('balance_state.right_counts_per_rev = record.left_counts_per_rev'));
+    assert(control.includes('balance_state.left_counts_per_rev = record.left_counts_per_rev'));
+    assert(control.includes('balance_state.right_counts_per_rev = record.right_counts_per_rev'));
+    assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (4u)'));
     assert(image.includes('average_count = balance_state.encoder_average_count'));
     const positiveErrorTurn = 10 * 2 * turnPwmSign;
     const output = allocate(-1000, positiveErrorTurn, 5000);
@@ -268,6 +283,7 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     const waitDelayMs = Number(car.match(/#define CAR_FOLLOW_WAIT_DELAY_MS\s+\((\d+)\)/)[1]);
     const uprightMs = Number(car.match(/#define CAR_FOLLOW_UPRIGHT_MS\s+\((\d+)\)/)[1]);
     const speedRampMs = Number(car.match(/#define CAR_FOLLOW_SPEED_RAMP_MS\s+\((\d+)\)/)[1]);
+    const oscerrDelayMs = Number(car.match(/#define CAR_FOLLOW_OSCERR_DELAY_MS\s+\((\d+)\)/)[1]);
     const trackBody = car.slice(car.indexOf('void car_track_update('));
     const enumBody = carHeader.match(/enum\s*\{([\s\S]*?)\};/)[1];
     const enumValues = {};
@@ -281,6 +297,7 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     assert.equal(waitDelayMs, 2000);
     assert.equal(uprightMs, 500);
     assert.equal(speedRampMs, 2000);
+    assert.equal(oscerrDelayMs, 5000);
     assert(!/CAR_FOLLOW_(?:STAGE|RAMP)_MS/.test(car));
     assert(!/CAR_FOLLOW_LEAN_(?:IN|HOLD|OUT)/.test(car + carHeader));
     assert(trackBody.includes('now_ms - follow_stage_started_ms < CAR_FOLLOW_WAIT_DELAY_MS'));
@@ -311,7 +328,7 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
         assert(close > open, signature);
         return source.slice(open + 1, close).replace(/\b(?:float|uint32|uint8)\s+([A-Za-z_]\w*(?:\s*=\s*[^;]+)?);/g, 'let $1;')
             .replace(/\((?:float|uint32|uint8)\)/g, '').replace(/(\d+\.\d+)f/g, '$1')
-            .replace(/(now_ms|capture_ms|follow_stage_started_ms|last_control_capture_ms)\s*-\s*(now_ms|capture_ms|follow_stage_started_ms|last_control_capture_ms)/g,
+            .replace(/(now_ms|capture_ms|follow_stage_started_ms|follow_started_ms|last_control_capture_ms)\s*-\s*(now_ms|capture_ms|follow_stage_started_ms|follow_started_ms|last_control_capture_ms)/g,
                 'u32Sub($1, $2)');
     };
     const runCBody = body => new Function('env', `with (env) { ${body} }`);
@@ -320,11 +337,12 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     const resetFn = runCBody(toJsBody(car, 'static void car_reset_turn(void)'));
     const enumName = value => Object.keys(enumValues).find(name => enumValues[name] === value);
     const menuTarget = 1.75;
-    const makeEnv = (status, running, stageStarted, fault = 0) => {
+    const makeEnv = (status, running, stageStarted, fault = 0, followStarted = stageStarted) => {
         const env = {
             car_follow_status: enumValues[status], car_running: running ? 1 : 0,
             car_follow_enabled: ['IDLE', 'WAIT_DELAY', 'WAIT_RUN'].includes(status) ? 0 : 1,
             speedControlActive: false, follow_stage_started_ms: stageStarted >>> 0,
+            follow_started_ms: followStarted >>> 0, oscillationDetectionEnabled: false,
             car_lost_count: 0, car_curve_mode: 0, car_turn_request: 0,
             derivative_ready: 0, last_control_capture_ms: 0, last_error: 0, curve_blend: 0,
             steering_kp: 10, steering_kd: 0, curve_steering_kp: 10, curve_steering_kd: 0,
@@ -333,14 +351,20 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
             balance_params: {target_speed_mps: menuTarget, turn_direction: 1, turn_pwm_limit: 1000},
             BALANCE_FAULT_NONE: 0, BOARD_FOLLOW_TURN_PWM_SIGN: turnPwmSign,
             CAR_FOLLOW_WAIT_DELAY_MS: waitDelayMs, CAR_FOLLOW_UPRIGHT_MS: uprightMs,
-            CAR_FOLLOW_SPEED_RAMP_MS: speedRampMs, requestStart: false, cancelled: false, command: null,
+            CAR_FOLLOW_SPEED_RAMP_MS: speedRampMs, CAR_FOLLOW_OSCERR_DELAY_MS: oscerrDelayMs,
+            requestStart: false, cancelled: false, command: null,
             u32Sub: (a, b) => ((a - b) >>> 0), car_value_finite: Number.isFinite,
             cc_math_clamp_f32: (value, minimum, maximum) => Math.max(minimum, Math.min(maximum, value))
         };
         for (const [name, value] of Object.entries(enumValues)) env[`CAR_FOLLOW_${name}`] = value;
         env.car_reset_turn = () => resetFn(env);
         env.balance_set_speed_control_active = active => { env.speedControlActive = Boolean(active); };
-        env.balance_cancel_follow_command = () => { env.cancelled = true; env.speedControlActive = false; };
+        env.balance_set_oscillation_detection = enabled => { env.oscillationDetectionEnabled = Boolean(enabled); };
+        env.balance_cancel_follow_command = () => {
+            env.cancelled = true;
+            env.speedControlActive = false;
+            env.oscillationDetectionEnabled = false;
+        };
         env.car_follow_stop = () => stopFn(env);
         env.balance_runtime_request_start = () => { env.requestStart = true; };
         env.balance_set_follow_command = (speed, turn, lean, weight) => {
@@ -368,6 +392,8 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     invokeTrack(delay, (started + waitDelayMs - 1) >>> 0);
     assert.equal(enumName(delay.car_follow_status), 'WAIT_DELAY');
     assert.equal(delay.speedControlActive, false);
+    assert.equal(delay.follow_started_ms, started);
+    assert.equal(delay.oscillationDetectionEnabled, false);
     assert.deepEqual(delay.command, {speed: 0, turn: 0, lean: 0, weight: 0});
     const delayEnd = (started + waitDelayMs) >>> 0;
     invokeTrack(delay, delayEnd);
@@ -375,6 +401,8 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     assert.equal(delay.speedControlActive, false);
     assert.equal(delay.requestStart, true);
     assert.deepEqual(delay.command, {speed: 0, turn: 0, lean: 0, weight: 0});
+    assert.equal(delay.follow_started_ms, started);
+    assert.equal(delay.oscillationDetectionEnabled, false);
     invokeTrack(delay, (delayEnd + 6000) >>> 0);
     assert.equal(enumName(delay.car_follow_status), 'WAIT_RUN');
     assert.equal(delay.speedControlActive, false);
@@ -383,6 +411,7 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     invokeTrack(delay, runNow, 2);
     assertUprightCommand(delay);
     assert.equal(delay.follow_stage_started_ms, runNow);
+    assert.equal(delay.follow_started_ms, started);
     assert.equal(delay.command.turn, 20 * turnPwmSign);
     invokeTrack(delay, (runNow + uprightMs - 1) >>> 0, 2);
     assertUprightCommand(delay);
@@ -391,6 +420,7 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     invokeTrack(delay, rampStart, 2);
     assert.equal(enumName(delay.car_follow_status), 'SPEED_RAMP');
     assert.equal(delay.follow_stage_started_ms, rampStart);
+    assert.equal(delay.follow_started_ms, started);
     assert.equal(delay.speedControlActive, true);
     assert.equal(delay.command.speed, 0);
     assert.equal(delay.command.turn, 20 * turnPwmSign);
@@ -403,8 +433,15 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
         assert.equal(delay.command.turn, 20 * turnPwmSign);
         assert.equal(delay.command.lean, 0);
         assert.equal(delay.command.weight, 0);
+        assert.equal(delay.follow_started_ms, started);
         if (offset === speedRampMs) assert.equal(delay.follow_stage_started_ms, 0);
     }
+
+    const grace = makeEnv('ACTIVE', true, 0, 0, started);
+    invokeTrack(grace, (started + 4998) >>> 0);
+    assert.equal(grace.oscillationDetectionEnabled, false);
+    invokeTrack(grace, (started + oscerrDelayMs) >>> 0);
+    assert.equal(grace.oscillationDetectionEnabled, true);
 
     const wrapRampStart = 0xffffff00;
     const wrapRamp = makeEnv('SPEED_RAMP', true, wrapRampStart);
@@ -465,15 +502,19 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     assert.equal(enumName(faulted.car_follow_status), 'IDLE');
     assert.equal(faulted.car_follow_enabled, 0);
     assert.equal(faulted.follow_stage_started_ms, 0);
+    assert.equal(faulted.follow_started_ms, 0);
     assert.equal(faulted.cancelled, true);
     assert.equal(faulted.speedControlActive, false);
+    assert.equal(faulted.oscillationDetectionEnabled, false);
     const stopped = makeEnv('SPEED_RAMP', true, rampStart + 1000);
     stopFn(stopped);
     assert.equal(enumName(stopped.car_follow_status), 'IDLE');
     assert.equal(stopped.car_follow_enabled, 0);
     assert.equal(stopped.follow_stage_started_ms, 0);
+    assert.equal(stopped.follow_started_ms, 0);
     assert.equal(stopped.cancelled, true);
     assert.equal(stopped.speedControlActive, false);
+    assert.equal(stopped.oscillationDetectionEnabled, false);
 
     const noFollow = makeEnv('IDLE', true, runNow);
     invokeTrack(noFollow, runNow + 20);
@@ -488,11 +529,15 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
 });
 
 test('FOLLOW START stops immediately and ordinary RUN remains outside the upright hold', () => {
+    const initBody = car.slice(car.indexOf('void car_init(void)'), car.indexOf('void car_set_camera_ready'));
     const startBody = car.slice(car.indexOf('uint8 car_follow_start(void)'), car.indexOf('void car_follow_stop(void)'));
     assert(startBody.includes('balance_runtime_stop()'));
     assert(startBody.includes('car_follow_status = CAR_FOLLOW_WAIT_DELAY'));
     assert(startBody.includes('follow_stage_started_ms = system_getval_ms()'));
+    assert(startBody.includes('follow_started_ms = follow_stage_started_ms'));
+    assert(startBody.indexOf('follow_stage_started_ms = system_getval_ms()') < startBody.indexOf('follow_started_ms = follow_stage_started_ms'));
     assert(!startBody.includes('balance_runtime_request_start()'));
+    assert(initBody.includes('follow_started_ms = 0'));
     assert(runtime.includes('car_follow_status == CAR_FOLLOW_WAIT_RUN && !balance_state.running'));
     assert(car.includes('if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f'));
     assert(car.includes('balance_set_speed_control_active(car_follow_status != CAR_FOLLOW_RUN_UPRIGHT)'));
@@ -500,7 +545,18 @@ test('FOLLOW START stops immediately and ordinary RUN remains outside the uprigh
     const stopBody = car.slice(car.indexOf('void car_follow_stop(void)'), car.indexOf('void car_track_update('));
     assert(stopBody.includes('car_follow_status = CAR_FOLLOW_IDLE'));
     assert(stopBody.includes('follow_stage_started_ms = 0'));
+    assert(stopBody.includes('follow_started_ms = 0'));
     assert(stopBody.includes('balance_cancel_follow_command()'));
+    const trackBody = car.slice(car.indexOf('void car_track_update('));
+    assert(!trackBody.match(/follow_started_ms\s*=/));
+    assert(trackBody.includes('balance_set_oscillation_detection(now_ms - follow_started_ms >= CAR_FOLLOW_OSCERR_DELAY_MS)'));
+    assert(trackBody.lastIndexOf('balance_set_speed_control_active') < trackBody.indexOf('balance_set_oscillation_detection'));
+    const graceMs = Number(car.match(/#define CAR_FOLLOW_OSCERR_DELAY_MS\s+\((\d+)\)/)[1]);
+    const gate = new Function('now_ms', 'follow_started_ms', 'CAR_FOLLOW_OSCERR_DELAY_MS',
+        'u32Sub', 'return u32Sub(now_ms, follow_started_ms) >= CAR_FOLLOW_OSCERR_DELAY_MS;');
+    const pressMs = 0xfffffff0;
+    assert.equal(gate((pressMs + 4998) >>> 0, pressMs, graceMs, (now, then) => (now - then) >>> 0), false);
+    assert.equal(gate((pressMs + graceMs) >>> 0, pressMs, graceMs, (now, then) => (now - then) >>> 0), true);
     assert(!startBody.includes('car_camera_ready'));
     assert(!startBody.includes('line_valid'));
 });
@@ -676,11 +732,75 @@ test('background trim preserves its time constant at 2 ms and remains RAM-only',
     assert(!trimBody.includes('flash_write'));
 });
 
+test('full-scale wheel PWM trips after output calculation and STOP clears queued starts before restart', () => {
+    const runControlStart = control.indexOf('static uint8_t balance_run_control(');
+    const runControlBody = control.slice(runControlStart, control.indexOf('void balance_params_reset', runControlStart));
+    assert(runControlBody.indexOf('balance_state.left_pwm = balance_state.left_control_pwm') >= 0);
+    assert(runControlBody.indexOf('balance_state.right_pwm = balance_apply_right_trim(right_control)') >
+        runControlBody.indexOf('balance_state.left_pwm = balance_state.left_control_pwm'));
+
+    const updateStart = control.indexOf('void balance_update_2ms(');
+    const updateBody = control.slice(updateStart);
+    const tripStart = updateBody.indexOf('if (speed_control_active && oscillation_detection_enabled &&');
+    assert(updateBody.indexOf('balance_run_control()') < tripStart);
+    const tripConditionEnd = updateBody.indexOf(') {', tripStart) + 1;
+    const tripCondition = updateBody.slice(tripStart, tripConditionEnd);
+    assert.equal(tripCondition.replace(/\s+/g, ' '),
+        'if (speed_control_active && oscillation_detection_enabled && balance_state.left_pwm <= -10000 && balance_state.right_pwm <= -10000)');
+    const stopExpression = tripCondition.slice('if ('.length, -1)
+        .replace(/balance_state\.left_pwm/g, 'left_pwm')
+        .replace(/balance_state\.right_pwm/g, 'right_pwm');
+    const shouldStop = new Function('speed_control_active', 'oscillation_detection_enabled', 'left_pwm', 'right_pwm', `return ${stopExpression};`);
+    for (const left of [-10000, -9999, 0, 9999, 10000]) {
+        for (const right of [-10000, -9999, 0, 9999, 10000]) {
+            assert.equal(Boolean(shouldStop(1, 1, left, right)), left === -10000 && right === -10000);
+        }
+    }
+    assert.equal(Boolean(shouldStop(0, 1, -10000, -10000)), false);
+    assert.equal(Boolean(shouldStop(1, 0, -10000, -10000)), false);
+    assert(!control.includes('BALANCE_OSCERR_HOLD_MS'));
+    assert(!control.includes('oscillation_fullscale_ms'));
+    const cancelBody = control.slice(control.indexOf('void balance_cancel_follow_command(void)'), control.indexOf('static void balance_clear_outputs'));
+    assert(cancelBody.includes('oscillation_detection_enabled = 0'));
+    assert(cancelBody.includes('balance_reset_speed_controller()'));
+    const tripBody = updateBody.slice(tripConditionEnd, updateBody.indexOf('balance_state.fault = BALANCE_FAULT_NONE', tripConditionEnd));
+    assert(tripBody.includes('balance_state.running = 0'));
+    assert(tripBody.includes('balance_clear_outputs()'));
+    assert(tripBody.includes('balance_state.fault = BALANCE_FAULT_OSCILLATION'));
+    assert(tripBody.includes('return;'));
+    assert(!tripBody.includes('if ('));
+    assert(controlHeader.includes('BALANCE_FAULT_OSCILLATION'));
+
+    const updateRuntimeStart = runtime.indexOf('void balance_runtime_update_2ms');
+    const updateRuntimeBody = runtime.slice(updateRuntimeStart, runtime.indexOf('void balance_runtime_stop', updateRuntimeStart));
+    const completeStop = updateRuntimeBody.indexOf('if (was_running && !balance_state.running)');
+    const queuedFollowStart = updateRuntimeBody.indexOf('if (car_follow_status == CAR_FOLLOW_WAIT_RUN && !balance_state.running)');
+    const pendingStart = updateRuntimeBody.indexOf('if (balance_start_pending && !balance_state.running)');
+    assert(completeStop >= 0 && queuedFollowStart > completeStop && pendingStart > completeStop);
+    const stopBody = updateRuntimeBody.slice(completeStop, queuedFollowStart);
+    assert(stopBody.indexOf('balance_runtime_stop()') < stopBody.indexOf('balance_state.fault = stop_fault'));
+    assert(stopBody.indexOf('balance_state.fault = stop_fault') < stopBody.indexOf('return;'));
+    assert(runtime.includes('void balance_runtime_stop(void)'));
+    assert(runtime.slice(runtime.indexOf('void balance_runtime_stop(void'), runtime.indexOf('void balance_runtime_set_motor_test'))
+        .includes('car_follow_stop()'));
+
+    const requestStart = runtime.slice(runtime.indexOf('void balance_runtime_request_start(void)'),
+        runtime.indexOf('uint8 balance_runtime_request_calibration'));
+    assert(requestStart.includes('balance_start_pending = 1'));
+    assert(!requestStart.includes('BALANCE_FAULT_OSCILLATION'));
+    const balanceStart = control.slice(control.indexOf('uint8_t balance_start(void)'),
+        control.indexOf('void balance_stop(void)'));
+    assert(balanceStart.includes('balance_state.running = 1'));
+    assert(balanceStart.includes('balance_state.fault = BALANCE_FAULT_NONE'));
+    assert(menu.includes('return "PWM LIMIT - STOPPED"'));
+});
+
 test('RUN keeps the warmup attitude and motor test leaves raw PWM ownership outside balance control', () => {
     const updateBody = runtime.slice(runtime.indexOf('void balance_runtime_update_2ms'),
         runtime.indexOf('void balance_runtime_stop'));
-    const startBlock = updateBody.slice(updateBody.indexOf('if (balance_start_pending'),
-        updateBody.indexOf('if (was_running'));
+    const startIndex = updateBody.indexOf('if (balance_start_pending && !balance_state.running)');
+    const startEnd = updateBody.indexOf('if (!car_running && balance_state.running)', startIndex);
+    const startBlock = updateBody.slice(startIndex, startEnd);
     const motorTestBlock = updateBody.slice(updateBody.indexOf('if (motor_test_active)'),
         updateBody.indexOf('if (!imu_initialized)'));
     assert(!startBlock.includes('balance_seed_attitude'));

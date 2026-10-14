@@ -24,9 +24,11 @@ volatile float car_turn_request;
 #define CAR_FOLLOW_WAIT_DELAY_MS (2000)
 #define CAR_FOLLOW_UPRIGHT_MS (500)
 #define CAR_FOLLOW_SPEED_RAMP_MS (2000)
+#define CAR_FOLLOW_OSCERR_DELAY_MS (5000)
 
 static uint8 derivative_ready;
 static uint32 follow_stage_started_ms;
+static uint32 follow_started_ms;
 static uint32 last_control_capture_ms;
 static float last_error;
 static float curve_blend;
@@ -68,6 +70,7 @@ void car_init(void)
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
     follow_stage_started_ms = 0;
+    follow_started_ms = 0;
     car_reset_turn();
 }
 
@@ -91,6 +94,8 @@ uint8 car_follow_start(void)
 {
     balance_runtime_stop();
     follow_stage_started_ms = system_getval_ms();
+    /* Keep the OSCERR grace period tied to the button press, independent of stage transitions. */
+    follow_started_ms = follow_stage_started_ms;
     car_follow_status = CAR_FOLLOW_WAIT_DELAY;
     return 1;
 }
@@ -100,6 +105,7 @@ void car_follow_stop(void)
     car_follow_enabled = 0;
     car_follow_status = CAR_FOLLOW_IDLE;
     follow_stage_started_ms = 0;
+    follow_started_ms = 0;
     car_reset_turn();
     balance_cancel_follow_command();
 }
@@ -194,5 +200,6 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         } else target_speed_mps *= elapsed_ms / (float)CAR_FOLLOW_SPEED_RAMP_MS;
     }
     balance_set_speed_control_active(car_follow_status != CAR_FOLLOW_RUN_UPRIGHT);
+    balance_set_oscillation_detection(now_ms - follow_started_ms >= CAR_FOLLOW_OSCERR_DELAY_MS);
     balance_set_follow_command(target_speed_mps, car_turn_request, 0.0f, 0.0f);
 }

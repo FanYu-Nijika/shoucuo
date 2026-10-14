@@ -62,7 +62,7 @@
 #define BOARD_BALANCE_GYRO_SIGN            (1)
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
 #define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)
-// 镜头相对当前朝向转 180°，两轮计数同时反号，使新的前进方向仍为正速度。
+// 符号跟随实际编码器通道，交换左右显示后，朝镜头前进仍为正速度。
 #define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)
 #define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)
 // 反向行驶使用负 PWM；只改变速度环的目标倾角方向，保留 IMU 与直立 PD 的物理负反馈。
@@ -71,7 +71,7 @@
 #define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
-// H7=P20.3/P20.0、H4=P02.6/P02.7；控制左右沿用原映射，不改变各轮 Flash 标定归属。
+// 按实车反馈交换左右编码器：左轮 H7，右轮 H4；方向符号及旧标定随通道一起对应。
 #define BOARD_ENCODER_H7_INDEX             (TIM6_ENCODER)
 #define BOARD_ENCODER_H7_CH1               (TIM6_ENCODER_CH1_P20_3)
 #define BOARD_ENCODER_H7_CH2               (TIM6_ENCODER_CH2_P20_0)

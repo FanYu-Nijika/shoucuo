@@ -17,6 +17,7 @@
 | FOLLOW 启动速度渐增 | 直立之后进入 SPEED_RAMP，开启速度 PI，目标在 2 秒内从 0 线性增加到菜单速度，再进入 ACTIVE。没有额外启动倾角，渐增结束保留积分；这是用户在 2026-10-12 指定的启动流程。 | `car.c:car_track_update` |
 | 异常丢失 RUN 后自动重启 | FOLLOW 未退出且 `car_running` 意外变成 0、没有故障时进入 WAIT_RUN，再次请求 RUN，启动后重新直立等待。明确 STOP 会清 FOLLOW 状态，不走此路径。 | `car.c:car_track_update`、`balance_runtime.c:balance_runtime_update_2ms` |
 | 故障退出 FOLLOW | FOLLOW 时检测到非零故障会取消循迹和速度 PI，并清积分；此调用本身保留直立运行，不等同于完整 STOP。 | `car.c:car_track_update`、`car_follow_stop` |
+| PWM 负向满幅完整 STOP | FOLLOW START 按下后前 5 秒不检测；此后且速度控制启用时，仅左右两轮最终 PWM 同时达到 -10000，立即在当前 2 ms 周期执行完整 STOP，故障号 7、菜单 OSCERR。两轮 +10000、正负相反或仅一轮 -10000 不触发；无 100 ms 持续判据。5 秒从按键时刻计算，等待及起立阶段均计入；新的 FOLLOW START 重新开始宽限。触发时命令不写入电机，并清 FOLLOW、积分和待启动请求。普通 RUN、FOLLOW 起立阶段及独立电机测试沿用原行为。 | `balance_control.c:balance_update_2ms` → `balance_runtime.c:balance_runtime_update_2ms` |
 | IMU 读数失败保持旧 PWM | 坏样本时不执行新的直立输出。连续 8 个坏样本报 IMU 故障；若已运行，失败处理仍保留上次电机命令，不进入停机状态的 IMU 重试路径。 | `balance_runtime.c:balance_runtime_imu_failed` |
 | 数值错误不写新 PWM | 运行中姿态或直立计算失败会取消 FOLLOW 指令，当前周期不更新电机；硬件可能保持此前 PWM。下一有效计算可能清故障。 | `balance_control.c:balance_update_2ms`、`balance_runtime.c:balance_runtime_update_2ms` |
 | 执行时间检查 | 2 ms 控制 ISR 耗时达到 2000 µs，或连续 8 次间隔超过 2400 µs，标记 TIMING；FOLLOW 随后按故障路径退出。 | `user/cpu0_main.c:cc60_pit_ch0_isr` |

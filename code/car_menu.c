@@ -152,7 +152,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_RUN, "SPEED ANGLE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.speed_angle_applied, -20, 20, 0.01, 2, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "FOLLOW ACTIVE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &car_follow_enabled, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "START PENDING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_start_pending, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_RUN, "BALANCE FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_CALIBRATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_RUN, "BALANCE FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_OSCILLATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "IMU READY", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_state.imu_ready, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_RUN, "CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.calibration_state, 0, BALANCE_IMU_FAILED, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
@@ -298,7 +298,7 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_IMU, "CONTROL RATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_FLOAT, &balance_state.gyro_rate, -2000, 2000, 0.1, 1, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "IMU BAD NOW", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_imu_status.invalid_sample_streak, 0, 255, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_IMU, "IMU BAD TOTAL", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &balance_imu_status.invalid_sample_total, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_IMU, "FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_CALIBRATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_IMU, "FAULT", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.fault, 0, BALANCE_FAULT_OSCILLATION, 1, 0, CAR_MENU_APPLY_NONE, 0},
 
     {0, CAR_MENU_PAGE_TOOLS, "LCD TEST", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_LCD_TEST},
     {0, CAR_MENU_PAGE_TOOLS, "RESET DEFAULTS", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_RESET_DEFAULTS},
@@ -822,6 +822,7 @@ static const char *car_menu_status_text(void)
     if (balance_start_pending != 0) return "ARMING";
     if (balance_imu_status.calibration_state == BALANCE_IMU_FAILED) return "IMUERR";
     if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT";
+    if (balance_state.fault == BALANCE_FAULT_OSCILLATION) return "OSCERR";
     if (balance_state.fault == BALANCE_FAULT_IMU) return "IMUERR";
     if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERR";
     if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMEERR";
@@ -839,6 +840,7 @@ static const char *car_menu_balance_fault_text(void)
     if (balance_imu_status.calibration_state == BALANCE_IMU_SAVING) return "SAVING IMU CAL";
     if (balance_start_pending != 0) return "STARTING ON NEXT IMU SAMPLE";
     if (balance_state.fault == BALANCE_FAULT_TILT) return "TILT - UPRIGHT THEN RUN";
+    if (balance_state.fault == BALANCE_FAULT_OSCILLATION) return "PWM LIMIT - STOPPED";
     if (balance_state.fault == BALANCE_FAULT_IMU) return "IMU SAMPLE LOST - HOLD OUTPUT";
     if (balance_state.fault == BALANCE_FAULT_NUMERIC) return "NUMERIC SAMPLE REJECTED";
     if (balance_state.fault == BALANCE_FAULT_TIMING) return "TIMING OVERRUN - RUN CONTINUES";

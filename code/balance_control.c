@@ -29,7 +29,7 @@ static const float speed_filter_weight = 0.9f;
 #define BALANCE_PARAMS_V7_WORDS            (16u)
 #define BALANCE_ENCODER_FLASH_PAGE         (11u)
 #define BALANCE_ENCODER_FLASH_MAGIC        (0x454E4331u)
-#define BALANCE_ENCODER_FLASH_VERSION      (2u)
+#define BALANCE_ENCODER_FLASH_VERSION      (4u)
 #define BALANCE_ENCODER_MAX_COUNTS         (1000000u)
 
 /* Fixed V7 layout is kept only for migration. Removed speed/Kalman/rate-limit fields never enter active control. */
@@ -147,6 +147,7 @@ static uint32_t encoder_calibration_start_count;
 static uint8_t encoder_sample_phase;
 static float speed_feedback_sum;
 static volatile uint8_t speed_control_active;
+static uint8_t oscillation_detection_enabled;
 static float requested_speed_mps;
 static float requested_turn_pwm;
 static float requested_lean_angle;
@@ -314,6 +315,7 @@ static void balance_reset_speed_controller(void)
 
 void balance_cancel_follow_command(void)
 {
+    oscillation_detection_enabled = 0;
     requested_speed_mps = 0.0f;
     requested_turn_pwm = 0.0f;
     requested_lean_angle = 0.0f;
@@ -494,13 +496,19 @@ static void balance_encoder_flash_load(void)
 
     flash_read_page_to_buffer(0, BALANCE_ENCODER_FLASH_PAGE);
     memcpy(&record, flash_union_buffer, sizeof(record));
-    if (record.magic != BALANCE_ENCODER_FLASH_MAGIC || (record.version != 1u && record.version != BALANCE_ENCODER_FLASH_VERSION) ||
+    if (record.magic != BALANCE_ENCODER_FLASH_MAGIC || (record.version != 1u && record.version != 2u && record.version != 3u &&
+        record.version != BALANCE_ENCODER_FLASH_VERSION) ||
         record.left_counts_per_rev == 0 || record.left_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
         record.right_counts_per_rev == 0 || record.right_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
         record.checksum != balance_encoder_checksum(&record)) return;
-    /* V1 followed the old camera direction; the new front swaps the physical wheels. */
-    balance_state.left_counts_per_rev = record.version == 1u ? record.right_counts_per_rev : record.left_counts_per_rev;
-    balance_state.right_counts_per_rev = record.version == 1u ? record.left_counts_per_rev : record.right_counts_per_rev;
+    /* Keep calibration attached to its channel: V1/V3 stored H4 as left; V2/V4 store H7 as left. */
+    if (record.version == 1u || record.version == 3u) {
+        balance_state.left_counts_per_rev = record.right_counts_per_rev;
+        balance_state.right_counts_per_rev = record.left_counts_per_rev;
+    } else {
+        balance_state.left_counts_per_rev = record.left_counts_per_rev;
+        balance_state.right_counts_per_rev = record.right_counts_per_rev;
+    }
     balance_state.encoder_calibration_valid = 1;
 }
 
@@ -567,6 +575,14 @@ void balance_set_speed_control_active(uint8_t active)
         balance_reset_speed_controller();
         speed_control_active = active;
     }
+    interrupt_global_enable(interrupt_state);
+}
+
+void balance_set_oscillation_detection(uint8_t enabled)
+{
+    uint32 interrupt_state = interrupt_global_disable();
+
+    oscillation_detection_enabled = enabled ? 1 : 0;
     interrupt_global_enable(interrupt_state);
 }
 
@@ -772,6 +788,14 @@ void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8
         if (!balance_run_control()) {
             balance_state.fault = BALANCE_FAULT_NUMERIC;
             balance_cancel_follow_command();
+            return;
+        }
+        /* After FOLLOW's grace period, only simultaneous negative full duty requires STOP. */
+        if (speed_control_active && oscillation_detection_enabled &&
+            balance_state.left_pwm <= -10000 && balance_state.right_pwm <= -10000) {
+            balance_state.running = 0;
+            balance_clear_outputs();
+            balance_state.fault = BALANCE_FAULT_OSCILLATION;
             return;
         }
         balance_state.fault = BALANCE_FAULT_NONE;

@@ -583,6 +583,7 @@ void balance_runtime_update_2ms(void)
     uint8 was_running = balance_state.running;
     uint8 valid;
     uint8 accel_valid;
+    uint8 stop_fault;
 
     cc_tc264_balance_encoder_read(&left_count, &right_count);
     balance_sample_encoders_2ms(left_count, right_count);
@@ -633,6 +634,13 @@ void balance_runtime_update_2ms(void)
 
     balance_runtime_update_bias_trim();
     balance_update_2ms(angle, rate, 1, accel_valid);
+    if (was_running && !balance_state.running) {
+        /* Complete STOP before a pending FOLLOW/RUN request can restart the motors. */
+        stop_fault = balance_state.fault;
+        balance_runtime_stop();
+        balance_state.fault = stop_fault;
+        return;
+    }
     /* WAIT_DELAY must keep the motors off; only request RUN after the two-second stop. */
     if (car_follow_status == CAR_FOLLOW_WAIT_RUN && !balance_state.running) balance_start_pending = 1;
     if (balance_start_pending && !balance_state.running) {
@@ -641,9 +649,7 @@ void balance_runtime_update_2ms(void)
         car_running = balance_start();
         if (car_running) car_balance_timing_reset = 1;
     }
-    if (was_running && !balance_state.running) {
-        car_running = 0;
-    } else if (!car_running && balance_state.running) balance_stop();
+    if (!car_running && balance_state.running) balance_stop();
 
     car_left_command = balance_state.left_pwm;
     car_right_command = balance_state.right_pwm;

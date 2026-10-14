@@ -10,6 +10,36 @@ flash_data_union flash_union_buffer[EEPROM_PAGE_LENGTH];
 static flash_data_union host_encoder_flash_page[EEPROM_PAGE_LENGTH];
 static uint8 host_encoder_flash_valid;
 
+typedef struct {
+    uint32 magic;
+    uint32 version;
+    uint32 left_counts_per_rev;
+    uint32 right_counts_per_rev;
+    uint32 checksum;
+} host_encoder_flash_record_t;
+
+#define HOST_ENCODER_FLASH_MAGIC (0x454E4331u)
+
+static uint32 host_encoder_flash_checksum(const host_encoder_flash_record_t *record)
+{
+    return record->magic ^ record->version ^ record->left_counts_per_rev ^ record->right_counts_per_rev ^ 0xa5a5a5a5u;
+}
+
+static void host_set_encoder_flash(uint32 version, uint32 left_counts, uint32 right_counts, uint8 valid_checksum)
+{
+    host_encoder_flash_record_t record;
+
+    record.magic = HOST_ENCODER_FLASH_MAGIC;
+    record.version = version;
+    record.left_counts_per_rev = left_counts;
+    record.right_counts_per_rev = right_counts;
+    record.checksum = host_encoder_flash_checksum(&record);
+    if (!valid_checksum) record.checksum ^= 1u;
+    memset(host_encoder_flash_page, 0xff, sizeof(host_encoder_flash_page));
+    memcpy(host_encoder_flash_page, &record, sizeof(record));
+    host_encoder_flash_valid = 1;
+}
+
 uint32 interrupt_global_disable(void) { return 0; }
 void interrupt_global_enable(uint32 state) { (void)state; }
 void flash_read_page_to_buffer(uint32 sector, uint32 page)
@@ -422,10 +452,42 @@ static void test_encoder_calibration_both_directions_persists(void)
     assert(balance_state.encoder_calibration_valid);
     assert(balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_SAVED);
     assert(balance_state.left_counts_per_rev == 1000 && balance_state.right_counts_per_rev == 600);
+    assert(host_encoder_flash_page[1].uint32_type == 4u);
 
     balance_init();
     assert(balance_state.encoder_calibration_valid);
     assert(balance_state.left_counts_per_rev == 1000 && balance_state.right_counts_per_rev == 600);
+}
+
+static void test_encoder_flash_version_migration(void)
+{
+    host_set_encoder_flash(1u, 111u, 222u, 1);
+    balance_init();
+    assert(balance_state.encoder_calibration_valid);
+    assert(balance_state.left_counts_per_rev == 222u && balance_state.right_counts_per_rev == 111u);
+
+    host_set_encoder_flash(2u, 111u, 222u, 1);
+    balance_init();
+    assert(balance_state.encoder_calibration_valid);
+    assert(balance_state.left_counts_per_rev == 111u && balance_state.right_counts_per_rev == 222u);
+
+    host_set_encoder_flash(3u, 111u, 222u, 1);
+    balance_init();
+    assert(balance_state.encoder_calibration_valid);
+    assert(balance_state.left_counts_per_rev == 222u && balance_state.right_counts_per_rev == 111u);
+
+    host_set_encoder_flash(4u, 111u, 222u, 1);
+    balance_init();
+    assert(balance_state.encoder_calibration_valid);
+    assert(balance_state.left_counts_per_rev == 111u && balance_state.right_counts_per_rev == 222u);
+
+    host_set_encoder_flash(5u, 111u, 222u, 1);
+    balance_init();
+    assert(!balance_state.encoder_calibration_valid);
+
+    host_set_encoder_flash(4u, 111u, 222u, 0);
+    balance_init();
+    assert(!balance_state.encoder_calibration_valid);
 }
 
 static void test_signed_control_gains(void)
@@ -471,6 +533,8 @@ static void test_signed_control_gains(void)
 
     for (direction = -1; direction <= 1; direction += 2) {
         balance_init();
+        /* Keep gain-sign checks below the PWM stop boundary so they test validation, not saturation. */
+        balance_params.balance_kp = 0.01f;
         balance_params.speed_kp = direction * 2000.0f;
         balance_params.speed_ki = direction * 500.0f;
         balance_params.speed_angle_limit = 20.0f;
@@ -495,12 +559,91 @@ static void test_signed_control_gains(void)
     balance_init();
 }
 
+static void test_pwm_fullscale_stop(void)
+{
+    balance_params_t params;
+    int sample;
+    int wheel;
+
+    assert(BALANCE_FAULT_OSCILLATION == 7);
+    balance_init();
+    params = balance_params;
+    params.balance_kp = 1.0f;
+    params.balance_kd = 0.0f;
+    params.accel_weight = 1.0f;
+    params.turn_pwm_limit = 3000;
+    params.speed_kp = 0.0f;
+    params.speed_ki = 1.0f;
+    params.speed_angle_limit = 1.0f;
+    assert(balance_apply_live_params(&params));
+    assert(balance_seed_attitude(0.0f));
+    assert(balance_start());
+
+    /* RUN and the startup grace period must allow even simultaneous negative full duty. */
+    balance_update_2ms(10000.0f, 0.0f, 1, 1);
+    assert(balance_state.running && balance_state.output_updated);
+    assert(balance_state.left_pwm == -10000 && balance_state.right_pwm == -10000);
+    balance_set_speed_control_active(1);
+    for (sample = 0; sample < 50; sample++) balance_update_2ms(10000.0f, 0.0f, 1, 1);
+    assert(balance_state.running && balance_state.fault == BALANCE_FAULT_NONE);
+
+    balance_set_oscillation_detection(1);
+    for (sample = 0; sample < 50; sample++) balance_update_2ms(-10000.0f, 0.0f, 1, 1);
+    assert(balance_state.running && balance_state.output_updated);
+    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
+    balance_update_2ms(9999.0f, 0.0f, 1, 1);
+    assert(balance_state.running && balance_state.fault == BALANCE_FAULT_NONE);
+    assert(balance_state.left_pwm == -9999 && balance_state.right_pwm == -9999);
+
+    /* Either wheel remaining at -9999 prevents the two-wheel negative-limit STOP. */
+    for (wheel = 0; wheel < 2; wheel++) {
+        balance_set_follow_command(0.0f, wheel == 0 ? -0.5f : 0.5f, 0.0f, 0.0f);
+        balance_update_2ms(9999.5f, 0.0f, 1, 1);
+        assert(balance_state.running && balance_state.output_updated);
+        assert(balance_state.fault == BALANCE_FAULT_NONE);
+        if (wheel == 0) {
+            assert(balance_state.left_pwm == -10000 && balance_state.right_pwm == -9999);
+        } else {
+            assert(balance_state.left_pwm == -9999 && balance_state.right_pwm == -10000);
+        }
+    }
+
+    balance_state.encoder_calibration_valid = 1;
+    balance_state.left_counts_per_rev = 1000;
+    balance_state.right_counts_per_rev = 1000;
+    balance_set_follow_command(1.0f, 0.0f, 0.0f, 0.0f);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(0, 0);
+    assert(balance_state.speed_pid_active && balance_state.speed_integral_angle > 0.0f);
+    balance_update_2ms(11000.0f, 0.0f, 1, 1);
+    assert(!balance_state.running && !balance_state.output_updated);
+    assert(balance_state.fault == BALANCE_FAULT_OSCILLATION);
+    assert(balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
+    assert(balance_state.left_control_pwm == 0 && balance_state.right_control_pwm == 0);
+    assert(balance_state.balance_output == 0.0f && balance_state.common_pwm == 0.0f);
+    assert(balance_state.speed_target_mps == 0.0f && balance_state.turn_pwm_command == 0.0f);
+    assert(balance_state.speed_target_applied_mps == 0.0f && balance_state.speed_feedback_mps == 0.0f);
+    assert(balance_state.speed_integral_angle == 0.0f && balance_state.speed_angle_applied == 0.0f);
+    assert(!balance_state.speed_pid_active);
+    balance_update_2ms(0.0f, 0.0f, 1, 1);
+    assert(!balance_state.running && balance_state.fault == BALANCE_FAULT_OSCILLATION);
+
+    /* Restart must leave detection disabled until FOLLOW enables it again after the grace period. */
+    assert(balance_start());
+    balance_set_speed_control_active(1);
+    balance_update_2ms(10000.0f, 0.0f, 1, 1);
+    assert(balance_state.running && balance_state.fault == BALANCE_FAULT_NONE);
+    balance_set_oscillation_detection(1);
+    balance_update_2ms(10000.0f, 0.0f, 1, 1);
+    assert(!balance_state.running && balance_state.fault == BALANCE_FAULT_OSCILLATION);
+    balance_init();
+}
+
 static void test_reverse_speed_feedback(void)
 {
     int motion;
     int sample;
 
-    /* Feed raw signs through the board mapping; this catches a target-only reversal. */
+    /* The sampling API receives logical counts after the H7/H4 board mapping. */
     for (motion = -1; motion <= 1; motion += 2) {
         balance_init();
         balance_state.encoder_calibration_valid = 1;
@@ -510,8 +653,7 @@ static void test_reverse_speed_feedback(void)
         assert(balance_start());
         balance_set_speed_control_active(1);
         for (sample = 0; sample < 10; sample++) {
-            balance_sample_encoders_2ms(-20 * motion * BOARD_BALANCE_LEFT_ENCODER_SIGN,
-                20 * motion * BOARD_BALANCE_RIGHT_ENCODER_SIGN);
+            balance_sample_encoders_2ms(20 * motion, 20 * motion);
         }
         assert(motion * balance_state.speed_raw_mps > 0.0f);
         assert(balance_state.encoder_average_count == 200 * motion);
@@ -531,6 +673,7 @@ int main(void)
 
     test_speed_pi_uses_whole_encoder_window();
     test_speed_integral_retains_drift_correction();
+    test_encoder_flash_version_migration();
     balance_init();
     memset(flash_union_buffer, 0xff, sizeof(flash_union_buffer));
     flash_union_buffer[0].uint32_type = 0x42414C31u;
@@ -619,23 +762,12 @@ int main(void)
     near_value(balance_state.balance_output, 5000.0f);
     assert(balance_state.left_pwm == 5000 && balance_state.right_pwm == 5000);
 
-    balance_set_follow_command(0.0f, 1000.0f, 0.0f, 0.0f);
-    balance_update_2ms(9.9f, 0.0f, 1, 1);
-    assert(balance_state.left_pwm == -9800 && balance_state.right_pwm == -10000);
-
-    balance_update_2ms(0.0f, 1000.0f, 1, 1);
-    assert(balance_state.common_pwm == balance_state.balance_output);
-    assert(balance_state.common_pwm < -10000.0f);
-    assert(balance_state.left_pwm == -10000 && balance_state.right_pwm == -10000);
-
-    balance_update_2ms(0.0f, -1000.0f, 1, 1);
-    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
-
     balance_update_2ms(0.0f, 0.0f, 0, 0);
     assert(!balance_state.output_updated && balance_state.fault == BALANCE_FAULT_IMU);
-    assert(balance_state.left_pwm == 10000 && balance_state.right_pwm == 10000);
+    assert(balance_state.running && balance_state.left_pwm == 5000 && balance_state.right_pwm == 5000);
     balance_stop();
     assert(!balance_state.running && balance_state.left_pwm == 0 && balance_state.right_pwm == 0);
+    test_pwm_fullscale_stop();
 
     balance_init();
     balance_state.encoder_calibration_valid = 1;

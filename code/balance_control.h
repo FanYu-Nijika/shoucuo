@@ -12,7 +12,8 @@ typedef enum {
     BALANCE_FAULT_TILT,
     BALANCE_FAULT_NUMERIC,
     BALANCE_FAULT_TIMING,
-    BALANCE_FAULT_CALIBRATION
+    BALANCE_FAULT_CALIBRATION,
+    BALANCE_FAULT_OSCILLATION
 } balance_fault_t;
 
 typedef struct {
@@ -102,6 +103,8 @@ uint8_t balance_params_are_valid(const balance_params_t *params);
 void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count);
 /* RUN and the FOLLOW upright hold leave speed PI off; tracking enables it separately from SPEED ENABLE. */
 void balance_set_speed_control_active(uint8_t active);
+/* FOLLOW enables the negative full-duty STOP after its startup grace period. */
+void balance_set_oscillation_detection(uint8_t enabled);
 /* Blend the launch target with the normal speed-loop target without a reference-angle step. */
 void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight);
 void balance_cancel_follow_command(void);

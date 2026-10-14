@@ -34,6 +34,8 @@ pc_time_iso,frame_columns,target_mps,filtered_mps,speed_angle_deg,target_angle_d
 
 `pc_time_iso` 是电脑解析该帧时的 UTC 时间，同一批收到的帧可能具有相近的电脑时间；采样间隔应看 `device_time_ms`。`frame_columns` 是设备帧列数。新版 22 列 FireWater 帧按上表填写。旧版 6 列帧仍可读取，缺失的后续通道留空。PWM 和编码器计数是整数，`pi_active`、`running` 为 0/1，`fault` 为故障枚举值。数值列以设备帧为准；主循环打印间隔可能变化，不要把日志采样当成严格 50 Hz。
 
+FOLLOW 从速度爬升阶段起，任意一轮最终 PWM 达到 ±10000 会立即完整 STOP，日志随后显示 `fault=7`（OSCERR/PWM 满幅）、`running=0`、`pi_active=0`、两轮 PWM=0。普通 RUN 与 FOLLOW 起立 0.5 s 允许满 PWM；保护在进入速度爬升时开启，不等待目标非零或 PI 首次更新。保护在写入满幅命令前执行，因此不要求串口先打印一帧 ±10000 才能触发。后续手动 STOP 或正常重新启动会清故障，无额外解锁步骤。
+
 ## 端口断开和离线解析
 
 串口断开时程序会继续运行，每 3 秒尝试重连；重新连接后继续记录。若端口被占用，先手动关闭 VOFA+ 或其他串口程序，再启动记录器。若目录有数据但 `speed.csv` 没有完整帧，检查设备是否正输出 FireWater 文本、波特率是否正确，以及 `serial.txt` 中实际收到的内容；原始字节仍保存在 `serial.bin`。
