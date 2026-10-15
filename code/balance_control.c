@@ -27,10 +27,6 @@ static const float speed_filter_weight = 0.9f;
 #define BALANCE_PARAMS_V4_WORDS            (14u)
 #define BALANCE_PARAMS_V5_WORDS            (15u)
 #define BALANCE_PARAMS_V7_WORDS            (16u)
-#define BALANCE_ENCODER_FLASH_PAGE         (11u)
-#define BALANCE_ENCODER_FLASH_MAGIC        (0x454E4331u)
-#define BALANCE_ENCODER_FLASH_VERSION      (4u)
-#define BALANCE_ENCODER_MAX_COUNTS         (1000000u)
 
 /* Fixed V7 layout is kept only for migration. Removed speed/Kalman/rate-limit fields never enter active control. */
 typedef struct {
@@ -80,14 +76,6 @@ typedef struct {
     uint16_t left_motor_deadzone;
     uint16_t right_motor_deadzone;
 } balance_params_v9_t;
-
-typedef struct {
-    uint32_t magic;
-    uint32_t version;
-    uint32_t left_counts_per_rev;
-    uint32_t right_counts_per_rev;
-    uint32_t checksum;
-} balance_encoder_flash_t;
 
 typedef char balance_v7_target_check[offsetof(balance_params_v7_t, target_speed) == 48 ? 1 : -1];
 typedef char balance_v7_deadzone_check[offsetof(balance_params_v7_t, left_motor_deadzone) == 56 ? 1 : -1];
@@ -141,9 +129,6 @@ static balance_params_t applied_params;
 static uint8_t complementary_initialized;
 static int32_t left_count_sum;
 static int32_t right_count_sum;
-static uint32_t left_count_total;
-static uint32_t right_count_total;
-static uint32_t encoder_calibration_start_count;
 static uint8_t encoder_sample_phase;
 static float speed_feedback_sum;
 static volatile uint8_t speed_control_active;
@@ -485,86 +470,6 @@ uint8_t balance_params_flash_copy(uint8_t source, uint8_t target)
     return memcmp(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params)) == 0;
 }
 
-static uint32_t balance_encoder_checksum(const balance_encoder_flash_t *record)
-{
-    return record->magic ^ record->version ^ record->left_counts_per_rev ^ record->right_counts_per_rev ^ 0xa5a5a5a5u;
-}
-
-static void balance_encoder_flash_load(void)
-{
-    balance_encoder_flash_t record;
-
-    flash_read_page_to_buffer(0, BALANCE_ENCODER_FLASH_PAGE);
-    memcpy(&record, flash_union_buffer, sizeof(record));
-    if (record.magic != BALANCE_ENCODER_FLASH_MAGIC || (record.version != 1u && record.version != 2u && record.version != 3u &&
-        record.version != BALANCE_ENCODER_FLASH_VERSION) ||
-        record.left_counts_per_rev == 0 || record.left_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
-        record.right_counts_per_rev == 0 || record.right_counts_per_rev > BALANCE_ENCODER_MAX_COUNTS ||
-        record.checksum != balance_encoder_checksum(&record)) return;
-    /* Keep calibration attached to its channel: V1/V3 stored H4 as left; V2/V4 store H7 as left. */
-    if (record.version == 1u || record.version == 3u) {
-        balance_state.left_counts_per_rev = record.right_counts_per_rev;
-        balance_state.right_counts_per_rev = record.left_counts_per_rev;
-    } else {
-        balance_state.left_counts_per_rev = record.left_counts_per_rev;
-        balance_state.right_counts_per_rev = record.right_counts_per_rev;
-    }
-    balance_state.encoder_calibration_valid = 1;
-}
-
-static uint8_t balance_encoder_flash_save(void)
-{
-    balance_encoder_flash_t record;
-    uint32_t index;
-
-    record.magic = BALANCE_ENCODER_FLASH_MAGIC;
-    record.version = BALANCE_ENCODER_FLASH_VERSION;
-    record.left_counts_per_rev = balance_state.left_counts_per_rev;
-    record.right_counts_per_rev = balance_state.right_counts_per_rev;
-    record.checksum = balance_encoder_checksum(&record);
-    for (index = 0; index < EEPROM_PAGE_LENGTH; index++) flash_union_buffer[index].uint32_type = 0xffffffffu;
-    memcpy(flash_union_buffer, &record, sizeof(record));
-    if (flash_write_page_from_buffer(0, BALANCE_ENCODER_FLASH_PAGE) != 0) return 0;
-    flash_read_page_to_buffer(0, BALANCE_ENCODER_FLASH_PAGE);
-    return memcmp(flash_union_buffer, &record, sizeof(record)) == 0 ? 1 : 0;
-}
-
-uint8_t balance_encoder_calibrate_toggle(uint8_t wheel)
-{
-    uint32_t total;
-    uint32_t count;
-
-    if (balance_state.running || (wheel != BALANCE_ENCODER_CAL_LEFT && wheel != BALANCE_ENCODER_CAL_RIGHT)) return 0;
-    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_LEFT ||
-        balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_RIGHT) {
-        if (balance_state.encoder_calibration_state != wheel) return 0;
-        total = wheel == BALANCE_ENCODER_CAL_LEFT ? left_count_total : right_count_total;
-        count = total - encoder_calibration_start_count;
-        /* One revolution calibrates magnitude; either rotation direction is valid. */
-        if (count > 0x7fffffffu) count = 0u - count;
-        if (count == 0 || count > BALANCE_ENCODER_MAX_COUNTS) {
-            balance_state.encoder_calibration_state = BALANCE_ENCODER_CAL_ERROR;
-            return 0;
-        }
-        if (wheel == BALANCE_ENCODER_CAL_LEFT) balance_state.left_counts_per_rev = count;
-        else balance_state.right_counts_per_rev = count;
-        balance_state.encoder_calibration_state = BALANCE_ENCODER_CAL_IDLE;
-        if (balance_state.left_counts_per_rev && balance_state.right_counts_per_rev) {
-            if (!balance_encoder_flash_save()) {
-                balance_state.encoder_calibration_valid = 0;
-                balance_state.encoder_calibration_state = BALANCE_ENCODER_CAL_ERROR;
-                return 0;
-            }
-            balance_state.encoder_calibration_valid = 1;
-            balance_state.encoder_calibration_state = BALANCE_ENCODER_CAL_SAVED;
-        }
-        return 1;
-    }
-    encoder_calibration_start_count = wheel == BALANCE_ENCODER_CAL_LEFT ? left_count_total : right_count_total;
-    balance_state.encoder_calibration_state = wheel;
-    return 1;
-}
-
 void balance_set_speed_control_active(uint8_t active)
 {
     uint32 interrupt_state = interrupt_global_disable();
@@ -647,30 +552,17 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
     balance_state.right_count = right_count;
     left_count_sum += left_count;
     right_count_sum += right_count;
-    left_count_total += (uint32_t)(int32_t)left_count;
-    right_count_total += (uint32_t)(int32_t)right_count;
-    if (balance_state.encoder_calibration_valid && balance_state.left_counts_per_rev > 0 &&
-        balance_state.left_counts_per_rev <= BALANCE_ENCODER_MAX_COUNTS && balance_state.right_counts_per_rev > 0 &&
-        balance_state.right_counts_per_rev <= BALANCE_ENCODER_MAX_COUNTS) {
-        balance_state.speed_raw_mps = wheel_circumference_m *
-            ((float)balance_state.left_count / balance_state.left_counts_per_rev +
-             (float)balance_state.right_count / balance_state.right_counts_per_rev) / (2.0f * balance_dt_s);
-        if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f;
-        balance_state.speed_filtered_mps += speed_filter_weight *
-            (balance_state.speed_raw_mps - balance_state.speed_filtered_mps);
-    } else {
-        /* Missing distance calibration means unknown m/s, not a stationary wheel. */
-        balance_state.encoder_calibration_valid = 0;
-        balance_state.speed_raw_mps = NAN;
-        balance_state.speed_filtered_mps = NAN;
-    }
-    /* Use the full PI interval, rather than aliasing one 2 ms encoder sample every 20 ms. */
-    if (balance_state.encoder_calibration_valid) speed_feedback_sum += balance_state.speed_filtered_mps;
-    else speed_feedback_sum = 0.0f;
+    /* Forward counts are negative on this car; keep them signed and convert forward speed to positive m/s. */
+    balance_state.speed_raw_mps = -wheel_circumference_m * (left_count + right_count) /
+        (2.0f * BALANCE_ENCODER_COUNTS_PER_REV * balance_dt_s);
+    if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f;
+    balance_state.speed_filtered_mps += speed_filter_weight * (balance_state.speed_raw_mps - balance_state.speed_filtered_mps);
+    /* Average all ten samples so the 20 ms PI sees the complete measurement interval. */
+    speed_feedback_sum += balance_state.speed_filtered_mps;
     if (++encoder_sample_phase < 10) return;
     encoder_sample_phase = 0;
-    /* Vision still uses a 20 ms window so its existing 250/20 preview thresholds keep their units. */
-    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
+    /* Vision needs forward-positive counts; keep the existing 20 ms window and preview threshold units. */
+    balance_state.encoder_average_count = -(left_count_sum + right_count_sum) / 2;
     left_count_sum = 0;
     right_count_sum = 0;
     balance_update_speed_20ms(speed_feedback_sum / 10.0f);
@@ -683,20 +575,17 @@ void balance_init(void)
     applied_params = balance_default_params;
     applied_params.accel_weight = balance_accel_weight_2ms(balance_default_params.accel_weight);
     memset((void *)&balance_state, 0, sizeof(balance_state));
-    balance_state.speed_raw_mps = NAN;
-    balance_state.speed_filtered_mps = NAN;
+    balance_state.left_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV;
+    balance_state.right_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV;
+    balance_state.encoder_calibration_valid = 1;
     balance_state.fault = BALANCE_FAULT_NONE;
     balance_state.control_period_ms = BALANCE_CONTROL_PERIOD_MS;
     complementary_initialized = 0;
     left_count_sum = 0;
     right_count_sum = 0;
-    left_count_total = 0;
-    right_count_total = 0;
-    encoder_calibration_start_count = 0;
     encoder_sample_phase = 0;
     speed_feedback_sum = 0.0f;
     balance_clear_outputs();
-    balance_encoder_flash_load();
 }
 
 uint8_t balance_seed_attitude(float angle)

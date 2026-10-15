@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #define BALANCE_CONTROL_PERIOD_MS (2)
+#define BALANCE_ENCODER_COUNTS_PER_REV (1160u)
 
 typedef enum {
     BALANCE_FAULT_NONE = 0,
@@ -57,7 +58,7 @@ typedef struct {
     float turn_output;
     int32_t left_count; /* Latest signed 2 ms count, also used for physical velocity. */
     int32_t right_count;
-    int32_t encoder_average_count; /* One coherent signed 20 ms mean for CPU1; no wheel calibration required. */
+    int32_t encoder_average_count; /* Forward-positive 20 ms mean for vision; displayed wheel counts keep their raw sign. */
     uint32_t left_counts_per_rev;
     uint32_t right_counts_per_rev;
     uint16_t control_period_ms;
@@ -108,7 +109,6 @@ void balance_set_oscillation_detection(uint8_t enabled);
 /* Blend the launch target with the normal speed-loop target without a reference-angle step. */
 void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight);
 void balance_cancel_follow_command(void);
-uint8_t balance_encoder_calibrate_toggle(uint8_t wheel);
 void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8_t accel_valid);
 
 #endif

@@ -34,7 +34,7 @@
 #define BOARD_SWITCH5_PIN                  (BOARD_KEY_RIGHT_PIN)
 
 // 2026-10-02 原理图：P13.0 经 R2 驱动 Q2，输出高电平时导通蜂鸣器驱动级。
-#define BOARD_BUZZER_PIN                   (P13_0)
+#define BOARD_BUZZER_PIN                   (P23_1)
 #define BOARD_BUZZER_ENABLE                (1)
 
 // U8 缓冲器把 P33.5-P33.8 依次送到 PWM1-PWM4；P33.4 单独输出 PWM_SI。
@@ -62,7 +62,7 @@
 #define BOARD_BALANCE_GYRO_SIGN            (1)
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
 #define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)
-// 符号跟随实际编码器通道，交换左右显示后，朝镜头前进仍为正速度。
+// 保留当前实车采样极性；前进时计数为负，测速换算统一取反得到正的 m/s。
 #define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)
 #define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)
 // 反向行驶使用负 PWM；只改变速度环的目标倾角方向，保留 IMU 与直立 PD 的物理负反馈。
@@ -71,7 +71,7 @@
 #define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
 
-// 按实车反馈交换左右编码器：左轮 H7，右轮 H4；方向符号及旧标定随通道一起对应。
+// 按实车反馈对应左右编码器：左轮 H7，右轮 H4；每轮每转固定为 1160 计数。
 #define BOARD_ENCODER_H7_INDEX             (TIM6_ENCODER)
 #define BOARD_ENCODER_H7_CH1               (TIM6_ENCODER_CH1_P20_3)
 #define BOARD_ENCODER_H7_CH2               (TIM6_ENCODER_CH2_P20_0)

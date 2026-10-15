@@ -42,8 +42,6 @@ enum {
     CAR_MENU_ACTION_RESET_DEFAULTS,
     CAR_MENU_ACTION_IMU_CALIBRATE,
     CAR_MENU_ACTION_UART,
-    CAR_MENU_ACTION_CAL_LEFT,
-    CAR_MENU_ACTION_CAL_RIGHT,
     CAR_MENU_ACTION_COPY_GEAR
 };
 
@@ -84,7 +82,6 @@ enum {
     CAR_MENU_ERROR_RUNNING,
     CAR_MENU_ERROR_CAL_REQUIRED,
     CAR_MENU_ERROR_IMU,
-    CAR_MENU_ERROR_ENCODER,
     CAR_MENU_ERROR_FLASH
 };
 
@@ -172,10 +169,6 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_SPEED, "RIGHT COUNT 2MS", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_I32, &balance_state.right_count, -2147483648.0, 2147483647.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_SPEED, "LEFT COUNTS/REV", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &balance_state.left_counts_per_rev, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
     {0, CAR_MENU_PAGE_SPEED, "RIGHT COUNTS/REV", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &balance_state.right_counts_per_rev, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_SPEED, "ENCODER CAL VALID", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_BOOL, &balance_state.encoder_calibration_valid, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_SPEED, "ENCODER CAL STATE", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &balance_state.encoder_calibration_state, 0, 4, 1, 0, CAR_MENU_APPLY_NONE, 0},
-    {0, CAR_MENU_PAGE_SPEED, "CAL LEFT 1 REV", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_CAL_LEFT},
-    {0, CAR_MENU_PAGE_SPEED, "CAL RIGHT 1 REV", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_CAL_RIGHT},
 
     {0, CAR_MENU_PAGE_STEERING, "STEERING KP", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kp, -FLT_MAX, FLT_MAX, 0.5, 1, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_STEERING, "STEERING KD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.steering_kd, -FLT_MAX, FLT_MAX, 1., 1, CAR_MENU_APPLY_PARAMS, 0},
@@ -634,18 +627,6 @@ static void car_menu_reset_defaults(void)
     car_menu_dirty = 1;
 }
 
-static void car_menu_encoder_calibrate(uint8_t wheel)
-{
-    if (car_menu_motor_test_active != 0 || car_running != 0 || balance_state.running != 0 || balance_start_pending != 0) {
-        car_menu_error = CAR_MENU_ERROR_RUNNING;
-    } else if (balance_encoder_calibrate_toggle(wheel) == 0) {
-        car_menu_error = CAR_MENU_ERROR_ENCODER;
-    } else {
-        car_menu_error = CAR_MENU_ERROR_NONE;
-    }
-    car_menu_dirty = 1;
-}
-
 static void car_menu_execute_action(uint8_t action)
 {
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
@@ -679,8 +660,7 @@ static void car_menu_execute_action(uint8_t action)
         else if (car_uart_stream_is_enabled() != 0) car_uart_stream_stop();
         else car_uart_stream_start();
         car_menu_dirty = 1;
-    } else if (action == CAR_MENU_ACTION_CAL_LEFT) car_menu_encoder_calibrate(1);
-    else if (action == CAR_MENU_ACTION_CAL_RIGHT) car_menu_encoder_calibrate(2);
+    }
 }
 
 void car_menu_handle_center(void)
@@ -855,11 +835,7 @@ static const char *car_menu_error_text(void)
     if (car_menu_error == CAR_MENU_ERROR_RUNNING) return "STOP FIRST";
     if (car_menu_error == CAR_MENU_ERROR_CAL_REQUIRED) return "IMU CAL REQUIRED";
     if (car_menu_error == CAR_MENU_ERROR_IMU) return "IMU OFFLINE";
-    if (car_menu_error == CAR_MENU_ERROR_ENCODER) return "ENCODER CAL ERROR";
     if (car_menu_error == CAR_MENU_ERROR_FLASH) return "FLASH COPY FAILED";
-    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_LEFT) return "TURN LEFT 1 REV";
-    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_RIGHT) return "TURN RIGHT 1 REV";
-    if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_SAVED) return "ENCODER CAL SAVED";
     return "READY";
 }
 
@@ -927,9 +903,6 @@ static void car_menu_draw_footer(void)
     else if (fault_text != 0 && car_menu_editing == 0) text = fault_text;
     else if (car_menu_editing != 0) text = "UP/DN ADJUST RIGHT OK LEFT CANCEL";
     else if (car_menu_motor_test_active != 0) text = "USE TEST STOP / LEFT BACK";
-    else if (balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_LEFT ||
-             balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_RIGHT) text = car_menu_error_text();
-    else if (balance_params.speed_enabled && !balance_state.encoder_calibration_valid) text = "ENCODER CAL REQUIRED";
     else if (car_follow_enabled != 0) text = "FOLLOW: USE FOLLOW STOP OR STOP";
     else if (car_running != 0) text = "RUN: USE STOP / LEFT BACK";
     else if (balance_start_pending != 0) text = "ARMING: USE STOP / LEFT BACK";

@@ -103,19 +103,15 @@ test('encoder speed updates every 2 ms while the speed PI runs every 20 ms', () 
     const sampleBody = control.slice(sampleStart, control.indexOf('\nvoid balance_init', sampleStart));
     const piStart = control.indexOf('static void balance_update_speed_20ms(');
     const piBody = control.slice(piStart, control.indexOf('\nvoid balance_sample_encoders_2ms', piStart));
-    const validation = sampleBody.indexOf('balance_state.left_counts_per_rev > 0');
-    const conversion = sampleBody.indexOf('balance_state.speed_raw_mps = wheel_circumference_m');
+    const conversion = sampleBody.indexOf('balance_state.speed_raw_mps = -wheel_circumference_m * (left_count + right_count)');
     const filter = sampleBody.indexOf('balance_state.speed_filtered_mps += speed_filter_weight');
     const phase = sampleBody.indexOf('if (++encoder_sample_phase < 10) return');
-    assert(sampleStart >= 0 && validation >= 0 && conversion > validation && filter > conversion);
+    assert(sampleStart >= 0 && conversion >= 0 && filter > conversion);
     assert(phase > filter && sampleBody.indexOf('balance_update_speed_20ms(speed_feedback_sum / 10.0f)') > phase);
     assert(sampleBody.includes('balance_state.left_count = left_count'));
     assert(sampleBody.includes('balance_state.right_count = right_count'));
-    assert(sampleBody.includes('balance_state.left_counts_per_rev > 0'));
-    assert(sampleBody.includes('balance_state.right_counts_per_rev > 0'));
-    assert(sampleBody.includes('2.0f * balance_dt_s'));
-    assert(sampleBody.includes('balance_state.speed_raw_mps = NAN'));
-    assert(sampleBody.includes('balance_state.speed_filtered_mps = NAN'));
+    assert(sampleBody.includes('2.0f * BALANCE_ENCODER_COUNTS_PER_REV * balance_dt_s'));
+    assert(!/\b(?:abs|fabs|fabsf)\s*\(/.test(sampleBody));
     assert(sampleBody.includes('if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f'));
     assert(control.includes('static const float speed_filter_weight = 0.9f'));
     assert(control.includes('static const float speed_dt_s = 0.02f'));
@@ -146,10 +142,18 @@ test('encoder speed updates every 2 ms while the speed PI runs every 20 ms', () 
     assert(control.includes('speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit)'));
     assert(control.includes('0.065f'));
     assert(controlHeader.includes('target_speed_mps'));
-    assert(controlHeader.includes('left_counts_per_rev'));
-    assert(controlHeader.includes('right_counts_per_rev'));
-    assert(menu.includes('"ENCODER CAL REQUIRED"'));
-    assert(menu.includes('"UNCAL"'));
+    assert(controlHeader.includes('#define BALANCE_ENCODER_COUNTS_PER_REV (1160u)'));
+    const initBody = control.slice(control.indexOf('void balance_init(void)'), control.indexOf('\nuint8_t balance_seed_attitude', control.indexOf('void balance_init(void)')));
+    assert(initBody.includes('balance_state.left_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV'));
+    assert(initBody.includes('balance_state.right_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV'));
+    assert(initBody.includes('balance_state.encoder_calibration_valid = 1'));
+    assert(menu.includes('"LEFT COUNTS/REV"'));
+    assert(menu.includes('"RIGHT COUNTS/REV"'));
+    assert(!menu.includes('CAL LEFT 1 REV'));
+    assert(!menu.includes('CAL RIGHT 1 REV'));
+    assert(!control.includes('balance_encoder_calibrate_toggle'));
+    assert(!control.includes('balance_encoder_flash_load'));
+    assert(!control.includes('balance_encoder_flash_save'));
     assert(!menu.includes('FOLLOW SPEED'));
     assert(!control.includes('follow_angle_per_speed'));
     assert(!control.includes('follow_p_pwm_fraction'));
@@ -183,7 +187,7 @@ test('configured new-right PWM trim is symmetric and motor tests stay outside ba
     assert(!menu.includes('MOTOR DEADZONE'));
 });
 
-test('left and right motor wiring matches PWM tests while preserving encoder calibration ownership', () => {
+test('left and right motor wiring keeps their logical encoder signs and PWM paths', () => {
     assert(board.includes('#define BOARD_LEFT_MOTOR_REVERSE_PWM_PIN   (BOARD_MOTOR1_PWM_PIN)'));
     assert(board.includes('#define BOARD_LEFT_MOTOR_FORWARD_PWM_PIN   (BOARD_MOTOR2_PWM_PIN)'));
     assert(board.includes('#define BOARD_RIGHT_MOTOR_REVERSE_PWM_PIN  (BOARD_MOTOR3_PWM_PIN)'));
@@ -206,18 +210,17 @@ test('left and right motor wiring matches PWM tests while preserving encoder cal
     assert(menuPort.includes('encoder_get_count(BOARD_RIGHT_ENCODER_INDEX)'));
     assert(menuPort.includes('delta_left *= BOARD_BALANCE_LEFT_ENCODER_SIGN'));
     assert(menuPort.includes('delta_right *= BOARD_BALANCE_RIGHT_ENCODER_SIGN'));
-    near(-10 * -1, 10);  // Forward H7 raw counts -10 become positive left-wheel counts.
-    near(180 * 1, 180);  // Forward H4 raw counts +180 stay positive right-wheel counts.
-    near(10 * -1, -10);
-    near(-180 * 1, -180);
+    near(-10 * -1, 10);  // Reverse H7 raw counts become positive logical counts.
+    near(180 * 1, 180);  // Reverse H4 raw counts stay positive logical counts.
+    near(10 * -1, -10);  // Forward H7 raw counts become negative logical counts.
+    near(-180 * 1, -180);  // Forward H4 raw counts stay negative logical counts.
     assert.equal(forwardPwmSign, -1);
     assert.equal(turnPwmSign, -1);
-    assert(control.includes('if (record.version == 1u || record.version == 3u)'));
-    assert(control.includes('balance_state.left_counts_per_rev = record.right_counts_per_rev'));
-    assert(control.includes('balance_state.right_counts_per_rev = record.left_counts_per_rev'));
-    assert(control.includes('balance_state.left_counts_per_rev = record.left_counts_per_rev'));
-    assert(control.includes('balance_state.right_counts_per_rev = record.right_counts_per_rev'));
-    assert(control.includes('#define BALANCE_ENCODER_FLASH_VERSION      (4u)'));
+    assert(!control.includes('BALANCE_ENCODER_FLASH_PAGE'));
+    assert(!control.includes('balance_encoder_calibrate_toggle'));
+    assert(!control.includes('balance_encoder_flash_load'));
+    assert(!control.includes('balance_encoder_flash_save'));
+    assert(controlHeader.includes('#define BALANCE_ENCODER_COUNTS_PER_REV (1160u)'));
     assert(image.includes('average_count = balance_state.encoder_average_count'));
     const positiveErrorTurn = 10 * 2 * turnPwmSign;
     const output = allocate(-1000, positiveErrorTurn, 5000);
@@ -302,6 +305,11 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
     assert(!/CAR_FOLLOW_LEAN_(?:IN|HOLD|OUT)/.test(car + carHeader));
     assert(trackBody.includes('now_ms - follow_stage_started_ms < CAR_FOLLOW_WAIT_DELAY_MS'));
     assert(trackBody.includes('now_ms - follow_stage_started_ms >= CAR_FOLLOW_UPRIGHT_MS'));
+    const menuSpeedIndex = trackBody.indexOf('target_speed_mps = balance_params.target_speed_mps');
+    const curveSpeedIndex = trackBody.indexOf('if (car_curve_mode) target_speed_mps = 1.5f;', menuSpeedIndex);
+    const uprightSpeedIndex = trackBody.indexOf('if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f', curveSpeedIndex);
+    const rampSpeedIndex = trackBody.indexOf('if (car_follow_status == CAR_FOLLOW_SPEED_RAMP)', uprightSpeedIndex);
+    assert(menuSpeedIndex >= 0 && curveSpeedIndex > menuSpeedIndex && uprightSpeedIndex > curveSpeedIndex && rampSpeedIndex > uprightSpeedIndex);
     assert(trackBody.includes('target_speed_mps *= elapsed_ms / (float)CAR_FOLLOW_SPEED_RAMP_MS'));
     assert(trackBody.includes('elapsed_ms >= CAR_FOLLOW_SPEED_RAMP_MS'));
     assert(trackBody.includes('elapsed_ms = now_ms - follow_stage_started_ms'));
@@ -372,10 +380,10 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
         };
         return env;
     };
-    const invokeTrack = (env, now, error = 0) => {
+    const invokeTrack = (env, now, error = 0, curvature = 0) => {
         env.now_ms = now >>> 0;
         env.capture_ms = now === 0 ? 1 : now >>> 0;
-        env.error = error; env.curvature = 0; env.valid = 1; env.new_result = 1;
+        env.error = error; env.curvature = curvature; env.valid = 1; env.new_result = 1;
         env.command = null; env.requestStart = false; env.cancelled = false;
         trackFn(env);
         return env;
@@ -436,6 +444,22 @@ test('FOLLOW uses an actual-RUN upright hold and a bounded speed ramp', () => {
         assert.equal(delay.follow_started_ms, started);
         if (offset === speedRampMs) assert.equal(delay.follow_stage_started_ms, 0);
     }
+
+    invokeTrack(delay, (rampStart + 2500) >>> 0, 0, 2);
+    assert.equal(delay.car_curve_mode, 1);
+    assert.equal(delay.command.speed, 1.5);
+    invokeTrack(delay, (rampStart + 2520) >>> 0, 0, 0);
+    assert.equal(delay.car_curve_mode, 0);
+    assert.equal(delay.command.speed, menuTarget);
+    delay.balance_params.target_speed_mps = 1.0;
+    invokeTrack(delay, (rampStart + 2540) >>> 0, 0, 2);
+    assert.equal(delay.car_curve_mode, 1);
+    assert.equal(delay.command.speed, 1.5);
+
+    const curveRamp = makeEnv('SPEED_RAMP', true, rampStart);
+    invokeTrack(curveRamp, (rampStart + speedRampMs / 2) >>> 0, 0, 2);
+    assert.equal(curveRamp.car_curve_mode, 1);
+    near(curveRamp.command.speed, 1.5 * (speedRampMs / 2) / speedRampMs);
 
     const grace = makeEnv('ACTIVE', true, 0, 0, started);
     invokeTrack(grace, (started + 4998) >>> 0);
@@ -669,7 +693,7 @@ test('2 ms encoder diagnostics preserve a signed 20 ms vision average', () => {
     assert(sampleBody.includes('left_count_sum += left_count'));
     assert(sampleBody.includes('right_count_sum += right_count'));
     assert(sampleBody.includes('if (++encoder_sample_phase < 10) return'));
-    assert(sampleBody.includes('encoder_average_count = (left_count_sum + right_count_sum) / 2'));
+    assert(sampleBody.includes('encoder_average_count = -(left_count_sum + right_count_sum) / 2'));
     assert(control.includes('left_count_sum'));
     assert(control.includes('right_count_sum'));
     assert(menu.includes('"LEFT COUNT 2MS"'));
@@ -683,21 +707,27 @@ test('2 ms encoder diagnostics preserve a signed 20 ms vision average', () => {
     assert(control.includes('0.065f'));
 });
 
-test('one-wheel-revolution calibration gives a physical 1.5 m/s target and persists both encoders', () => {
-    const countsPerRev = 1000;
+test('forward-negative encoder counts produce positive speed at a fixed 1160 counts per revolution', () => {
+    const countsPerRev = 1160;
+    const circumference = Math.PI * 0.065;
+    const rawSpeed = (left, right) => -circumference * (left + right) / (2 * countsPerRev * 0.002);
     const targetCounts20ms = 1.5 * 0.02 * countsPerRev / (Math.PI * 0.065);
-    near(targetCounts20ms, 146.9124476, 0.001);
-    assert(control.includes('BALANCE_ENCODER_FLASH_PAGE         (11u)'));
-    assert(control.includes('record.checksum = balance_encoder_checksum(&record)'));
-    assert(control.includes('count = total - encoder_calibration_start_count'));
-    assert(control.includes('if (count > 0x7fffffffu) count = 0u - count'));
-    assert(control.includes('count == 0 || count > BALANCE_ENCODER_MAX_COUNTS'));
-    assert(control.includes('balance_encoder_flash_save()'));
-    assert(menu.includes('CAL LEFT 1 REV'));
-    assert(menu.includes('CAL RIGHT 1 REV'));
-    assert(menu.includes('ENCODER CAL VALID'));
-    assert(control.includes('(float)balance_state.left_count / balance_state.left_counts_per_rev'));
-    assert(control.includes('(float)balance_state.right_count / balance_state.right_counts_per_rev'));
+    near(targetCounts20ms, 170.418439, 0.001);
+    near(rawSpeed(-10, -10), circumference * 10 / (countsPerRev * 0.002));
+    near(rawSpeed(10, 10), -circumference * 10 / (countsPerRev * 0.002));
+    assert(control.includes('BALANCE_ENCODER_COUNTS_PER_REV * balance_dt_s'));
+    assert(control.includes('encoder_average_count = -(left_count_sum + right_count_sum) / 2'));
+    assert(control.includes('balance_state.left_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV'));
+    assert(control.includes('balance_state.right_counts_per_rev = BALANCE_ENCODER_COUNTS_PER_REV'));
+    assert(!/\b(?:abs|fabs|fabsf)\s*\(/.test(control.slice(control.indexOf('void balance_sample_encoders_2ms('), control.indexOf('\nvoid balance_init'))));
+    assert(!control.includes('BALANCE_ENCODER_FLASH_PAGE'));
+    assert(!control.includes('balance_encoder_flash_load'));
+    assert(!control.includes('balance_encoder_flash_save'));
+    assert(!control.includes('balance_encoder_calibrate_toggle'));
+    assert(!menu.includes('CAL LEFT 1 REV'));
+    assert(!menu.includes('CAL RIGHT 1 REV'));
+    assert(menu.includes('"LEFT COUNTS/REV"'));
+    assert(menu.includes('"RIGHT COUNTS/REV"'));
     assert(control.includes('speed_angle_applied = BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_clamp(pi_output, angle_limit)'));
     assert(forwardPwmSign === -1);
     assert(forwardPwmSign * 1.0 < 0 && forwardPwmSign * -1.0 > 0);

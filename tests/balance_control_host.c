@@ -9,6 +9,8 @@
 flash_data_union flash_union_buffer[EEPROM_PAGE_LENGTH];
 static flash_data_union host_encoder_flash_page[EEPROM_PAGE_LENGTH];
 static uint8 host_encoder_flash_valid;
+static uint32 host_encoder_flash_read_count;
+static uint32 host_encoder_flash_write_count;
 
 typedef struct {
     uint32 magic;
@@ -44,12 +46,16 @@ uint32 interrupt_global_disable(void) { return 0; }
 void interrupt_global_enable(uint32 state) { (void)state; }
 void flash_read_page_to_buffer(uint32 sector, uint32 page)
 {
-    if (sector == 0 && page == 11 && host_encoder_flash_valid) memcpy(flash_union_buffer, host_encoder_flash_page, sizeof(flash_union_buffer));
+    if (sector == 0 && page == 11) {
+        host_encoder_flash_read_count++;
+        if (host_encoder_flash_valid) memcpy(flash_union_buffer, host_encoder_flash_page, sizeof(flash_union_buffer));
+    }
 }
 
 uint8 flash_write_page_from_buffer(uint32 sector, uint32 page)
 {
     if (sector == 0 && page == 11) {
+        host_encoder_flash_write_count++;
         memcpy(host_encoder_flash_page, flash_union_buffer, sizeof(flash_union_buffer));
         host_encoder_flash_valid = 1;
     }
@@ -110,31 +116,25 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
     int sample;
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 500;
-    expected_speed = circumference * (10.0f / 1000.0f + 10.0f / 500.0f) / (2.0f * 0.002f);
-    balance_sample_encoders_2ms(10, 10);
-    assert(balance_state.left_count == 10 && balance_state.right_count == 10);
+    expected_speed = -circumference * (-10.0f - 10.0f) / (2.0f * BALANCE_ENCODER_COUNTS_PER_REV * 0.002f);
+    balance_sample_encoders_2ms(-10, -10);
+    assert(balance_state.left_count == -10 && balance_state.right_count == -10);
     assert(balance_state.encoder_average_count == 0);
     near_value(balance_state.speed_raw_mps, expected_speed);
     near_value(balance_state.speed_filtered_mps, filter_weight * expected_speed);
 
     previous_filtered = balance_state.speed_filtered_mps;
-    expected_speed = circumference * (5.0f / 500.0f) / (2.0f * 0.002f);
-    balance_sample_encoders_2ms(0, 5);
-    assert(balance_state.left_count == 0 && balance_state.right_count == 5);
+    expected_speed = -circumference * -5.0f / (2.0f * BALANCE_ENCODER_COUNTS_PER_REV * 0.002f);
+    balance_sample_encoders_2ms(0, -5);
+    assert(balance_state.left_count == 0 && balance_state.right_count == -5);
     near_value(balance_state.speed_raw_mps, expected_speed);
     near_value(balance_state.speed_filtered_mps, previous_filtered + filter_weight * (expected_speed - previous_filtered));
 
-    for (sample = 0; sample < 8; sample++) balance_sample_encoders_2ms(1, 3);
-    assert(balance_state.left_count == 1 && balance_state.right_count == 3);
+    for (sample = 0; sample < 8; sample++) balance_sample_encoders_2ms(-1, -3);
+    assert(balance_state.left_count == -1 && balance_state.right_count == -3);
     assert(balance_state.encoder_average_count == 28);
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     params = balance_params;
     params.speed_kp = 1.0f;
     params.speed_ki = 2.0f;
@@ -160,7 +160,7 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
 
     balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
     for (sample = 0; sample < 9; sample++) {
-        balance_sample_encoders_2ms(30, 30);
+        balance_sample_encoders_2ms(-30, -30);
         expected_feedback += balance_state.speed_filtered_mps;
         near_value(balance_state.speed_target_applied_mps, 0.5f);
         near_value(balance_state.speed_error_mps, 0.5f);
@@ -171,7 +171,7 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
         near_value(balance_state.speed_integral_angle, 0.02f);
         near_value(balance_state.speed_angle_applied, BOARD_FOLLOW_FORWARD_PWM_SIGN * 0.52f);
     }
-    balance_sample_encoders_2ms(30, 30);
+    balance_sample_encoders_2ms(-30, -30);
     expected_feedback += balance_state.speed_filtered_mps;
     assert(balance_state.speed_target_applied_mps == 0.0f);
     assert(balance_state.speed_error_mps < 0.0f);
@@ -182,7 +182,7 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
         BOARD_FOLLOW_FORWARD_PWM_SIGN * (balance_state.speed_error_mps + balance_state.speed_integral_angle));
     assert(balance_state.speed_angle_applied > 0.04f);
 
-    balance_sample_encoders_2ms(1, 1);
+    balance_sample_encoders_2ms(-1, -1);
     retained_speed = balance_state.speed_filtered_mps;
     assert(retained_speed > 0.0f);
     balance_stop();
@@ -201,9 +201,6 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
     near_value(balance_state.speed_filtered_mps, retained_speed);
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     params = balance_params;
     params.speed_kp = 0.0f;
     params.speed_ki = -1000.0f;
@@ -228,14 +225,11 @@ static void test_2ms_encoder_speed_and_20ms_pi(void)
 
 static void test_speed_pi_uses_whole_encoder_window(void)
 {
-    const float pulse_speed = 0.065f * 3.14159265f * 10.0f / (1000.0f * 0.002f);
+    const float pulse_speed = 0.065f * 3.14159265f * 10.0f / (BALANCE_ENCODER_COUNTS_PER_REV * 0.002f);
     balance_params_t params;
     int sample;
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     params = balance_params;
     params.speed_kp = 1.0f;
     params.speed_ki = 0.0f;
@@ -245,7 +239,7 @@ static void test_speed_pi_uses_whole_encoder_window(void)
     balance_set_speed_control_active(1);
     balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
     for (sample = 0; sample < 9; sample++) balance_sample_encoders_2ms(0, 0);
-    balance_sample_encoders_2ms(10, 10);
+    balance_sample_encoders_2ms(-10, -10);
     near_value(balance_state.speed_raw_mps, pulse_speed);
     near_value(balance_state.speed_filtered_mps, 0.9f * pulse_speed);
     near_value(balance_state.speed_feedback_mps, 0.09f * pulse_speed);
@@ -253,9 +247,6 @@ static void test_speed_pi_uses_whole_encoder_window(void)
 
     /* A pulse in the first sample must still affect PI even when the last sample is zero. */
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     assert(balance_apply_live_params(&params));
     assert(balance_seed_attitude(0.0f));
     assert(balance_start());
@@ -263,14 +254,14 @@ static void test_speed_pi_uses_whole_encoder_window(void)
     balance_sample_encoders_2ms(-10, -10);
     for (sample = 0; sample < 9; sample++) balance_sample_encoders_2ms(0, 0);
     near_value(balance_state.speed_raw_mps, 0.0f);
-    near_value(balance_state.speed_feedback_mps, -pulse_speed / 10.0f);
-    assert(balance_state.speed_p_angle > 0.0f);
+    near_value(balance_state.speed_feedback_mps, pulse_speed / 10.0f);
+    assert(balance_state.speed_p_angle < 0.0f);
     balance_init();
 }
 
 static void test_speed_integral_retains_drift_correction(void)
 {
-    const float measured_speed = 0.065f * 3.14159265f * 10.0f / (1000.0f * 0.002f);
+    const float measured_speed = 0.065f * 3.14159265f * 10.0f / (BALANCE_ENCODER_COUNTS_PER_REV * 0.002f);
     balance_params_t params;
     float slow_integral = 0.0f;
     float retained_integral;
@@ -279,9 +270,6 @@ static void test_speed_integral_retains_drift_correction(void)
 
     for (test_case = 0; test_case < 2; test_case++) {
         balance_init();
-        balance_state.encoder_calibration_valid = 1;
-        balance_state.left_counts_per_rev = 1000;
-        balance_state.right_counts_per_rev = 1000;
         params = balance_params;
         params.speed_kp = 0.0f;
         params.speed_ki = test_case == 0 ? 0.01f : 0.5f;
@@ -291,7 +279,7 @@ static void test_speed_integral_retains_drift_correction(void)
         assert(balance_start());
         balance_set_speed_control_active(1);
         balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-        for (sample = 0; sample < 5000; sample++) balance_sample_encoders_2ms(10, 10);
+        for (sample = 0; sample < 5000; sample++) balance_sample_encoders_2ms(-10, -10);
         assert(balance_state.speed_integral_angle < 0.0f);
         assert(balance_state.speed_angle_applied > 0.0f);
         if (test_case == 0) {
@@ -305,7 +293,7 @@ static void test_speed_integral_retains_drift_correction(void)
         /* At target speed, the correction must remain available to cancel a persistent bias. */
         retained_integral = balance_state.speed_integral_angle;
         balance_set_follow_command(measured_speed, 0.0f, 0.0f, 0.0f);
-        for (sample = 0; sample < 100; sample++) balance_sample_encoders_2ms(10, 10);
+        for (sample = 0; sample < 100; sample++) balance_sample_encoders_2ms(-10, -10);
         near_value(balance_state.speed_error_mps, 0.0f);
         near_value(balance_state.speed_integral_angle, retained_integral);
         balance_stop();
@@ -321,9 +309,6 @@ static void test_speed_pi_follow_gate(void)
     int sample;
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     params = balance_params;
     params.middle_angle = 2.5f;
     params.speed_kp = 1.0f;
@@ -334,7 +319,7 @@ static void test_speed_pi_follow_gate(void)
     near_value(balance_state.target_angle, params.middle_angle);
 
     balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     assert(balance_state.speed_raw_mps > 0.0f && balance_state.speed_filtered_mps > 0.0f);
     near_value(balance_state.speed_target_applied_mps, 0.0f);
     near_value(balance_state.speed_integral_angle, 0.0f);
@@ -344,13 +329,13 @@ static void test_speed_pi_follow_gate(void)
 
     balance_set_speed_control_active(1);
     balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     near_value(balance_state.speed_target_applied_mps, 0.5f);
     assert(balance_state.speed_integral_angle > 0.0f);
     assert(BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.speed_angle_applied > 0.0f);
 
     balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(10, 10);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-10, -10);
     assert(balance_state.speed_error_mps < 0.0f);
     assert(BOARD_FOLLOW_FORWARD_PWM_SIGN * balance_state.speed_angle_applied < 0.0f);
 
@@ -364,7 +349,7 @@ static void test_speed_pi_follow_gate(void)
 
     balance_set_speed_control_active(1);
     balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     assert(balance_state.speed_angle_applied != 0.0f);
     balance_cancel_follow_command();
     near_value(balance_state.speed_integral_angle, 0.0f);
@@ -373,121 +358,52 @@ static void test_speed_pi_follow_gate(void)
     near_value(balance_state.target_angle, params.middle_angle);
 
     balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     near_value(balance_state.speed_integral_angle, 0.0f);
     near_value(balance_state.speed_angle_applied, 0.0f);
     balance_stop();
     assert(balance_seed_attitude(0.0f));
     assert(balance_start());
     balance_set_follow_command(0.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     near_value(balance_state.speed_integral_angle, 0.0f);
     near_value(balance_state.speed_angle_applied, 0.0f);
 
     params.speed_enabled = 0;
     assert(balance_apply_live_params(&params));
     balance_set_speed_control_active(1);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(1, 1);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-1, -1);
     near_value(balance_state.speed_target_applied_mps, 0.0f);
     near_value(balance_state.speed_integral_angle, 0.0f);
     near_value(balance_state.speed_angle_applied, 0.0f);
     balance_init();
 }
 
-static void test_uncalibrated_speed_is_unknown(void)
-{
-    balance_params_t params;
-    int sample;
-
-    balance_init();
-    assert(!balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 0 && balance_state.right_counts_per_rev == 0);
-    assert(isnan(balance_state.speed_raw_mps) && isnan(balance_state.speed_filtered_mps));
-    params = balance_params;
-    params.speed_kp = 10.0f;
-    params.speed_ki = 10.0f;
-    assert(balance_apply_live_params(&params));
-    assert(balance_seed_attitude(0.0f));
-    assert(balance_start());
-    balance_set_speed_control_active(1);
-    balance_set_follow_command(1.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(5, 5);
-    assert(!balance_state.encoder_calibration_valid);
-    assert(isnan(balance_state.speed_raw_mps) && isnan(balance_state.speed_filtered_mps));
-    near_value(balance_state.speed_target_applied_mps, 0.0f);
-    near_value(balance_state.speed_integral_angle, 0.0f);
-    near_value(balance_state.speed_angle_applied, 0.0f);
-
-    balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 0;
-    assert(balance_seed_attitude(0.0f));
-    assert(balance_start());
-    balance_set_speed_control_active(1);
-    balance_set_follow_command(1.5f, 0.0f, 0.0f, 0.0f);
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(5, 5);
-    assert(!balance_state.encoder_calibration_valid);
-    assert(isnan(balance_state.speed_raw_mps) && isnan(balance_state.speed_filtered_mps));
-    near_value(balance_state.speed_target_applied_mps, 0.0f);
-    near_value(balance_state.speed_integral_angle, 0.0f);
-    near_value(balance_state.speed_angle_applied, 0.0f);
-    balance_init();
-}
-
-static void test_encoder_calibration_both_directions_persists(void)
+static void test_encoder_scale_is_fixed_and_ignores_legacy_flash(void)
 {
     int sample;
-
-    balance_init();
-    assert(!balance_state.encoder_calibration_valid);
-    assert(balance_encoder_calibrate_toggle(BALANCE_ENCODER_CAL_LEFT));
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-100, 0);
-    assert(balance_encoder_calibrate_toggle(BALANCE_ENCODER_CAL_LEFT));
-    assert(balance_state.left_counts_per_rev == 1000);
-
-    assert(balance_encoder_calibrate_toggle(BALANCE_ENCODER_CAL_RIGHT));
-    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(0, 60);
-    assert(balance_encoder_calibrate_toggle(BALANCE_ENCODER_CAL_RIGHT));
-    assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.encoder_calibration_state == BALANCE_ENCODER_CAL_SAVED);
-    assert(balance_state.left_counts_per_rev == 1000 && balance_state.right_counts_per_rev == 600);
-    assert(host_encoder_flash_page[1].uint32_type == 4u);
-
-    balance_init();
-    assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 1000 && balance_state.right_counts_per_rev == 600);
-}
-
-static void test_encoder_flash_version_migration(void)
-{
-    host_set_encoder_flash(1u, 111u, 222u, 1);
-    balance_init();
-    assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 222u && balance_state.right_counts_per_rev == 111u);
-
-    host_set_encoder_flash(2u, 111u, 222u, 1);
-    balance_init();
-    assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 111u && balance_state.right_counts_per_rev == 222u);
-
-    host_set_encoder_flash(3u, 111u, 222u, 1);
-    balance_init();
-    assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 222u && balance_state.right_counts_per_rev == 111u);
 
     host_set_encoder_flash(4u, 111u, 222u, 1);
+    host_encoder_flash_read_count = 0;
+    host_encoder_flash_write_count = 0;
     balance_init();
     assert(balance_state.encoder_calibration_valid);
-    assert(balance_state.left_counts_per_rev == 111u && balance_state.right_counts_per_rev == 222u);
+    assert(balance_state.left_counts_per_rev == BALANCE_ENCODER_COUNTS_PER_REV);
+    assert(balance_state.right_counts_per_rev == BALANCE_ENCODER_COUNTS_PER_REV);
+    assert(balance_state.speed_raw_mps == 0.0f && balance_state.speed_filtered_mps == 0.0f);
+    assert(host_encoder_flash_read_count == 0 && host_encoder_flash_write_count == 0);
 
-    host_set_encoder_flash(5u, 111u, 222u, 1);
+    assert(balance_seed_attitude(0.0f));
+    assert(balance_start());
+    balance_set_speed_control_active(1);
+    balance_set_follow_command(1.5f, 0.0f, 0.0f, 0.0f);
+    for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(-10, -10);
+    assert(balance_state.speed_raw_mps > 0.0f && balance_state.speed_filtered_mps > 0.0f);
+    assert(balance_state.speed_error_mps < 1.5f);
     balance_init();
-    assert(!balance_state.encoder_calibration_valid);
-
-    host_set_encoder_flash(4u, 111u, 222u, 0);
-    balance_init();
-    assert(!balance_state.encoder_calibration_valid);
+    assert(balance_state.left_counts_per_rev == BALANCE_ENCODER_COUNTS_PER_REV);
+    assert(balance_state.right_counts_per_rev == BALANCE_ENCODER_COUNTS_PER_REV);
+    assert(host_encoder_flash_read_count == 0 && host_encoder_flash_write_count == 0);
 }
 
 static void test_signed_control_gains(void)
@@ -539,9 +455,6 @@ static void test_signed_control_gains(void)
         balance_params.speed_ki = direction * 500.0f;
         balance_params.speed_angle_limit = 20.0f;
         assert(balance_apply_params());
-        balance_state.encoder_calibration_valid = 1;
-        balance_state.left_counts_per_rev = 1000;
-        balance_state.right_counts_per_rev = 1000;
         assert(balance_seed_attitude(0.0f));
         assert(balance_start());
         balance_set_speed_control_active(1);
@@ -607,10 +520,6 @@ static void test_pwm_fullscale_stop(void)
             assert(balance_state.left_pwm == -9999 && balance_state.right_pwm == -10000);
         }
     }
-
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     balance_set_follow_command(1.0f, 0.0f, 0.0f, 0.0f);
     for (sample = 0; sample < 10; sample++) balance_sample_encoders_2ms(0, 0);
     assert(balance_state.speed_pid_active && balance_state.speed_integral_angle > 0.0f);
@@ -643,23 +552,20 @@ static void test_reverse_speed_feedback(void)
     int motion;
     int sample;
 
-    /* The sampling API receives logical counts after the H7/H4 board mapping. */
+    /* Forward movement is negative; reverse movement is positive and reports negative speed. */
     for (motion = -1; motion <= 1; motion += 2) {
         balance_init();
-        balance_state.encoder_calibration_valid = 1;
-        balance_state.left_counts_per_rev = 1000;
-        balance_state.right_counts_per_rev = 1000;
         assert(balance_seed_attitude(0.0f));
         assert(balance_start());
         balance_set_speed_control_active(1);
         for (sample = 0; sample < 10; sample++) {
             balance_sample_encoders_2ms(20 * motion, 20 * motion);
         }
-        assert(motion * balance_state.speed_raw_mps > 0.0f);
-        assert(balance_state.encoder_average_count == 200 * motion);
-        assert(motion * balance_state.speed_error_mps < 0.0f);
+        assert(motion * balance_state.speed_raw_mps < 0.0f);
+        assert(balance_state.encoder_average_count == -200 * motion);
+        assert(motion * balance_state.speed_error_mps > 0.0f);
         balance_update_2ms(0.0f, 0.0f, 1, 1);
-        /* At zero target, positive camera-forward speed needs positive PWM to brake. */
+        /* At zero target, braking PWM follows the raw encoder direction. */
         assert(motion * balance_state.left_pwm > 0 && motion * balance_state.right_pwm > 0);
     }
     balance_init();
@@ -673,7 +579,7 @@ int main(void)
 
     test_speed_pi_uses_whole_encoder_window();
     test_speed_integral_retains_drift_correction();
-    test_encoder_flash_version_migration();
+    test_encoder_scale_is_fixed_and_ignores_legacy_flash();
     balance_init();
     memset(flash_union_buffer, 0xff, sizeof(flash_union_buffer));
     flash_union_buffer[0].uint32_type = 0x42414C31u;
@@ -716,7 +622,6 @@ int main(void)
     params = balance_params;
     params.speed_kp = -0.1f;
     assert(balance_params_are_valid(&params));
-    test_uncalibrated_speed_is_unknown();
     test_signed_control_gains();
     test_2ms_filter_and_pd();
     test_2ms_encoder_speed_and_20ms_pi();
@@ -770,9 +675,6 @@ int main(void)
     test_pwm_fullscale_stop();
 
     balance_init();
-    balance_state.encoder_calibration_valid = 1;
-    balance_state.left_counts_per_rev = 1000;
-    balance_state.right_counts_per_rev = 1000;
     assert(balance_seed_attitude(0.0f));
     assert(balance_start());
     balance_set_speed_control_active(1);
@@ -781,6 +683,5 @@ int main(void)
     assert(balance_state.speed_angle_applied < 0.0f);
     balance_update_2ms(0.0f, 0.0f, 1, 1);
     assert(balance_state.left_pwm < 0 && balance_state.right_pwm < 0);
-    test_encoder_calibration_both_directions_persists();
     return 0;
 }
