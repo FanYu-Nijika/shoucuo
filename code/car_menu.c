@@ -13,6 +13,7 @@
 #include "car_params.h"
 #include "car_shared.h"
 #include "car_uart_stream.h"
+#include "my_imagetransfer.h"
 #include "longest_white.h"
 #include "zf_common_headfile.h"
 
@@ -27,7 +28,8 @@ enum {
     CAR_MENU_PAGE_TOOLS = 7,
     CAR_MENU_PAGE_IMU = 8,
     CAR_MENU_PAGE_BALANCE = 9,
-    CAR_MENU_PAGE_SPEED = 10
+    CAR_MENU_PAGE_SPEED = 10,
+    CAR_MENU_PAGE_PREVIEW_TABLE = 11
 };
 
 enum {
@@ -42,7 +44,11 @@ enum {
     CAR_MENU_ACTION_RESET_DEFAULTS,
     CAR_MENU_ACTION_IMU_CALIBRATE,
     CAR_MENU_ACTION_UART,
-    CAR_MENU_ACTION_COPY_GEAR
+    CAR_MENU_ACTION_COPY_GEAR,
+    CAR_MENU_ACTION_SD_INIT,
+    CAR_MENU_ACTION_SD_RECORD,
+    CAR_MENU_ACTION_SD_STOP,
+    CAR_MENU_ACTION_SD_EXPORT
 };
 
 enum {
@@ -118,6 +124,7 @@ static uint8_t car_menu_last_running;
 static uint8_t car_menu_last_start_pending;
 static uint8_t car_menu_last_balance_fault;
 static uint8_t car_menu_last_calibration_state;
+static uint8_t car_menu_sd_was_running;
 
 /*
  * Menu maintenance is intentionally a flat list. Add or remove one row here;
@@ -197,8 +204,27 @@ static const car_menu_item_t car_menu_items[] = {
     {0, CAR_MENU_PAGE_VISION, "PATH FAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_far, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH MIDDLE", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_middle, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "PATH NEAR", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &car_params.path_weight_near, 0, 5, 0.05, 2, CAR_MENU_APPLY_PARAMS, 0},
-    {0, CAR_MENU_PAGE_VISION, "PRE-SIGHT ROW", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.control_row_near, 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {0, CAR_MENU_PAGE_VISION, "FALLBACK ROW", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U8, &car_params.control_row_near, 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_VISION, "VAR LOOKHEAD", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.lookhead, 60, MT9V03X_H, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {CAR_MENU_PAGE_PREVIEW_TABLE, CAR_MENU_PAGE_VISION, "PREVIEW TABLE", CAR_MENU_ITEM_PAGE, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, 0, 0},
+
+    {0, CAR_MENU_PAGE_PREVIEW_TABLE, "TARGET SPEED M/S", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_FLOAT, &balance_params.target_speed_mps, 0, 3, 0.1, 2, CAR_MENU_APPLY_BALANCE, 0},
+    {1, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 1", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[0], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {2, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 2", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[1], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {3, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 3", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[2], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {4, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 4", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[3], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {5, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 5", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[4], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {6, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 6", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[5], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {7, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 7", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[6], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {8, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 8", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[7], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {9, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 9", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[8], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {10, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 10", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[9], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {11, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 11", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[10], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {12, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 12", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[11], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {13, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 13", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[12], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {14, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 14", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[13], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {15, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 15", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[14], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
+    {16, CAR_MENU_PAGE_PREVIEW_TABLE, "ROW 16", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_U16, &car_params.preview_rows[15], 3, MT9V03X_H - 3, 1, 0, CAR_MENU_APPLY_PARAMS, 0},
 
     {0, CAR_MENU_PAGE_MOTORS, "LEFT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.left_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
     {0, CAR_MENU_PAGE_MOTORS, "RIGHT DIRECTION", CAR_MENU_ITEM_VALUE, CAR_MENU_VALUE_DIRECTION, &car_params.right_direction, -1, 1, -1, 0, CAR_MENU_APPLY_PARAMS, 0},
@@ -295,7 +321,16 @@ static const car_menu_item_t car_menu_items[] = {
 
     {0, CAR_MENU_PAGE_TOOLS, "LCD TEST", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_LCD_TEST},
     {0, CAR_MENU_PAGE_TOOLS, "RESET DEFAULTS", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_RESET_DEFAULTS},
-    {0, CAR_MENU_PAGE_TOOLS, "UART STREAM", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_UART}
+    {0, CAR_MENU_PAGE_TOOLS, "UART STREAM", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_UART},
+    {0, CAR_MENU_PAGE_TOOLS, "SD INIT", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SD_INIT},
+    {0, CAR_MENU_PAGE_TOOLS, "SD RECORD", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SD_RECORD},
+    {0, CAR_MENU_PAGE_TOOLS, "SD STOP", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SD_STOP},
+    {0, CAR_MENU_PAGE_TOOLS, "SD EXPORT", CAR_MENU_ITEM_ACTION, CAR_MENU_VALUE_NONE, 0, 0, 0, 0, 0, CAR_MENU_APPLY_NONE, CAR_MENU_ACTION_SD_EXPORT},
+    {0, CAR_MENU_PAGE_TOOLS, "SD READY", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &my_sd_ready, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TOOLS, "SD RECORDING", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &my_sd_recording, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TOOLS, "SD SAVED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &my_picture_count, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TOOLS, "SD EXPORTED", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U32, &my_export_count, 0, 4294967295.0, 1, 0, CAR_MENU_APPLY_NONE, 0},
+    {0, CAR_MENU_PAGE_TOOLS, "SD ERROR", CAR_MENU_ITEM_INFO, CAR_MENU_VALUE_U8, &my_sd_error, 0, 1, 1, 0, CAR_MENU_APPLY_NONE, 0}
 };
 
 static uint8_t car_menu_ready;
@@ -484,14 +519,18 @@ static void car_menu_adjust_edit(int8_t direction)
     car_menu_edit_value = value;
     car_menu_apply_value(item, value);
     car_menu_old_selected = car_menu_selected;
-    car_menu_row_dirty = 1;
+    if (car_menu_page == CAR_MENU_PAGE_PREVIEW_TABLE && item->address == &balance_params.target_speed_mps) car_menu_dirty = 1;
+    else car_menu_row_dirty = 1;
 }
 
 static void car_menu_finish_edit(uint8_t save)
 {
     const car_menu_item_t *item = car_menu_item_at(car_menu_page, car_menu_edit_item_number);
 
-    if (save == 0 && item != 0) car_menu_apply_value(item, car_menu_original_value);
+    if (save == 0 && item != 0) {
+        car_menu_apply_value(item, car_menu_original_value);
+        if (car_menu_page == CAR_MENU_PAGE_PREVIEW_TABLE && item->address == &balance_params.target_speed_mps) car_menu_dirty = 1;
+    }
     car_menu_editing = 0;
     car_menu_edit_item_number = 0;
     car_menu_row_dirty = 1;
@@ -534,6 +573,7 @@ static void car_menu_motor_test_stop(void)
 
 static void car_menu_stop(void)
 {
+    My_SdCard_Stop();
     car_menu_motor_test_active = 0;
     balance_runtime_set_motor_test(0);
     car_menu_test_left_pwm = 0;
@@ -629,6 +669,26 @@ static void car_menu_reset_defaults(void)
 
 static void car_menu_execute_action(uint8_t action)
 {
+    if (my_sd_exporting && (action == CAR_MENU_ACTION_RUN || action == CAR_MENU_ACTION_FOLLOW_START ||
+        action == CAR_MENU_ACTION_MOTOR_TEST_START || action == CAR_MENU_ACTION_UART)) {
+        car_menu_error = CAR_MENU_ERROR_RUNNING;
+        car_menu_dirty = 1;
+        return;
+    }
+    if (action >= CAR_MENU_ACTION_SD_INIT && action <= CAR_MENU_ACTION_SD_EXPORT) {
+        if (action == CAR_MENU_ACTION_SD_STOP) My_SdCard_Stop();
+        else if (car_running || balance_state.running || balance_start_pending || car_menu_motor_test_active ||
+                 my_sd_recording || my_sd_busy || my_sd_exporting) car_menu_error = CAR_MENU_ERROR_RUNNING;
+        else {
+            car_uart_stream_stop();
+            if (action == CAR_MENU_ACTION_SD_INIT) My_SdCard_Init();
+            else if (action == CAR_MENU_ACTION_SD_RECORD) My_SdCard_Start();
+            else My_SdCard_Export();
+            car_menu_error = CAR_MENU_ERROR_NONE;
+        }
+        car_menu_dirty = 1;
+        return;
+    }
     if (action == CAR_MENU_ACTION_RUN) car_menu_start();
     else if (action == CAR_MENU_ACTION_STOP) car_menu_stop();
     else if (action == CAR_MENU_ACTION_FOLLOW_START) {
@@ -656,7 +716,7 @@ static void car_menu_execute_action(uint8_t action)
         car_menu_lcd_test_drawn = 0;
         car_menu_dirty = 1;
     } else if (action == CAR_MENU_ACTION_UART) {
-        if (car_running != 0) car_menu_error = CAR_MENU_ERROR_RUNNING;
+        if (car_running != 0 || my_sd_recording || my_sd_busy) car_menu_error = CAR_MENU_ERROR_RUNNING;
         else if (car_uart_stream_is_enabled() != 0) car_uart_stream_stop();
         else car_uart_stream_start();
         car_menu_dirty = 1;
@@ -918,15 +978,25 @@ static void car_menu_draw_row_item(uint16_t item_number)
     uint16_t foreground;
     uint16_t background;
     float value;
+    float speed;
+    char item_name[24];
+    const char *name;
 
     if (item == 0 || item_number < car_menu_first_visible || item_number >= car_menu_first_visible + CAR_MENU_VISIBLE_ROWS) return;
     row = item_number - car_menu_first_visible;
     y = 28 + row * 23;
     background = item_number == car_menu_selected ? RGB565_BLUE : RGB565_BLACK;
     foreground = RGB565_WHITE;
+    name = item->name;
+    if (car_menu_page == CAR_MENU_PAGE_PREVIEW_TABLE && item->id >= 1 && item->id <= CAR_PREVIEW_TABLE_SIZE) {
+        speed = balance_params.target_speed_mps - 1.0f + (item->id - 1) * 0.1f;
+        if (speed > -0.05f && speed < 0.05f) speed = 0.0f;
+        snprintf(item_name, sizeof(item_name), "%.1f M/S ROW", speed);
+        name = item_name;
+    }
     car_menu_fill(0, y, 320, 21, background);
     car_menu_text(6, y + 3, item_number == car_menu_selected ? ">" : " ", foreground, background);
-    car_menu_text(20, y + 3, item->name, foreground, background);
+    car_menu_text(20, y + 3, name, foreground, background);
     if (item->item_type == CAR_MENU_ITEM_PAGE || item->item_type == CAR_MENU_ITEM_ACTION) {
         car_menu_text(304, y + 3, ">", foreground, background);
     } else if (item->item_type == CAR_MENU_ITEM_VALUE || item->item_type == CAR_MENU_ITEM_INFO) {
@@ -1140,6 +1210,9 @@ void car_menu_task(void)
         car_menu_dirty = 1;
     }
     car_menu_process_key_scan(now);
+    if (car_menu_sd_was_running && !car_running) My_SdCard_Stop();
+    car_menu_sd_was_running = car_running;
+    My_SdCard_Task(car_running || balance_state.running || balance_start_pending || car_menu_motor_test_active);
     car_params.running = car_follow_enabled;
     __dsync();
     if (car_menu_last_running != car_running || car_menu_last_start_pending != balance_start_pending ||
@@ -1196,7 +1269,8 @@ void car_menu_display(void)
         return;
     }
     if (car_menu_page == CAR_MENU_PAGE_RUN || car_menu_page == CAR_MENU_PAGE_TELEMETRY ||
-        car_menu_page == CAR_MENU_PAGE_IMU || car_menu_page == CAR_MENU_PAGE_BALANCE || car_menu_page == CAR_MENU_PAGE_SPEED) {
+        car_menu_page == CAR_MENU_PAGE_IMU || car_menu_page == CAR_MENU_PAGE_BALANCE ||
+        car_menu_page == CAR_MENU_PAGE_SPEED || car_menu_page == CAR_MENU_PAGE_TOOLS) {
         if (car_menu_dirty != 0) {
             car_menu_draw_list();
             car_menu_last_telemetry_display_ms = now;

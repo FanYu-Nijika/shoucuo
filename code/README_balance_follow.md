@@ -2,16 +2,16 @@
 
 ## 控制链路
 
-- 正的 `TARGET SPEED M/S` 表示朝镜头前进行驶，对应负共模 PWM。当前实车前进时两轮编码器计数为负；计数显示保留该符号，换算 m/s 时统一取反，因此前进速度为正、倒退为负。速度不足时目标倾角修正为负，超速时修正为正。IMU、直立 PD、电机通道及已校正差速方向沿用原配置。
+- 正的 `TARGET SPEED M/S` 表示朝镜头前进行驶，对应负共模 PWM。当前新主板前进时两轮编码器计数为正；板级采样符号已校正，换算 m/s 不再取反，因此前进速度为正、倒退为负。速度不足时目标倾角修正为负，超速时修正为正。IMU、直立 PD、电机通道及已校正差速方向沿用原配置。
 - 左右轮每转计数固定为 1160，上电即可测速，不需要手动一圈标定，也不再读取或写入旧编码器 DFlash 第 11 页；四档控制参数照常保存。
 - ICM42688 每 2 ms 读取一次，传感器输出率为 1 kHz。加速度角由当前 X/Z 轴配置计算，俯仰角速度使用扣除标定零偏后的 Y 轴。
 - 姿态采用互补滤波：`angle = Ka_effective * accel_angle + (1 - Ka_effective) * (last_angle + gyro_rate * 0.002)`。菜单与 Flash 的 `ACC WEIGHT KA` 保留原 5 ms 定义，应用参数时换算为 `Ka_effective = 1 - (1 - Ka)^0.4`；原值 0.01 对应约 0.004012，保持滤波时间常数，换算不在每次中断里执行。
 - 直立控制每 2 ms 使用直接 PD：`PWM = -(BALANCE KP * (COMP ANGLE - TARGET ANGLE) + BALANCE KD * CONTROL RATE)`。当前 IMU 安装方向需要将 PD 总输出反号；D 项使用陀螺仪 °/s，现有 Kp/Kd、机械中值和 Flash 存档继续使用。
 - 电机 LEFT 使用 PWM1/2，RIGHT 使用 PWM3/4；每组偶数路输出正 PWM、奇数路输出负 PWM。编码器继续使用 LEFT=H7、RIGHT=H4。`BOARD_FOLLOW_TURN_PWM_SIGN` 保留实车校正的 -1。
-- 编码器每 2 ms 读取，以 `速度 = -轮周长 × (左增量 + 右增量) / (2 × 1160 × 0.002)` 换算 m/s，轮径沿用 6.5 cm。每 2 ms 使用 `filtered = 0.9 * raw + 0.1 * last_filtered` 低通。左右计数显示前进为负；视觉前瞻的 20 ms 平均计数统一反号，使其前进仍为正，原 250/20 阈值不变。速度 PI 每 20 ms 使用完整十笔滤波速度的平均值。
-- 速度 PI 每 20 ms 更新：使用直接 PI：`error = target - speed`，`I = clamp(I + Ki * error * 0.02, ANGLE LIMIT)`，`angle = FORWARD SIGN * clamp(Kp * error + I, ANGLE LIMIT)`；误差为当前请求车速减滤波车速，正误差降低目标倾角，经反号后的直立 PD 产生新前进方向的负 PWM，负误差反向修正。普通 RUN 关闭速度环，只使用直立 PD。`FOLLOW START` 立即停机，保持 STOP 2 秒，等待 RUN 实际启动后再直立保持 0.5 秒，此阶段速度环关闭，循迹差速沿用原行为。直立结束进入 SPEED_RAMP 时启用速度 PI，目标从 0 开始，在 2 秒内线性增加到所选车速（直道为菜单值、弯道固定 1.5 m/s），之后进入 ACTIVE 保持该目标；不附加启动前倾，机械中值及 Flash 存档不变。STOP 和 FOLLOW STOP 清除整个启动流程及速度积分、倾角修正。FOLLOW 默认目标 1.5 m/s；仅启动时对目标速度施加上述 2 秒渐增，速度 PI 每 20 ms 直接计算，不限制倾角输出变化速率，也不按电机饱和拒绝积分。
+- 编码器每 2 ms 读取，以 `速度 = 轮周长 × (左增量 + 右增量) / (2 × 1160 × 0.002)` 换算 m/s，轮径沿用 6.5 cm。每 2 ms 使用 `filtered = 0.9 * raw + 0.1 * last_filtered` 低通。左右计数显示前进为正；视觉前瞻改用滤波后的实际 m/s 查表，不再使用原 250/20 计数阈值。速度 PI 每 20 ms 使用完整十笔滤波速度的平均值。
+- 速度 PI 每 20 ms 更新：使用直接 PI：`error = target - speed`，`I = clamp(I + Ki * error * 0.02, ANGLE LIMIT)`，`angle = FORWARD SIGN * clamp(Kp * error + I, ANGLE LIMIT)`；误差为当前请求车速减滤波车速，正误差降低目标倾角，经反号后的直立 PD 产生新前进方向的负 PWM，负误差反向修正。普通 RUN 关闭速度环，只使用直立 PD。`FOLLOW START` 立即停机，保持 STOP 2 秒，等待 RUN 实际启动后再直立保持 0.5 秒，此阶段速度环关闭，循迹差速沿用原行为。直立结束进入 SPEED_RAMP 时启用速度 PI，目标从 0 开始，在 2 秒内线性增加到菜单设定车速，之后进入 ACTIVE 保持该目标；不附加启动前倾，机械中值及 Flash 存档不变。STOP 和 FOLLOW STOP 清除整个启动流程及速度积分、倾角修正。FOLLOW 默认目标 1.5 m/s；仅启动时对目标速度施加上述 2 秒渐增，速度 PI 每 20 ms 直接计算，不限制倾角输出变化速率，也不按电机饱和拒绝积分。
 - 摄像头直弯 PD 直接产生左右 PWM 差速。转向差速按校正后的方向分配，直立共模输出保持原样；按硬件 ±10000 PWM 的剩余空间分配差速，最终占空比允许 0～100%，电机测试恢复同一硬件范围。原有 Flash 参数和 `TURN PWM LIMIT` 继续使用。
-- 速度 PI 的目标倾角修正默认限于 ±5°，可调到 ±20°，每次 PI 更新直接应用限幅后的输出。新有效图像更新差速；丢线或图像超过 120 ms 时只清零差速，弯道状态清零、速度目标恢复菜单值，不产生零速制动跳变。`FOLLOW STOP` 关闭速度环，保留 RUN 的直立 PD；`STOP` 关闭电机并清空积分。
+- 速度 PI 的目标倾角修正默认限于 ±5°，可调到 ±20°，每次 PI 更新直接应用限幅后的输出。新有效图像更新差速；丢线或图像超过 120 ms 时只清零差速、弯道状态，速度目标保持菜单值，不产生零速制动跳变。`FOLLOW STOP` 关闭速度环，保留 RUN 的直立 PD；`STOP` 关闭电机并清空积分。
 - 新右轮按 `BOARD_BALANCE_RIGHT_PWM_TRIM` 减少 PWM，补偿机械差异；电机测试保持原始 PWM。
 
 ## PWM 负向满幅 STOP
@@ -41,7 +41,8 @@ IMU 零偏记录独立保存在 DFlash 第 10 页，不随四档直立参数切�
 - SPEED：保留速度 KP/KI、ANGLE LIMIT、目标速度、开关、速度及左右 2 ms 计数诊断；两轮 `COUNTS/REV` 固定显示 1160，已移除手动一圈标定入口。Kp/Ki 继续允许负数。
 - BALANCE：`BALANCE KP/KD`、`MIDDLE ANGLE`、`ACC WEIGHT KA`、目标/实际倾角和直立输出。
 - RUN CONTROL：`TARGET SPEED M/S`（0～3 m/s）、`SPEED ENABLE` 和 `FOLLOW ACTIVE`。正的速度目标对应前进；速度环调整的是小幅目标倾角，不直接叠加 PWM。
-- 弯道减速直接复用 `car_curve_mode`：入弯目标固定为 1.5 m/s，出弯恢复菜单 `TARGET SPEED M/S`，不增加新的状态机或减速系数。原有启动阶段仍按 2 秒渐增比例施加所选目标；菜单值低于 1.5 时，弯道仍按指定固定值 1.5 m/s。
+- 直道和弯道均使用菜单 `TARGET SPEED M/S`，不按弯道状态覆盖目标速度；原有启动阶段仍按 2 秒渐增比例施加菜单目标。
+- VISION → PREVIEW TABLE：以速度环菜单 `TARGET SPEED M/S` 为基准，从目标 -1.0 到目标 +0.5 m/s，每隔 0.1 m/s 一项，共 16 个可编辑前瞻行（3～117）。标签显示对应的实际速度，修改目标后整张表的速度范围一起移动，行值保持不变。运行时使用 `SPEED FILTERED` 按最近档位查表，低于或高于范围分别使用首项或末项；直道、弯道均更新。停车或测速无效时使用 `FALLBACK ROW`。默认行值依次为 85～70，速度越快前瞻行越小；各项可自由修改，不强制单调。通过 RUN CONTROL 的 SAVE FLASH 随四档参数保存、切换和复制；旧 V2～V5 循迹存档迁移时保留原参数，并以原前瞻行生成递减表。
 - STEERING：直线/弯道 `KP/KD`、方差切换阈值、`TURN PWM LIMIT`、`TURN DIRECTION` 和实际差速。`TURN PWM LIMIT` 默认值为 `1400 PWM`。
 - IMU：手动标定、Flash 有效状态、标定来源、静止/微调状态、原始三轴数据和零偏。
 

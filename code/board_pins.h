@@ -62,9 +62,9 @@
 #define BOARD_BALANCE_GYRO_SIGN            (1)
 #define BOARD_BALANCE_LEFT_MOTOR_SIGN      (1)
 #define BOARD_BALANCE_RIGHT_MOTOR_SIGN     (1)
-// 保留当前实车采样极性；前进时计数为负，测速换算统一取反得到正的 m/s。
-#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (-1)
-#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (1)
+// 按实车反馈将两路采样值同时反号，左右通道保持原对应关系。
+#define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)
+#define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
 // 反向行驶使用负 PWM；只改变速度环的目标倾角方向，保留 IMU 与直立 PD 的物理负反馈。
 #define BOARD_FOLLOW_FORWARD_PWM_SIGN      (-1)
 // 轮通道不交换，右转的物理偏航方向不随车头反转，因此保留已校正的差速符号。
@@ -133,7 +133,7 @@
 #define BOARD_BATTERY_ADC_PIN              (ADC1_CH8_A24)
 #define BOARD_ANALOG_AN0_PIN               (ADC0_CH0_A0)
 
-// TF-015 SD 卡座使用 SPI0 的这组独立引脚。
+// TF-015 SD 卡座使用 SPI1；片选 P11.11 由 GPIO 控制，避免占用菜单按键 P20.8。
 #define BOARD_SD_SPI                       (SPI_1)
 #define BOARD_SD_SCLK_PIN                  (SPI1_SCLK_P10_2)
 #define BOARD_SD_MOSI_PIN                  (SPI1_MOSI_P10_3)

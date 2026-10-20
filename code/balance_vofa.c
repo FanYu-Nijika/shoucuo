@@ -108,7 +108,7 @@ static void balance_vofa_receive(void)
     }
 }
 
-static void balance_vofa_send(uint32 now_ms)
+static void balance_vofa_send(void)
 {
     balance_state_t state;
     uint32 interrupt_state;
@@ -117,14 +117,7 @@ static void balance_vofa_send(uint32 now_ms)
     interrupt_state = interrupt_global_disable();
     state = balance_state;
     interrupt_global_enable(interrupt_state);
-    /* Keep the original six channels first so existing scope plots keep their meaning. */
-    // printf("speed:%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%lu,%.3f,%.3f,%.3f,%.3f,%.3f,%.2f,%.0f,%.0f,%ld,%ld,%d,%d,%u,%u,%u\n",
-    //        state.speed_target_applied_mps, state.speed_filtered_mps, state.speed_angle_applied,
-    //        state.target_angle, state.angle, state.balance_output, (unsigned long)now_ms,
-    //        state.speed_raw_mps, state.speed_feedback_mps, state.speed_error_mps, state.speed_p_angle,
-    //        state.speed_integral_angle, state.gyro_rate, state.turn_pwm_command, state.turn_output,
-    //        (long)state.left_count, (long)state.right_count, state.left_pwm, state.right_pwm,
-    //        (unsigned)state.speed_pid_active, (unsigned)state.running, (unsigned)state.fault);
+    printf("%.3f\n", state.speed_filtered_mps);
 }
 
 void balance_vofa_task(void)
@@ -150,5 +143,5 @@ void balance_vofa_task(void)
     balance_vofa_receive();
     if (now_ms - last_send_ms < BALANCE_VOFA_PERIOD_MS) return;
     last_send_ms = now_ms;
-    balance_vofa_send(now_ms);
+    balance_vofa_send();
 }

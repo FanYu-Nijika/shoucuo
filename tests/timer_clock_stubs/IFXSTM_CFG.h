@@ -1,4 +1,0 @@
-#ifndef TIMER_CLOCK_IFXSTM_CFG_H
-#define TIMER_CLOCK_IFXSTM_CFG_H
-
-#endif

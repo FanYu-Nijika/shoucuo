@@ -1,6 +1,6 @@
 # 控制链路自动策略审计（2026-10-11）
 
-本次已删除视觉失效／图像超过 120 ms 时把循迹速度目标设为 0 的逻辑。当前直道速度目标取菜单设定值，弯道复用已有 car_curve_mode 固定为 1.5 m/s。视觉失效会清转向及弯道模式、恢复菜单目标，不新增丢线零速制动。
+本次已删除视觉失效／图像超过 120 ms 时把循迹速度目标设为 0 的逻辑。当前直道和弯道速度目标均取菜单设定值。视觉失效会清转向及弯道模式、保持菜单目标，不新增丢线零速制动。
 
 本次也删除了 VOFA 串口命令拒绝负直立 Kp/Kd 的条件，与菜单及底层有限数校验保持一致。
 
@@ -12,9 +12,9 @@
 | 视觉失效清转向 | 无效结果或超过 120 ms 时，差速请求归零，同时重置弯道模式、参数混合进度及 D 历史；恢复后的第一帧 D 为 0。速度目标保持菜单设定。 | `car.c:car_track_update`、`car_reset_turn` |
 | 直道／弯道转向变参 | 曲率超过进入阈值切到弯道，低于退出阈值切回直道。切换时重置 D，每个新视觉结果改变 0.5 的混合权重，两帧完成 Kp/Kd 过渡。 | `car.c:car_track_update` |
 | 转向微分的时间条件 | 使用误差差分乘以 `20 / 帧间隔ms`。首次结果、D 历史重置后、帧间隔为 0 或超过 100 ms 时 D 为 0。两次有效新帧之间保持上次差速请求。 | `car.c:car_track_update` |
-| 动态前瞻 | 负的前进编码器计数先反号为正的 20 ms 平均计数；超过 250 后，每增加 20 计数把前瞻行减 1；进入弯道时冻结前瞻，退出后恢复按速度调整。改变的是视觉误差采样位置。 | `image.c:Update_Dynamic_Preview_Row` |
+| 动态前瞻 | 用实际滤波速度查 16 项前瞻表，速度节点为菜单目标 -1.0～目标 +0.5 m/s、步长 0.1 m/s，按最近档位取行，超范围使用端点。每行可在 VISION → PREVIEW TABLE 独立设置并随档保存；直弯均更新，停车或测速无效用 FALLBACK ROW。改变的是视觉误差采样位置。 | `image.c:Update_Dynamic_Preview_Row` |
 | FOLLOW 直立阶段也会转向 | START 先停机等 2 秒，实际 RUN 启动后直立保持 0.5 秒。速度 PI 此时关闭，但视觉转向计算和差速输出已经启用。 | `car.c:car_track_update` |
-| FOLLOW 启动速度渐增 | 直立之后进入 SPEED_RAMP，开启速度 PI，目标在 2 秒内从 0 线性增加到当前所选车速（直道菜单值、弯道 1.5 m/s），再进入 ACTIVE。没有额外启动倾角，渐增结束保留积分；这是用户在 2026-10-12 指定的启动流程。 | `car.c:car_track_update` |
+| FOLLOW 启动速度渐增 | 直立之后进入 SPEED_RAMP，开启速度 PI，目标在 2 秒内从 0 线性增加到菜单设定车速，再进入 ACTIVE。没有额外启动倾角，渐增结束保留积分；这是用户在 2026-10-12 指定的启动流程。 | `car.c:car_track_update` |
 | 异常丢失 RUN 后自动重启 | FOLLOW 未退出且 `car_running` 意外变成 0、没有故障时进入 WAIT_RUN，再次请求 RUN，启动后重新直立等待。明确 STOP 会清 FOLLOW 状态，不走此路径。 | `car.c:car_track_update`、`balance_runtime.c:balance_runtime_update_2ms` |
 | 故障退出 FOLLOW | FOLLOW 时检测到非零故障会取消循迹和速度 PI，并清积分；此调用本身保留直立运行，不等同于完整 STOP。 | `car.c:car_track_update`、`car_follow_stop` |
 | PWM 负向满幅完整 STOP | FOLLOW START 按下后前 5 秒不检测；此后且速度控制启用时，仅左右两轮最终 PWM 同时达到 -10000，立即在当前 2 ms 周期执行完整 STOP，故障号 7、菜单 OSCERR。两轮 +10000、正负相反或仅一轮 -10000 不触发；无 100 ms 持续判据。5 秒从按键时刻计算，等待及起立阶段均计入；新的 FOLLOW START 重新开始宽限。触发时命令不写入电机，并清 FOLLOW、积分和待启动请求。普通 RUN、FOLLOW 起立阶段及独立电机测试沿用原行为。 | `balance_control.c:balance_update_2ms` → `balance_runtime.c:balance_runtime_update_2ms` |

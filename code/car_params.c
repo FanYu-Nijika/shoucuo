@@ -1,23 +1,33 @@
 #include "car_params.h"
 
+#include <stddef.h>
 #include <string.h>
 
 #include "zf_common_headfile.h"
 
 #define CAR_PARAMS_FLASH_SECTOR          (0)
 #define CAR_PARAMS_FLASH_PAGE            (8)
-#define CAR_PARAMS_FLASH_FORMAT_VERSION  (5)
+#define CAR_PARAMS_FLASH_FORMAT_VERSION  (6)
 #define CAR_PARAMS_FLASH_LEGACY_VERSION  (2)
 #define CAR_PARAMS_FLASH_PREVIOUS_VERSION (3)
 #define CAR_PARAMS_FLASH_V4_VERSION      (4)
+#define CAR_PARAMS_FLASH_V5_VERSION      (5)
 #define CAR_PARAMS_FLASH_PROFILE_COUNT   (4)
 #define CAR_PARAMS_FLASH_PROFILE_START   (2)
 #define CAR_PARAMS_FLASH_PROFILE_WORDS   ((sizeof(car_params_t) + 3) / 4)
+/* The old Flash stride included the struct's trailing padding up to a word boundary. */
+#define CAR_PARAMS_FLASH_OLD_PROFILE_BYTES (((offsetof(car_params_t, preview_rows) + 3) / 4) * 4)
+#define CAR_PARAMS_FLASH_OLD_PROFILE_WORDS (CAR_PARAMS_FLASH_OLD_PROFILE_BYTES / 4)
+
+typedef char car_params_flash_capacity_check[CAR_PARAMS_FLASH_PROFILE_START +
+    CAR_PARAMS_FLASH_PROFILE_COUNT * CAR_PARAMS_FLASH_PROFILE_WORDS <= EEPROM_PAGE_LENGTH ? 1 : -1];
 
 static void car_params_flash_factory_init(void);
 
 static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_zero)
 {
+    uint8_t index;
+
     if (params == 0) return;
     if (params->base_speed < 0 || params->base_speed > 10000) params->base_speed = car_default_params.base_speed;
     if (params->curve_slowdown < -1000 || params->curve_slowdown > 1000)
@@ -51,6 +61,10 @@ static void car_params_sanitize_curve_params(car_params_t *params, uint8_t fill_
     }
     if (params->control_row_near < 3 || params->control_row_near > MT9V03X_H - 3)
         params->control_row_near = car_default_params.control_row_near;
+    for (index = 0; index < CAR_PREVIEW_TABLE_SIZE; index++) {
+        if (params->preview_rows[index] < 3 || params->preview_rows[index] > MT9V03X_H - 3)
+            params->preview_rows[index] = car_default_params.preview_rows[index];
+    }
 }
 
 /* Defaults stay in read-only memory; runtime parameters live in shared RAM. */
@@ -135,7 +149,8 @@ const car_params_t car_default_params = {
     // .deadzone = 15,
     .left_direction = -1,
     .right_direction = -1,
-    .running = 0
+    .running = 0,
+    .preview_rows = {85, 84, 83, 82, 81, 80, 79, 78, 77, 76, 75, 74, 73, 72, 71, 70}
 };
 
 #pragma section all "cpu1_dsram"
@@ -185,13 +200,13 @@ static uint8_t car_params_flash_buffer_empty(void)
     return all_ff != 0 || all_zero != 0;
 }
 
-static uint8_t car_params_flash_profile_empty(uint32_t offset)
+static uint8_t car_params_flash_profile_empty(uint32_t offset, uint32_t profile_words)
 {
     uint32_t index;
     uint8_t all_ff = 1;
     uint8_t all_zero = 1;
 
-    for (index = 0; index < CAR_PARAMS_FLASH_PROFILE_WORDS; index++) {
+    for (index = 0; index < profile_words; index++) {
         if (flash_union_buffer[offset + index].uint32_type != 0xFFFFFFFF) all_ff = 0;
         if (flash_union_buffer[offset + index].uint32_type != 0) all_zero = 0;
     }
@@ -199,70 +214,39 @@ static uint8_t car_params_flash_profile_empty(uint32_t offset)
     return all_ff != 0 || all_zero != 0;
 }
 
-static void car_params_flash_migrate_v2(void)
+static void car_params_flash_migrate(uint32_t version)
 {
     uint8_t gear;
-    uint32_t offset;
+    uint8_t index;
+    uint32_t old_offset;
+    uint32_t new_offset;
+    int16_t preview_row;
     car_params_t stored_params;
 
-    for (gear = 1; gear <= CAR_PARAMS_FLASH_PROFILE_COUNT; gear++) {
-        offset = car_params_flash_profile_offset(gear);
-        if (car_params_flash_profile_empty(offset) != 0) {
+    /* New slots are larger, so migrate from the last gear to avoid clobbering unread legacy slots. */
+    for (gear = CAR_PARAMS_FLASH_PROFILE_COUNT; gear > 0; gear--) {
+        old_offset = CAR_PARAMS_FLASH_PROFILE_START + (gear - 1) * CAR_PARAMS_FLASH_OLD_PROFILE_WORDS;
+        new_offset = car_params_flash_profile_offset(gear);
+        if (car_params_flash_profile_empty(old_offset, CAR_PARAMS_FLASH_OLD_PROFILE_WORDS) != 0) {
             stored_params = car_default_params;
         } else {
-            memcpy(&stored_params, &flash_union_buffer[offset], sizeof(car_params_t));
+            stored_params = car_default_params;
+            memcpy(&stored_params, &flash_union_buffer[old_offset], CAR_PARAMS_FLASH_OLD_PROFILE_BYTES);
+        }
+        if (version == CAR_PARAMS_FLASH_LEGACY_VERSION || version == CAR_PARAMS_FLASH_PREVIOUS_VERSION)
             stored_params.curvature_scale = car_default_params.curvature_scale;
-            car_params_sanitize_curve_params(&stored_params, 1);
+        car_params_sanitize_curve_params(&stored_params, version == CAR_PARAMS_FLASH_LEGACY_VERSION);
+        /* v2-v4 used an obsolete base-speed field; v5 contains the current value. */
+        if (version != CAR_PARAMS_FLASH_V5_VERSION) stored_params.base_speed = car_default_params.base_speed;
+        /* Preserve the old selected row at target speed, then step one row per 0.1 m/s. */
+        for (index = 0; index < CAR_PREVIEW_TABLE_SIZE; index++) {
+            preview_row = stored_params.control_row_near + 10 - index;
+            if (preview_row < 3) preview_row = 3;
+            if (preview_row > MT9V03X_H - 3) preview_row = MT9V03X_H - 3;
+            stored_params.preview_rows[index] = preview_row;
         }
-        stored_params.base_speed = car_default_params.base_speed;
         stored_params.running = 0;
-        memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
-    }
-    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
-    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-}
-
-static void car_params_flash_migrate_v3(void)
-{
-    uint8_t gear;
-    uint32_t offset;
-    car_params_t stored_params;
-
-    for (gear = 1; gear <= CAR_PARAMS_FLASH_PROFILE_COUNT; gear++) {
-        offset = car_params_flash_profile_offset(gear);
-        if (car_params_flash_profile_empty(offset) != 0) {
-            stored_params = car_default_params;
-        } else {
-            memcpy(&stored_params, &flash_union_buffer[offset], sizeof(car_params_t));
-            stored_params.curvature_scale = car_default_params.curvature_scale;
-            car_params_sanitize_curve_params(&stored_params, 0);
-        }
-        stored_params.base_speed = car_default_params.base_speed;
-        stored_params.running = 0;
-        memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
-    }
-    flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
-    flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-}
-
-static void car_params_flash_migrate_v4(void)
-{
-    uint8_t gear;
-    uint32_t offset;
-    car_params_t stored_params;
-
-    for (gear = 1; gear <= CAR_PARAMS_FLASH_PROFILE_COUNT; gear++) {
-        offset = car_params_flash_profile_offset(gear);
-        if (car_params_flash_profile_empty(offset) != 0) {
-            stored_params = car_default_params;
-        } else {
-            memcpy(&stored_params, &flash_union_buffer[offset], sizeof(car_params_t));
-            car_params_sanitize_curve_params(&stored_params, 0);
-        }
-        /* V4 stored 2400 in an unused field; using it as direct PWM would be unsafe. */
-        stored_params.base_speed = car_default_params.base_speed;
-        stored_params.running = 0;
-        memcpy(&flash_union_buffer[offset], &stored_params, sizeof(car_params_t));
+        memcpy(&flash_union_buffer[new_offset], &stored_params, sizeof(car_params_t));
     }
     flash_union_buffer[1].uint32_type = CAR_PARAMS_FLASH_FORMAT_VERSION;
     flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
@@ -275,11 +259,13 @@ uint8_t car_params_flash_load(void)
     if (car_params_flash_buffer_empty() != 0) {
         car_params_flash_factory_init();
     } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_LEGACY_VERSION) {
-        car_params_flash_migrate_v2();
+        car_params_flash_migrate(CAR_PARAMS_FLASH_LEGACY_VERSION);
     } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_PREVIOUS_VERSION) {
-        car_params_flash_migrate_v3();
+        car_params_flash_migrate(CAR_PARAMS_FLASH_PREVIOUS_VERSION);
     } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_V4_VERSION) {
-        car_params_flash_migrate_v4();
+        car_params_flash_migrate(CAR_PARAMS_FLASH_V4_VERSION);
+    } else if (flash_union_buffer[1].uint32_type == CAR_PARAMS_FLASH_V5_VERSION) {
+        car_params_flash_migrate(CAR_PARAMS_FLASH_V5_VERSION);
     } else if (flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION) {
         car_params_flash_factory_init();
     }
@@ -300,7 +286,7 @@ void car_params_flash_switch(uint8_t gear)
     if (profile_offset + CAR_PARAMS_FLASH_PROFILE_WORDS > EEPROM_PAGE_LENGTH) return;
 
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
-    if (car_params_flash_profile_empty(profile_offset) != 0) {
+    if (car_params_flash_profile_empty(profile_offset, CAR_PARAMS_FLASH_PROFILE_WORDS) != 0) {
         stored_params = car_default_params;
     } else {
         memcpy(&stored_params, &flash_union_buffer[profile_offset], sizeof(car_params_t));
@@ -346,7 +332,7 @@ uint8_t car_params_flash_copy(uint8_t source, uint8_t target)
     target_offset = car_params_flash_profile_offset(target);
     flash_read_page_to_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE);
     if (flash_union_buffer[1].uint32_type != CAR_PARAMS_FLASH_FORMAT_VERSION ||
-        car_params_flash_profile_empty(source_offset)) return 0;
+        car_params_flash_profile_empty(source_offset, CAR_PARAMS_FLASH_PROFILE_WORDS)) return 0;
     memcpy(&stored_params, &flash_union_buffer[source_offset], sizeof(stored_params));
     memcpy(&flash_union_buffer[target_offset], &stored_params, sizeof(stored_params));
     if (flash_write_page_from_buffer(CAR_PARAMS_FLASH_SECTOR, CAR_PARAMS_FLASH_PAGE) != 0) return 0;

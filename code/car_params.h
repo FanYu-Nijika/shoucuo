@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 
+#define CAR_PREVIEW_TABLE_SIZE    (16)
 #define CAR_PATH_WEIGHT_FAR       (0.40)
 #define CAR_PATH_WEIGHT_MIDDLE    (1.00)
 #define CAR_PATH_WEIGHT_NEAR      (1.50)
@@ -109,6 +110,7 @@ typedef struct {
     int8_t left_direction;
     int8_t right_direction;
     uint8_t running;
+    uint16_t preview_rows[CAR_PREVIEW_TABLE_SIZE];
 } car_params_t;
 
 extern const car_params_t car_default_params;

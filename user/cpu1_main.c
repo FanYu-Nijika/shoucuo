@@ -36,6 +36,8 @@
 #include "zf_common_headfile.h"
 #include "image.h"
 #include "car_shared.h"
+#include "my_imagetransfer.h"
+#include "car.h"
 #pragma section all "cpu1_dsram"
 // 将本语句与#pragma section all restore语句之间的全局变量都放在CPU1的RAM中
 
@@ -99,6 +101,9 @@ void core1_main(void)
             result.frame_sequence = frame_sequence;
             result.capture_time_ms = capture_time_ms;
             result.processing_time_us = processing_us;
+
+            /* Store before the next image overwrites this frame's boundary arrays. */
+            if (car_running && my_sd_recording) My_SdCard_Save(&car_binary_frames[(uint8_t)selected][0][0], &result);
 
             if (processing_us > car_vision_max_us) car_vision_max_us = processing_us;
             if (car_result_ready != 0) {

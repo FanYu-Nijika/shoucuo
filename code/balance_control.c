@@ -552,8 +552,8 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
     balance_state.right_count = right_count;
     left_count_sum += left_count;
     right_count_sum += right_count;
-    /* Forward counts are negative on this car; keep them signed and convert forward speed to positive m/s. */
-    balance_state.speed_raw_mps = -wheel_circumference_m * (left_count + right_count) /
+    /* Board-level signs already make forward counts positive; do not reverse them again here. */
+    balance_state.speed_raw_mps = wheel_circumference_m * (left_count + right_count) /
         (2.0f * BALANCE_ENCODER_COUNTS_PER_REV * balance_dt_s);
     if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f;
     balance_state.speed_filtered_mps += speed_filter_weight * (balance_state.speed_raw_mps - balance_state.speed_filtered_mps);
@@ -561,8 +561,8 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
     speed_feedback_sum += balance_state.speed_filtered_mps;
     if (++encoder_sample_phase < 10) return;
     encoder_sample_phase = 0;
-    /* Vision needs forward-positive counts; keep the existing 20 ms window and preview threshold units. */
-    balance_state.encoder_average_count = -(left_count_sum + right_count_sum) / 2;
+    /* Use the same forward-positive convention for vision and physical speed. */
+    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
     left_count_sum = 0;
     right_count_sum = 0;
     balance_update_speed_20ms(speed_feedback_sum / 10.0f);

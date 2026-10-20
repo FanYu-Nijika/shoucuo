@@ -188,9 +188,7 @@ void car_track_update(float error, float curvature, uint8 valid, uint8 new_resul
         balance_set_follow_command(0.0f, 0.0f, 0.0f, 0.0f);
         return;
     }
-    /* Reuse the existing curve flag: one fixed cornering speed, otherwise the menu speed. */
     target_speed_mps = balance_params.target_speed_mps;
-    if (car_curve_mode) target_speed_mps = 1.5f;
     /* Start PI at zero target after upright hold; ramp its reference, not its output or gains. */
     if (car_follow_status == CAR_FOLLOW_RUN_UPRIGHT) target_speed_mps = 0.0f;
     elapsed_ms = now_ms - follow_stage_started_ms;
