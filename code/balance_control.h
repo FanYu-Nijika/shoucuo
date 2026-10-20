@@ -58,7 +58,7 @@ typedef struct {
     float turn_output;
     int32_t left_count; /* Latest signed 2 ms count, also used for physical velocity. */
     int32_t right_count;
-    int32_t encoder_average_count; /* Forward-positive 20 ms mean for vision; displayed wheel counts keep their raw sign. */
+    int32_t encoder_average_count; /* Camera-forward-positive 20 ms count window; wheel counts keep chassis signs. */
     uint32_t left_counts_per_rev;
     uint32_t right_counts_per_rev;
     uint16_t control_period_ms;
@@ -104,7 +104,7 @@ uint8_t balance_params_are_valid(const balance_params_t *params);
 void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count);
 /* RUN and the FOLLOW upright hold leave speed PI off; tracking enables it separately from SPEED ENABLE. */
 void balance_set_speed_control_active(uint8_t active);
-/* FOLLOW enables the negative full-duty STOP after its startup grace period. */
+/* FOLLOW enables camera-forward full-duty STOP after its startup grace period. */
 void balance_set_oscillation_detection(uint8_t enabled);
 /* Blend the launch target with the normal speed-loop target without a reference-angle step. */
 void balance_set_follow_command(float target_speed_mps, float turn_pwm, float lean_angle, float lean_weight);

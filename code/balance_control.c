@@ -552,8 +552,8 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
     balance_state.right_count = right_count;
     left_count_sum += left_count;
     right_count_sum += right_count;
-    /* Board-level signs already make forward counts positive; do not reverse them again here. */
-    balance_state.speed_raw_mps = wheel_circumference_m * (left_count + right_count) /
+    /* Keep wheel diagnostics in the chassis frame, but make velocity positive toward the camera. */
+    balance_state.speed_raw_mps = BOARD_FOLLOW_TRAVEL_SIGN * wheel_circumference_m * (left_count + right_count) /
         (2.0f * BALANCE_ENCODER_COUNTS_PER_REV * balance_dt_s);
     if (!balance_is_finite(balance_state.speed_filtered_mps)) balance_state.speed_filtered_mps = 0.0f;
     balance_state.speed_filtered_mps += speed_filter_weight * (balance_state.speed_raw_mps - balance_state.speed_filtered_mps);
@@ -561,8 +561,8 @@ void balance_sample_encoders_2ms(int16_t left_count, int16_t right_count)
     speed_feedback_sum += balance_state.speed_filtered_mps;
     if (++encoder_sample_phase < 10) return;
     encoder_sample_phase = 0;
-    /* Use the same forward-positive convention for vision and physical speed. */
-    balance_state.encoder_average_count = (left_count_sum + right_count_sum) / 2;
+    /* Vision uses the same camera-forward convention as the speed PI. */
+    balance_state.encoder_average_count = BOARD_FOLLOW_TRAVEL_SIGN * (left_count_sum + right_count_sum) / 2;
     left_count_sum = 0;
     right_count_sum = 0;
     balance_update_speed_20ms(speed_feedback_sum / 10.0f);
@@ -679,9 +679,10 @@ void balance_update_2ms(float accel_angle, float gyro_rate, uint8_t valid, uint8
             balance_cancel_follow_command();
             return;
         }
-        /* After FOLLOW's grace period, only simultaneous negative full duty requires STOP. */
+        /* Follow the camera-facing drive polarity so reversing travel keeps the same full-duty protection. */
         if (speed_control_active && oscillation_detection_enabled &&
-            balance_state.left_pwm <= -10000 && balance_state.right_pwm <= -10000) {
+            balance_state.left_pwm * BOARD_FOLLOW_FORWARD_PWM_SIGN >= 10000 &&
+            balance_state.right_pwm * BOARD_FOLLOW_FORWARD_PWM_SIGN >= 10000) {
             balance_state.running = 0;
             balance_clear_outputs();
             balance_state.fault = BALANCE_FAULT_OSCILLATION;

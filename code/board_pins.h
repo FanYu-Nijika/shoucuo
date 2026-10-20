@@ -65,8 +65,10 @@
 // 按实车反馈将两路采样值同时反号，左右通道保持原对应关系。
 #define BOARD_BALANCE_LEFT_ENCODER_SIGN    (1)
 #define BOARD_BALANCE_RIGHT_ENCODER_SIGN   (-1)
-// 反向行驶使用负 PWM；只改变速度环的目标倾角方向，保留 IMU 与直立 PD 的物理负反馈。
-#define BOARD_FOLLOW_FORWARD_PWM_SIGN      (-1)
+// 镜头朝车身原后方时取 -1，恢复原朝向时取 +1；速度始终以镜头朝向为正。
+#define BOARD_FOLLOW_TRAVEL_SIGN           (-1)
+// 原朝向前进使用负 PWM；只反转速度环目标倾角，保留 IMU 与直立 PD 的物理负反馈。
+#define BOARD_FOLLOW_FORWARD_PWM_SIGN      (-BOARD_FOLLOW_TRAVEL_SIGN)
 // 轮通道不交换，右转的物理偏航方向不随车头反转，因此保留已校正的差速符号。
 #define BOARD_FOLLOW_TURN_PWM_SIGN         (-1)
 #define BOARD_BALANCE_RIGHT_PWM_TRIM       (0)
